@@ -72,7 +72,7 @@ export class AuthService {
     };
   }
 
-  async logout(token: string) {
+ async logout(token: string) {
   await this.prisma.tokenBlackList.create({
     data: {
       token,

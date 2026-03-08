@@ -12,6 +12,7 @@ import {
 
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('users')
@@ -43,12 +44,12 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() data: CreateUserDto,
-  ) {
-    return this.usersService.update(Number(id), data);
-  }
+update(
+  @Param('id') id: string,
+  @Body() data: UpdateUserDto,
+) {
+  return this.usersService.update(Number(id), data);
+}
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')

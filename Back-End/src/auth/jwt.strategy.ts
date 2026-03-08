@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Request } from 'express';
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -11,28 +12,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET,
+      secretOrKey: process.env.JWT_SECRET as string,
       passReqToCallback: true,
-    });
+    } as any); // força a tipagem correta
   }
 
-  async validate(req: any, payload: any) {
+async validate(req: Request, payload: any) {
 
-    const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = req.headers.authorization?.replace('Bearer ', '');
 
-    const isBlacklisted = await this.prisma.tokenBlackList.findFirst({
-      where: {
-        token: token,
-      },
-    });
+  const blacklisted = await this.prisma.tokenBlackList.findFirst({
+    where: { token },
+  });
 
-    if (isBlacklisted) {
-      throw new UnauthorizedException('Token inválido');
-    }
-
-    return {
-      userId: payload.sub,
-      email: payload.email,
-    };
+  if (blacklisted) {
+    throw new UnauthorizedException('Token revogado');
   }
+
+  return {
+    userId: payload.sub,
+    email: payload.email,
+  };
+}
 }

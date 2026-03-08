@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { encrypt } from '../common/utils/crypto.util';
 import { isValidCPF } from './validators/cpf.validator';
+import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -62,7 +63,7 @@ export class UsersService {
 }
 
 
-async update(id: number, data: CreateUserDto) {
+async update(id: number, data: UpdateUserDto) {
 
   const user = await this.prisma.user.findUnique({
     where: { id },
@@ -72,25 +73,22 @@ async update(id: number, data: CreateUserDto) {
     throw new BadRequestException('Usuário não encontrado');
   }
 
-  const senhaHash = await bcrypt.hash(data.senha, 10);
-  const cpfEncrypted = encrypt(data.cpf);
-  const cpfHash = await bcrypt.hash(data.cpf, 10);
-
   const updated = await this.prisma.user.update({
     where: { id },
     data: {
-      nome: data.nome,
-      email: data.email,
-      senhaHash,
-      cpfEncrypted,
-      cpfHash,
-      telefone: data.telefone,
+      ...(data.nome && { nome: data.nome }),
+      ...(data.email && { email: data.email }),
+      ...(data.telefone && { telefone: data.telefone }),
+      ...(data.avatarUrl && { avatarUrl: data.avatarUrl }),
     },
   });
 
-  const { senhaHash: s, cpfHash: c, cpfEncrypted: e, ...safe } = updated;
+  const { senhaHash, cpfHash, cpfEncrypted, ...safe } = updated;
+
   return safe;
 }
+
+
 
 async remove(id: number) {
 
