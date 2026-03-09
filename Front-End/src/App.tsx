@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 import Home from './components/Home';
 import Login from './components/Login';
 import Signup from './components/Signup';
@@ -18,12 +19,25 @@ import RegistroMOPP from './components/RegistroMOPP';
 import RegistroRNTRC from './components/RegistroRNTRC';
 import DocumentosVeiculo from './components/DocumentosVeiculo';
 
-type Screen = 'home' | 'login' | 'signup' | 'dashboard' | 'profile' | 'editprofile' | 'postos' | 'abastecimento' | 'registromanual' | 'documentos' | 'docsmotorista' | 'docspendentes' | 'metodoregistro' | 'camera' | 'registrocnh' | 'registromopp' | 'registrorntrc' | 'docsveiculo';
+type Screen =
+  | 'home' | 'login' | 'signup' | 'dashboard' | 'profile' | 'editprofile'
+  | 'postos' | 'abastecimento' | 'registromanual' | 'documentos'
+  | 'docsmotorista' | 'docspendentes' | 'metodoregistro' | 'camera'
+  | 'registrocnh' | 'registromopp' | 'registrorntrc' | 'docsveiculo';
+
 type DocType = 'CNH' | 'MOPP' | 'RNTRC' | null;
 
 export default function App() {
+  const { user } = useAuth();
   const [screen, setScreen] = useState<Screen>('home');
   const [selectedDoc, setSelectedDoc] = useState<DocType>(null);
+
+  // Auto-redirect to dashboard if session exists
+  useEffect(() => {
+    if (user && screen === 'home') {
+      setScreen('dashboard');
+    }
+  }, [user]);
 
   const goToMetodo = (doc: DocType) => {
     setSelectedDoc(doc);
@@ -33,7 +47,11 @@ export default function App() {
   const goToDigitarManual = () => {
     if (selectedDoc === 'CNH') setScreen('registrocnh');
     else if (selectedDoc === 'MOPP') setScreen('registromopp');
-    else setScreen('registrorntrc'); // RNTRC
+    else setScreen('registrorntrc');
+  };
+
+  const handleLogout = () => {
+    setScreen('home');
   };
 
   return (
@@ -41,8 +59,8 @@ export default function App() {
       <div className="phone-frame">
         {screen === 'home' && <Home onLogin={() => setScreen('login')} onSignup={() => setScreen('signup')} />}
         {screen === 'login' && <Login onBack={() => setScreen('home')} onForgotPassword={() => alert('Funcionalidade em breve!')} onLogin={() => setScreen('dashboard')} />}
-        {screen === 'signup' && <Signup onBack={() => setScreen('home')} />}
-        {screen === 'dashboard' && <Dashboard onLogout={() => setScreen('home')} onProfile={() => setScreen('profile')} onPostos={() => setScreen('postos')} onAbastecimento={() => setScreen('abastecimento')} onDocumentos={() => setScreen('documentos')} />}
+        {screen === 'signup' && <Signup onBack={() => setScreen('home')} onSuccess={() => setScreen('login')} />}
+        {screen === 'dashboard' && <Dashboard onLogout={handleLogout} onProfile={() => setScreen('profile')} onPostos={() => setScreen('postos')} onAbastecimento={() => setScreen('abastecimento')} onDocumentos={() => setScreen('documentos')} />}
         {screen === 'profile' && <Profile onBack={() => setScreen('dashboard')} onEditProfile={() => setScreen('editprofile')} />}
         {screen === 'editprofile' && <EditProfile onBack={() => setScreen('profile')} />}
         {screen === 'postos' && <PostosPrecos onBack={() => setScreen('dashboard')} />}

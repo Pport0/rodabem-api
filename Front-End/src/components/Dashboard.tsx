@@ -1,3 +1,6 @@
+import { useAuth } from '../AuthContext';
+import { apiLogout } from '../api';
+
 interface DashboardProps {
   onLogout?: () => void;
   onProfile?: () => void;
@@ -7,6 +10,15 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onLogout, onProfile, onPostos, onAbastecimento, onDocumentos }: DashboardProps) {
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try { await apiLogout(); } catch (_) {}
+    logout();
+    onLogout?.();
+  };
+
+  const initial = user?.nome ? user.nome.charAt(0).toUpperCase() : 'A';
   return (
     <div className="screen dashboard-screen">
       {/* Orange Header */}
@@ -22,7 +34,7 @@ export default function Dashboard({ onLogout, onProfile, onPostos, onAbastecimen
         <img src="/RB.jpg" alt="RB" className="header-logo-rb-img" />
 
         <button className="dash-avatar-btn" onClick={onProfile} aria-label="Perfil">
-          <span className="dash-avatar-letter">A</span>
+          <span className="dash-avatar-letter">{initial}</span>
         </button>
       </header>
 

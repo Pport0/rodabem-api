@@ -1,120 +1,81 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { encrypt } from '../common/utils/crypto.util';
-import { isValidCPF } from './validators/cpf.validator';
-import { UpdateUserDto } from './dto/update-user.dto';
-import * as bcrypt from 'bcrypt';
+import { encrypt, createHash } from '../common/utils/crypto.util';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: CreateUserDto) {
-    if (!isValidCPF(data.cpf)) {
-      throw new BadRequestException('CPF inválido');
-    }
+  async create(dto: CreateUserDto) {
+    const cpfHash = createHash(dto.cpf);
 
-    const senhaHash = await bcrypt.hash(data.senha, 10);
-    const cpfHash = await bcrypt.hash(data.cpf, 10);
-    const cpfEncrypted = encrypt(data.cpf);
+    const existing = await this.prisma.user.findUnique({ where: { cpfHash } });
+    if (existing) throw new ConflictException('CPF já cadastrado');
 
-    return this.prisma.user.create({
+    const emailExisting = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (emailExisting) throw new ConflictException('E-mail já cadastrado');
+
+    const senhaHash = await bcrypt.hash(dto.senha, 10);
+    const cpfEncrypted = encrypt(dto.cpf);
+
+    const user = await this.prisma.user.create({
       data: {
-        nome: data.nome,
-        email: data.email,
-        senhaHash: senhaHash,
-        cpfHash: cpfHash,
-        cpfEncrypted: cpfEncrypted,
-        telefone: data.telefone,
+        nome: dto.nome,
+        email: dto.email,
+        senhaHash,
+        cpfEncrypted,
+        cpfHash,
+        telefone: dto.telefone,
       },
     });
+
+    const { senhaHash: _, cpfEncrypted: __, cpfHash: ___, ...result } = user;
+    return result;
   }
 
-  async findAll(
-  page: number,
-  limit: number,
-  nome?: string,
-  status?: string,
-) {
-  const where: any = {};
+  async findAll(params: { page?: number; limit?: number; nome?: string; status?: string }) {
+    const page = params.page || 1;
+    const limit = params.limit || 10;
+    const skip = (page - 1) * limit;
 
-  if (nome) {
-    where.nome = {
-      contains: nome,
-      mode: 'insensitive',
-    };
+    const where: any = {};
+    if (params.nome) where.nome = { contains: params.nome, mode: 'insensitive' };
+    if (params.status !== undefined) where.status = params.status === 'true';
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        select: { id: true, nome: true, email: true, telefone: true, avatarUrl: true, status: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return { data: users, total, page, limit };
   }
 
-  if (status !== undefined) {
-    where.status = status === 'true';
+  async update(id: number, dto: Partial<{ nome: string; email: string; telefone: string; avatarUrl: string }>) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: dto,
+      select: { id: true, nome: true, email: true, telefone: true, avatarUrl: true, status: true },
+    });
+
+    return updated;
   }
 
-  const users = await this.prisma.user.findMany({
-    where,
-    skip: (page - 1) * limit,
-    take: limit,
-    orderBy: {
-      nome: 'asc',
-    },
-  });
+  async remove(id: number) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
 
-  return users.map(({ senhaHash, cpfHash, cpfEncrypted, ...user }) => user);
-}
-
-
-async update(id: number, data: UpdateUserDto) {
-
-  const user = await this.prisma.user.findUnique({
-    where: { id },
-  });
-
-  if (!user) {
-    throw new BadRequestException('Usuário não encontrado');
+    await this.prisma.user.delete({ where: { id } });
+    return { message: 'Usuário excluído com sucesso!' };
   }
-
-  const updated = await this.prisma.user.update({
-    where: { id },
-    data: {
-      ...(data.nome && { nome: data.nome }),
-      ...(data.email && { email: data.email }),
-      ...(data.telefone && { telefone: data.telefone }),
-      ...(data.avatarUrl && { avatarUrl: data.avatarUrl }),
-    },
-  });
-
-  const { senhaHash, cpfHash, cpfEncrypted, ...safe } = updated;
-
-  return safe;
-}
-
-
-
-async remove(id: number) {
-
-  const user = await this.prisma.user.findUnique({
-    where: { id },
-  });
-
-  if (!user) {
-    throw new BadRequestException('Usuário não encontrado');
-  }
-
-  // Simulação de vínculo ativo
-  const possuiVinculo = false;
-
-  if (possuiVinculo) {
-    throw new BadRequestException(
-      'Usuário possui vínculos ativos',
-    );
-  }
-
-  await this.prisma.user.delete({
-    where: { id },
-  });
-
-  return {
-    message: 'Usuário excluído com sucesso!',
-  };
-}
 }

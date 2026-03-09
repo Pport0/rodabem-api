@@ -1,12 +1,15 @@
+import { useAuth } from '../AuthContext';
+
 interface ProfileProps {
   onBack: () => void;
   onEditProfile?: () => void;
 }
 
 export default function Profile({ onBack, onEditProfile }: ProfileProps) {
+  const { user } = useAuth();
+
   return (
     <div className="screen profile-screen">
-      {/* Orange Header */}
       <header className="orange-header">
         <button className="back-btn" onClick={onBack} aria-label="Voltar">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -17,8 +20,6 @@ export default function Profile({ onBack, onEditProfile }: ProfileProps) {
       </header>
 
       <div className="profile-body">
-
-        {/* Avatar + Name */}
         <div className="profile-hero">
           <div className="profile-avatar-wrap">
             <div className="profile-avatar-circle">
@@ -29,31 +30,24 @@ export default function Profile({ onBack, onEditProfile }: ProfileProps) {
               </svg>
             </div>
           </div>
-          <h2 className="profile-name">João Silva</h2>
+          <h2 className="profile-name">{user?.nome || 'Usuário'}</h2>
           <span className="profile-level">MOTORISTA NÍVEL 5</span>
           <button className="profile-edit-btn" onClick={onEditProfile}>Editar Perfil</button>
         </div>
 
-        {/* Meus Dados */}
         <div className="profile-section-label">MEUS DADOS</div>
         <div className="profile-card">
           <div className="profile-row">
             <span className="profile-row-label">Nome</span>
-            <span className="profile-row-value">João da Silva Santos</span>
+            <span className="profile-row-value">{user?.nome || '—'}</span>
           </div>
           <div className="profile-row-divider" />
           <div className="profile-row">
-            <span className="profile-row-label">CPF</span>
-            <span className="profile-row-value">123.456.789-00</span>
-          </div>
-          <div className="profile-row-divider" />
-          <div className="profile-row">
-            <span className="profile-row-label">TELEFONE</span>
-            <span className="profile-row-value">+556299999-9999</span>
+            <span className="profile-row-label">E-mail</span>
+            <span className="profile-row-value">{user?.email || '—'}</span>
           </div>
         </div>
 
-        {/* Meu Caminhão */}
         <div className="profile-section-label">MEU CAMINHÃO</div>
         <div className="profile-card">
           <div className="profile-row">
@@ -71,7 +65,6 @@ export default function Profile({ onBack, onEditProfile }: ProfileProps) {
             <span className="profile-row-value">6 Eixos (Bitrem)</span>
           </div>
         </div>
-
       </div>
     </div>
   );

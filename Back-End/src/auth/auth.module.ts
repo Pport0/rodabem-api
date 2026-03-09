@@ -11,9 +11,9 @@ import { JwtStrategy } from './jwt.strategy';
     UsersModule,
 
     JwtModule.register({
-      secret: process.env.JWT_SECRET,
+      secret: process.env.JWT_SECRET || 'rodabem-secret-key',
       signOptions: {
-      expiresIn: process.env.JWT_EXPIRES_IN as any,
+        expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any,
       },
     }),
   ],

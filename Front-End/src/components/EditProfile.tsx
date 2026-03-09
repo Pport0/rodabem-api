@@ -1,11 +1,39 @@
+import { useState } from 'react';
+import { useAuth } from '../AuthContext';
+import { apiUpdateUser } from '../api';
+
 interface EditProfileProps {
   onBack: () => void;
 }
 
 export default function EditProfile({ onBack }: EditProfileProps) {
+  const { user, updateUser } = useAuth();
+  const [nome, setNome] = useState(user?.nome || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [telefone, setTelefone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleSave = async () => {
+    setError('');
+    if (!nome) { setError('O nome é obrigatório.'); return; }
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      await apiUpdateUser(user.id, { nome, email, ...(telefone ? { telefone } : {}) });
+      updateUser({ nome, email });
+      setSuccess(true);
+      setTimeout(() => onBack(), 1200);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao salvar alterações.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="screen editprofile-screen">
-      {/* Orange Header */}
       <header className="orange-header">
         <button className="back-btn" onClick={onBack} aria-label="Voltar">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -16,8 +44,6 @@ export default function EditProfile({ onBack }: EditProfileProps) {
       </header>
 
       <div className="editprofile-body">
-
-        {/* Avatar + Name */}
         <div className="profile-hero">
           <div className="profile-avatar-wrap">
             <div className="profile-avatar-circle">
@@ -28,60 +54,42 @@ export default function EditProfile({ onBack }: EditProfileProps) {
               </svg>
             </div>
           </div>
-          <h2 className="profile-name">João Silva</h2>
+          <h2 className="profile-name">{user?.nome || 'Usuário'}</h2>
           <span className="profile-level">MOTORISTA NÍVEL 5</span>
           <button className="profile-edit-btn">Editar Perfil</button>
         </div>
 
-        {/* Form */}
         <div className="editprofile-form">
           <div className="editprofile-section-label">MEUS DADOS</div>
 
+          {error && <div className="api-error">{error}</div>}
+          {success && <div className="api-success">Salvo com sucesso!</div>}
+
           <div className="form-group">
-            <label className="form-label">
-              NOME COMPLETO<span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              className="form-input editprofile-input"
-              placeholder="Digite aqui o seu nome completo"
-            />
+            <label className="form-label">NOME COMPLETO<span className="required">*</span></label>
+            <input type="text" className="form-input editprofile-input" placeholder="Digite aqui o seu nome completo"
+              value={nome} onChange={e => setNome(e.target.value)} />
           </div>
 
           <div className="form-group">
-            <label className="form-label">
-              CPF<span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              className="form-input editprofile-input"
-              placeholder="000.000.000-00"
-              maxLength={14}
-            />
+            <label className="form-label">E-MAIL<span className="required">*</span></label>
+            <input type="email" className="form-input editprofile-input" placeholder="seu@email.com"
+              value={email} onChange={e => setEmail(e.target.value)} />
           </div>
 
           <div className="form-group">
-            <label className="form-label">
-              TELEFONE<span className="required">*</span>
-            </label>
-            <input
-              type="tel"
-              className="form-input editprofile-input"
-              placeholder="(00) 00000-0000"
-              maxLength={15}
-            />
+            <label className="form-label">TELEFONE</label>
+            <input type="tel" className="form-input editprofile-input" placeholder="(00) 00000-0000"
+              value={telefone} onChange={e => setTelefone(e.target.value)} />
           </div>
         </div>
 
-        {/* Spacer */}
         <div style={{ flex: 1 }} />
-
       </div>
 
-      {/* Fixed bottom button */}
       <div className="editprofile-footer">
-        <button className="btn-primary editprofile-save-btn" onClick={onBack}>
-          SALVAR ALTERAÇÕES
+        <button className="btn-primary editprofile-save-btn" onClick={handleSave} disabled={loading}>
+          {loading ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}
         </button>
       </div>
     </div>

@@ -1947,3 +1947,34 @@ html, body, #root {
   background: var(--orange);
   color: white;
 }
+
+/* ── API FEEDBACK ── */
+.api-error {
+  background: #FEE2E2;
+  border: 1px solid #FCA5A5;
+  color: #DC2626;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.api-success {
+  background: #DCFCE7;
+  border: 1px solid #86EFAC;
+  color: #16A34A;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.btn-primary:disabled,
+.btn-primary-arrow:disabled,
+.login-btn-acessar:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

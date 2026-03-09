@@ -76,17 +76,6 @@ export class AuthService {
     };
   }
 
-  async logout(token: string) {
-  await this.prisma.tokenBlackList.create({
-    data: {
-      token,
-    },
-  });
-
-  return {
-    message: 'Logout realizado com sucesso',
-  };
-}
 
 
 }
