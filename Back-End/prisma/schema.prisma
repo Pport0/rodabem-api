@@ -19,7 +19,6 @@ model User {
 
   nome          String
   email         String   @unique
-
   senhaHash     String
 
   cpfEncrypted  String
@@ -29,6 +28,8 @@ model User {
   avatarUrl     String?
 
   status        Boolean  @default(true)
+
+  caminhao      Caminhao?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -40,4 +41,25 @@ model TokenBlackList {
   id        Int      @id @default(autoincrement())
   token     String
   createdAt DateTime @default(now())
+}
+
+model Caminhao {
+  id              Int      @id @default(autoincrement())
+
+  placa           String
+  modelo          String
+  renavam         String
+
+  crv             String?
+  marca           String?
+  especieTipo     String?
+  chassi          String?
+  cor             String?
+  anoFabricacao   Int?
+
+  userId          Int      @unique
+  user            User     @relation(fields: [userId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
