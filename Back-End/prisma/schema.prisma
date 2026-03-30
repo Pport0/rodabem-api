@@ -15,24 +15,26 @@ generator client {
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  nome          String
-  email         String   @unique
-  senhaHash     String
+  nome      String
+  email     String @unique
+  senhaHash String
 
-  cpfEncrypted  String
-  cpfHash       String   @unique
+  cpfEncrypted String
+  cpfHash      String @unique
 
-  telefone      String?
-  avatarUrl     String?
+  telefone  String?
+  avatarUrl String?
 
-  status        Boolean  @default(true)
+  status Boolean @default(true)
 
-  caminhao      Caminhao?
+  caminhao Caminhao?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documento Documento[]
 
   @@map("usuarios")
 }
@@ -44,22 +46,46 @@ model TokenBlackList {
 }
 
 model Caminhao {
-  id              Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  placa           String
-  modelo          String
-  renavam         String
+  placa   String
+  modelo  String
+  renavam String
 
-  crv             String?
-  marca           String?
-  especieTipo     String?
-  chassi          String?
-  cor             String?
-  anoFabricacao   Int?
+  crv           String?
+  marca         String?
+  especieTipo   String?
+  chassi        String?
+  cor           String?
+  anoFabricacao Int?
 
-  userId          Int      @unique
-  user            User     @relation(fields: [userId], references: [id])
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documento Documento[]
+}
+
+model Documento {
+  id Int @id @default(autoincrement())
+
+  nome   String
+  numero String
+
+  dataEmissao    DateTime
+  dataVencimento DateTime
+
+  observacao String?
+
+  arquivoUrl String?
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  caminhaoId Int?
+  caminhao   Caminhao? @relation(fields: [caminhaoId], references: [id])
+
+  createdAt DateTime @default(now())
 }
