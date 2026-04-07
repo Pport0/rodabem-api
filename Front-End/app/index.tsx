@@ -1,6 +1,7 @@
 import colors from "@/constants/colors";
 import { router } from "expo-router";
 import {
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,10 +20,8 @@ export default function Index() {
 
         <View style={styles.logoSection}>
           <View style={styles.logoBox}>
-            <Text style={[styles.logoR, { color: primaryColor }]}>R</Text>
-            <Text style={styles.logoB}>B</Text>
+            <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
           </View>
-          <Text style={styles.brandName}>RodaBem</Text>
         </View>
 
         <View style={styles.buttonsSection}>
@@ -77,6 +76,10 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     lineHeight: 100,
     letterSpacing: -4,
+  },
+  logo: {
+    width: 240,
+    height: 160,
   },
   logoB: {
     fontSize: 96,

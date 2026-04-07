@@ -1,7 +1,7 @@
 import colors from '@/constants/colors';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, useColorScheme } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, useColorScheme } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function goBackToStartScreen() {
@@ -16,7 +16,7 @@ export default function Header({ title }: { title?: string }) {
     <TouchableOpacity style={styles.backButton} onPress={goBackToStartScreen}>
       <Ionicons name="arrow-back" size={20} color="#fff" />
     </TouchableOpacity>
-    <Text style={styles.text}>{title ?? 'RB'}</Text>
+    {title ? <Text style={styles.text}>{title}</Text> : <Image source={require('../../assets/images/icon.png')} style={styles.logo} resizeMode="contain" />}
   </SafeAreaView>
 }
 
@@ -37,5 +37,9 @@ const styles = StyleSheet.create({
   backButton: {
     position: 'absolute',
     left: 20
+  },
+  logo: {
+    width: 32,
+    height: 32,
   },
 });
