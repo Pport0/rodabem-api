@@ -1,14 +1,18 @@
+import colors from '@/constants/colors';
 import { Link, Stack } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 export default function NotFoundScreen() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   return (
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
       <View style={styles.container}>
         <Text style={styles.title}>Esta tela não existe.</Text>
         <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Voltar para o início</Text>
+          <Text style={[styles.linkText, { color: primaryColor }]}>Voltar para o início</Text>
         </Link>
       </View>
     </>
@@ -33,6 +37,5 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: '#FC6A03',
   },
 });

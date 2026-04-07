@@ -1,3 +1,4 @@
+import colors from "@/constants/colors";
 import { Caminhao } from "@/@types/caminhao";
 import { useUser } from "@/hooks/useUser";
 import { getMeuCaminhao } from "@/services/caminhaoService";
@@ -10,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +19,9 @@ import { InfoRow } from "@/components/infoRow";
 import { PlacaBadge } from "@/components/placaBadge";
 
 export default function Perfil() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const { user } = useUser();
   const { data: caminhao, isLoading } = useQuery<Caminhao>({
     queryKey: ['caminhao'],
@@ -34,7 +39,7 @@ export default function Perfil() {
 
   return (
     <View style={styles.wrapper}>
-      <SafeAreaView style={styles.headerSafe}>
+      <SafeAreaView style={[styles.headerSafe, { backgroundColor: primaryColor }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -51,11 +56,11 @@ export default function Perfil() {
       >
         {/* Avatar */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatarCircle}>
+          <View style={[styles.avatarCircle, { backgroundColor: primaryColor }]}>
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
           <Text style={styles.userName}>{user?.nome ?? "Usuário"}</Text>
-          <Text style={styles.userRole}>MOTORISTA</Text>
+          <Text style={[styles.userRole, { color: primaryColor }]}>MOTORISTA</Text>
         </View>
 
         {/* MEUS DADOS */}
@@ -73,7 +78,7 @@ export default function Perfil() {
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>MEU CAMINHÃO</Text>
           {isLoading ? (
-            <ActivityIndicator color="#FC6A03" style={{ paddingVertical: 20 }} />
+            <ActivityIndicator color={primaryColor} style={{ paddingVertical: 20 }} />
           ) : caminhao ? (
             <>
               <View style={styles.infoRow}>
@@ -106,16 +111,16 @@ export default function Perfil() {
                 onPress={() => router.push("/caminhoes/novo" as any)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="create-outline" size={16} color="#FC6A03" />
-                <Text style={styles.editTruckLinkText}>Editar caminhão</Text>
+                <Ionicons name="create-outline" size={16} color={primaryColor} />
+                <Text style={[styles.editTruckLinkText, { color: primaryColor }]}>Editar caminhão</Text>
               </TouchableOpacity>
             </>
           ) : (
             <View style={styles.emptyTruck}>
               <Ionicons name="bus-outline" size={40} color="#e0e0e0" />
               <Text style={styles.emptyTruckText}>Nenhum caminhão cadastrado</Text>
-              <TouchableOpacity
-                style={styles.addTruckBtn}
+                <TouchableOpacity
+                style={[styles.addTruckBtn, { backgroundColor: primaryColor }]}
                 onPress={() => router.push("/caminhoes/novo" as any)}
                 activeOpacity={0.85}
               >
@@ -125,8 +130,8 @@ export default function Perfil() {
           )}
         </View>
 
-        <TouchableOpacity style={styles.outlineButton} activeOpacity={0.85}>
-          <Text style={styles.outlineButtonText}>ALTERAR SENHA</Text>
+        <TouchableOpacity style={[styles.outlineButton, { borderColor: primaryColor }]} activeOpacity={0.85}>
+          <Text style={[styles.outlineButtonText, { color: primaryColor }]}>ALTERAR SENHA</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -139,7 +144,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   headerSafe: {
-    backgroundColor: "#FC6A03",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
@@ -179,7 +183,6 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: "#FC6A03",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -195,7 +198,6 @@ const styles = StyleSheet.create({
   },
   userRole: {
     fontSize: 12,
-    color: "#FC6A03",
     fontWeight: "bold",
     letterSpacing: 1,
   },
@@ -244,7 +246,6 @@ const styles = StyleSheet.create({
   },
   editTruckLinkText: {
     fontSize: 13,
-    color: "#FC6A03",
     fontWeight: "600",
   },
   emptyTruck: {
@@ -257,7 +258,6 @@ const styles = StyleSheet.create({
     color: "#aaa",
   },
   addTruckBtn: {
-    backgroundColor: "#FC6A03",
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -270,14 +270,12 @@ const styles = StyleSheet.create({
   },
   outlineButton: {
     borderWidth: 1.5,
-    borderColor: "#FC6A03",
     borderRadius: 14,
     height: 52,
     justifyContent: "center",
     alignItems: "center",
   },
   outlineButtonText: {
-    color: "#FC6A03",
     fontWeight: "bold",
     fontSize: 14,
     letterSpacing: 0.5,

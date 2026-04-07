@@ -1,3 +1,4 @@
+import colors from "@/constants/colors";
 import Input from "@/components/input";
 import { useAuth } from "@/contexts/authContext";
 import Button from "@/shared/ui/base/button";
@@ -5,7 +6,7 @@ import { maskCpf } from "@/utils/maskCpf";
 import { maskPhone } from "@/utils/maskPhone";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
-import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
 
 interface FormErrors {
   nome?: string;
@@ -17,6 +18,9 @@ interface FormErrors {
 }
 
 export default function Register() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -166,7 +170,7 @@ export default function Register() {
       <Button
         height={60}
         width={Dimensions.get('window').width - 40}
-        backgroundColor="#FC6A03"
+        backgroundColor={primaryColor}
         onPress={handleRegister}
       >
         <Text style={styles.buttonText}>CONTINUAR</Text>

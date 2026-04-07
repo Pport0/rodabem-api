@@ -1,11 +1,15 @@
+import colors from "@/constants/colors";
 import Input from "@/components/input";
 import { useAuth } from "@/contexts/authContext";
 import Button from "@/shared/ui/base/button";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
 
 export default function Login() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const [cpfOrPhone, setCpfOrPhone] = useState('');
   const [password, setPassword] = useState(''); 
   const { login } = useAuth();
@@ -31,7 +35,7 @@ export default function Login() {
       </Text>
       <Input placeholder="Insira a sua senha" value={password} onChangeText={setPassword} type="password" />
     </View>
-    <Button height={60} width={Dimensions.get('window').width - 40} backgroundColor="#FC6A03" onPress={handleLogin}>
+    <Button height={60} width={Dimensions.get('window').width - 40} backgroundColor={primaryColor} onPress={handleLogin}>
       <Text style={styles.buttonText}>Acessar</Text>
     </Button>
     <Pressable onPress={() =>  router.navigate('/forgotPassword')}>

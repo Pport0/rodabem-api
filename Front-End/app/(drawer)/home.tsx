@@ -1,9 +1,13 @@
+import colors from "@/constants/colors";
 import { ActionCard } from "@/components/actionCard";
 import { useUser } from "@/hooks/useUser";
 import { router } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
 
 export default function Home() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const { user } = useUser();
   const firstName = user?.nome?.split(" ")[0] || "Motorista";
 
@@ -23,7 +27,7 @@ export default function Home() {
           title="MEU CAMINHÃO"
           subtitle="Acesse os dados do seu veículo"
           iconName="bus-outline"
-          backgroundColor="#FC6A03"
+          backgroundColor={primaryColor}
           onPress={() => router.push("/perfil" as any)}
         />
         <ActionCard

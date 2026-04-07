@@ -1,3 +1,4 @@
+import colors from "@/constants/colors";
 import Input from "@/components/input";
 import { useToast } from "@/shared/ui/molecules/Toast";
 import { CreateDocumentoDto } from "@/@types/documento";
@@ -14,6 +15,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
 import { DateField } from "@/components/dateField";
@@ -26,6 +28,9 @@ interface FormErrors {
 }
 
 export default function NovoDocumento() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const { caminhaoId } = useLocalSearchParams<{ caminhaoId: string }>();
   const { show } = useToast();
 
@@ -149,6 +154,7 @@ export default function NovoDocumento() {
         <TouchableOpacity
           style={[
             styles.submitButton,
+            { backgroundColor: primaryColor },
             isPending && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit}
@@ -211,7 +217,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   submitButton: {
-    backgroundColor: "#FC6A03",
     borderRadius: 16,
     height: 56,
     justifyContent: "center",

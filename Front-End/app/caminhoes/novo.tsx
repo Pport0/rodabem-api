@@ -1,3 +1,4 @@
+import colors from "@/constants/colors";
 import Input from "@/components/input";
 import { useState } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
 import { Toast } from "@/shared/ui/molecules/Toast";
@@ -23,6 +25,9 @@ interface FormErrors {
 }
 
 export default function NovoCaminhao() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const [placa, setPlaca] = useState("");
   const [modelo, setModelo] = useState("");
   const [renavam, setRenavam] = useState("");
@@ -87,7 +92,7 @@ export default function NovoCaminhao() {
 
         <View style={styles.divider} />
 
-        <Text style={styles.groupLabel}>DADOS OBRIGATÓRIOS</Text>
+        <Text style={[styles.groupLabel, { color: primaryColor }]}>DADOS OBRIGATÓRIOS</Text>
 
         <View style={styles.fieldContainer}>
           <Text style={styles.label}>PLACA *</Text>
@@ -134,7 +139,7 @@ export default function NovoCaminhao() {
 
         <View style={styles.divider} />
 
-        <Text style={styles.groupLabel}>DADOS OPCIONAIS</Text>
+        <Text style={[styles.groupLabel, { color: primaryColor }]}>DADOS OPCIONAIS</Text>
 
         <View style={styles.fieldContainer}>
           <Text style={styles.label}>MARCA</Text>
@@ -169,7 +174,7 @@ export default function NovoCaminhao() {
         </View>
 
         <TouchableOpacity
-          style={[styles.submitButton, createCaminhaoMutation.isPending && styles.submitButtonDisabled]}
+          style={[styles.submitButton, { backgroundColor: primaryColor }, createCaminhaoMutation.isPending && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={createCaminhaoMutation.isPending}
           activeOpacity={0.85}
@@ -215,7 +220,6 @@ const styles = StyleSheet.create({
   groupLabel: {
     fontSize: 11,
     fontWeight: "bold",
-    color: "#FC6A03",
     letterSpacing: 1,
   },
   label: {
@@ -232,7 +236,6 @@ const styles = StyleSheet.create({
     color: "#E53E3E",
   },
   submitButton: {
-    backgroundColor: "#FC6A03",
     borderRadius: 16,
     height: 56,
     justifyContent: "center",

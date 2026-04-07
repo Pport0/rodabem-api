@@ -1,20 +1,25 @@
+import colors from "@/constants/colors";
 import { router } from "expo-router";
 import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
 
         <View style={styles.logoSection}>
           <View style={styles.logoBox}>
-            <Text style={styles.logoR}>R</Text>
+            <Text style={[styles.logoR, { color: primaryColor }]}>R</Text>
             <Text style={styles.logoB}>B</Text>
           </View>
           <Text style={styles.brandName}>RodaBem</Text>
@@ -22,7 +27,7 @@ export default function Index() {
 
         <View style={styles.buttonsSection}>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, { backgroundColor: primaryColor }]}
             onPress={() => router.push("/login")}
             activeOpacity={0.85}
           >
@@ -30,11 +35,11 @@ export default function Index() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.outlineButton}
+            style={[styles.outlineButton, { borderColor: primaryColor }]}
             onPress={() => router.push("/register")}
             activeOpacity={0.85}
           >
-            <Text style={styles.outlineButtonText}>CRIAR CONTA</Text>
+            <Text style={[styles.outlineButtonText, { color: primaryColor }]}>CRIAR CONTA</Text>
           </TouchableOpacity>
         </View>
 
@@ -70,14 +75,13 @@ const styles = StyleSheet.create({
   logoR: {
     fontSize: 96,
     fontWeight: "900",
-    color: "#FC6A03",
     lineHeight: 100,
     letterSpacing: -4,
   },
   logoB: {
     fontSize: 96,
     fontWeight: "900",
-    color: "#FC6A03",
+    color: "#2D3748",
     lineHeight: 100,
     letterSpacing: -4,
   },
@@ -93,7 +97,6 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   primaryButton: {
-    backgroundColor: "#FC6A03",
     borderRadius: 14,
     height: 56,
     width: "100%",
@@ -108,7 +111,6 @@ const styles = StyleSheet.create({
   },
   outlineButton: {
     borderWidth: 1.5,
-    borderColor: "#FC6A03",
     borderRadius: 14,
     height: 56,
     width: "100%",
@@ -117,7 +119,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   outlineButtonText: {
-    color: "#FC6A03",
     fontSize: 16,
     fontWeight: "bold",
     letterSpacing: 1,

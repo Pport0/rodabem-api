@@ -1,12 +1,16 @@
+import colors from '@/constants/colors';
 import { useUser } from '@/hooks/useUser';
 import Avatar from '@/shared/ui/base/avatar';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeHeader() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const { user } = useUser();
   const navigation = useNavigation();
 
@@ -15,7 +19,7 @@ export default function HomeHeader() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: primaryColor }]}>
       <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
         <Ionicons name="menu" size={24} color="#fff" />
       </TouchableOpacity>
@@ -23,7 +27,7 @@ export default function HomeHeader() {
       <Text style={styles.text}>RB</Text>
 
       <Avatar
-        backgroundColor="#FC6A03"
+        backgroundColor={primaryColor}
         size={36}
         image={{
           name: user?.nome?.charAt(0) ?? 'U',
@@ -36,7 +40,6 @@ export default function HomeHeader() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FC6A03',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: 'row',

@@ -1,5 +1,6 @@
+import colors from "@/constants/colors";
 import { Documento } from "@/@types/documento";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 type DocumentStatus = "valido" | "vencendo" | "vencido";
@@ -15,22 +16,27 @@ function getDocumentStatus(dataVencimento: string): DocumentStatus {
   return "valido";
 }
 
-const STATUS_CONFIG: Record<
+function getStatusConfig(primaryColor: string): Record<
   DocumentStatus,
   { label: string; color: string; borderColor: string }
-> = {
-  valido: { label: "VÁLIDO", color: "#38A169", borderColor: "#38A169" },
-  vencendo: {
-    label: "VENCENDO EM BREVE",
-    color: "#FC6A03",
-    borderColor: "#FC6A03",
-  },
-  vencido: { label: "EXPIRADO", color: "#E53E3E", borderColor: "#E53E3E" },
-};
+> {
+  return {
+    valido: { label: "VÁLIDO", color: "#38A169", borderColor: "#38A169" },
+    vencendo: {
+      label: "VENCENDO EM BREVE",
+      color: primaryColor,
+      borderColor: primaryColor,
+    },
+    vencido: { label: "EXPIRADO", color: "#E53E3E", borderColor: "#E53E3E" },
+  };
+}
 
 export function DocumentoCard({ documento }: { documento: Documento }) {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const status = getDocumentStatus(documento.dataVencimento);
-  const { label, color, borderColor } = STATUS_CONFIG[status];
+  const { label, color, borderColor } = getStatusConfig(primaryColor)[status];
   const isExpired = status === "vencido";
   const isExpiring = status === "vencendo";
 
@@ -54,15 +60,20 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
             <Ionicons
               name="eye-outline"
               size={18}
-              color={isExpired ? "#E53E3E" : "#FC6A03"}
+              color={isExpired ? "#E53E3E" : primaryColor}
             />
           </View>
         </View>
       </View>
 
       {(isExpiring || isExpired) && (
-        <TouchableOpacity style={styles.renewBtn} activeOpacity={0.7}>
-          <Text style={styles.renewBtnText}>REGISTRAR RENOVAÇÃO</Text>
+        <TouchableOpacity
+          style={[styles.renewBtn, isExpiring && { borderColor: primaryColor }]}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.renewBtnText, isExpiring && { color: primaryColor }]}>
+            REGISTRAR RENOVAÇÃO
+          </Text>
         </TouchableOpacity>
       )}
     </View>
@@ -123,13 +134,13 @@ const styles = StyleSheet.create({
       marginHorizontal: 16,
       marginBottom: 14,
       borderWidth: 1.5,
-      borderColor: "#FC6A03",
+      borderColor: "#E53E3E",
       borderRadius: 8,
       paddingVertical: 10,
       alignItems: "center",
     },
     renewBtnText: {
-      color: "#FC6A03",
+      color: "#E53E3E",
       fontWeight: "bold",
       fontSize: 13,
       letterSpacing: 0.5,

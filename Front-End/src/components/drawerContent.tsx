@@ -1,12 +1,16 @@
+import colors from '@/constants/colors';
 import { useAuth } from '@/contexts/authContext';
 import { useUser } from '@/hooks/useUser';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 
 export default function DrawerContent(props: DrawerContentComponentProps) {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const { user } = useUser();
   const { logout } = useAuth();
 
@@ -21,7 +25,7 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: primaryColor }]}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarInitials}>{initials}</Text>
         </View>
@@ -41,7 +45,7 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
           activeOpacity={0.7}
         >
           <View style={styles.navIcon}>
-            <Ionicons name="person-outline" size={20} color="#FC6A03" />
+            <Ionicons name="person-outline" size={20} color={primaryColor} />
           </View>
           <Text style={styles.navLabel}>Meu Perfil</Text>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
@@ -68,7 +72,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
-    backgroundColor: '#FC6A03',
     paddingHorizontal: 24,
     paddingTop: 56,
     paddingBottom: 28,

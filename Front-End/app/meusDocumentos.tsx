@@ -1,3 +1,4 @@
+import colors from "@/constants/colors";
 import { Documento } from "@/@types/documento";
 import { DocumentoCard } from "@/components/documentoCard";
 import { getDocumentos } from "@/services/documentoService";
@@ -10,11 +11,15 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
 
 
 export default function MeusDocumentos() {
+  const colorScheme = useColorScheme();
+  const primaryColor = colors[colorScheme ?? 'light'].primary;
+
   const { data: documentos, isLoading, refetch } = useQuery<Documento[]>({
     queryKey: ['documentos'],
     queryFn: () => getDocumentos(),
@@ -24,7 +29,7 @@ export default function MeusDocumentos() {
     <View style={styles.container}>
       {isLoading ? (
         <ActivityIndicator
-          color="#FC6A03"
+          color={primaryColor}
           size="large"
           style={{ marginTop: 60 }}
         />
@@ -58,7 +63,7 @@ export default function MeusDocumentos() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.addBtn}
+          style={[styles.addBtn, { backgroundColor: primaryColor }]}
           onPress={() => router.push("/documentos/novo" as any)}
           activeOpacity={0.85}
         >
@@ -107,7 +112,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   addBtn: {
-    backgroundColor: "#FC6A03",
     borderRadius: 14,
     height: 56,
     justifyContent: "center",
