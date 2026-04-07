@@ -35,7 +35,7 @@ export default function Login() {
       </Text>
       <Input placeholder="Insira a sua senha" value={password} onChangeText={setPassword} type="password" />
     </View>
-    <Button height={60} width={Dimensions.get('window').width - 40} backgroundColor={primaryColor} onPress={handleLogin}>
+    <Button borderRadius={10} height={60} width={Dimensions.get('window').width - 40} backgroundColor={primaryColor} onPress={handleLogin}>
       <Text style={styles.buttonText}>Acessar</Text>
     </Button>
     <Pressable onPress={() =>  router.navigate('/forgotPassword')}>
