@@ -1,0 +1,9 @@
+services:
+  db:
+    image: postgres
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: rodabem
+      POSTGRES_USER: root
