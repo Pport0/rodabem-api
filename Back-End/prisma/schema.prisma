@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+model User {
+  id Int @id @default(autoincrement())
+
+  nome      String
+  email     String @unique
+  senhaHash String
+
+  cpfEncrypted String
+  cpfHash      String @unique
+
+  telefone  String?
+  avatarUrl String?
+
+  status Boolean @default(true)
+
+  caminhao Caminhao?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documento Documento[]
+  abastecimentos Abastecimento[]
+  simulacoes SimulacaoFrete[]
+
+  @@map("usuarios")
+}
+
+model TokenBlackList {
+  id        Int      @id @default(autoincrement())
+  token     String
+  createdAt DateTime @default(now())
+}
+
+model Caminhao {
+  id Int @id @default(autoincrement())
+
+  placa   String
+  modelo  String
+  renavam String
+
+  crv           String?
+  marca         String?
+  especieTipo   String?
+  chassi        String?
+  cor           String?
+  anoFabricacao Int?
+  numeroEixos   Int? 
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documento Documento[]
+  abastecimentos Abastecimento[]
+  simulacoes     SimulacaoFrete[]
+}
+
+model Documento {
+  id Int @id @default(autoincrement())
+
+  nome   String
+  numero String
+
+  dataEmissao    DateTime
+  dataVencimento DateTime
+
+  observacao String?
+
+  arquivoUrl String?
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  caminhaoId Int?
+  caminhao   Caminhao? @relation(fields: [caminhaoId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+
+enum TipoCombustivel {
+  DIESEL_S10
+  DIESEL_S500
+  ARLA_32
+}
+
+model Abastecimento {
+  id Int @id @default(autoincrement())
+
+  precoPorLitro Float
+  totalLitros   Float
+  valorTotal    Float
+
+  quilometragem Int
+
+  tipoCombustivel TipoCombustivel
+
+  dataAbastecimento DateTime @default(now())
+
+  latitude         Float?
+  longitude        Float?
+  localDescricao   String?
+  postoIdentificado String?
+
+  imagemUrl  String?
+  observacao String?
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  caminhaoId Int
+  caminhao   Caminhao @relation(fields: [caminhaoId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("abastecimentos")
+}
+
+enum TipoCarga {
+  GERAL
+  GRANEL_SOLIDO
+  GRANEL_LIQUIDO
+  FRIGORIFICADA
+  PERIGOSA
+  CONTEINER
+}
+
+model TabelaAntt {
+  id          Int      @id @default(autoincrement())
+  numeroEixos Int
+  tipoCarga   TipoCarga
+  distanciaMin Int
+  distanciaMax Int
+  valorPorKm  Float
+  atualizadoEm DateTime
+
+  @@map("tabela_antt")
+}
+
+model SimulacaoFrete {
+  id        Int @id @default(autoincrement())
+
+  origem    String
+  destino   String
+
+  distanciaKm      Float
+  pedagiosEstimados Float
+
+  consumoMedioKmL  Float
+  precoCombustivel Float
+  litrosNecessarios Float
+  custoCombustivel  Float
+
+  tipoCarga        TipoCarga
+  retornoVazio     Boolean @default(false)
+  altoDesempenho   Boolean @default(false)
+
+  valorMinimoAntt  Float
+  valorLiquidoEstimado Float
+
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+
+  caminhaoId Int
+  caminhao   Caminhao @relation(fields: [caminhaoId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  @@map("simulacoes_frete")
+}
