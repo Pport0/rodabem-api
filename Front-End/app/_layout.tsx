@@ -1,23 +1,20 @@
+import Header from '@/components/header';
+import { AuthProvider } from '@/contexts/authContext';
+import { ToastProviderWithViewport } from '@/shared/ui/molecules/Toast';
+import { queryClient } from '@/utils/queryClient';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
-import Header from '@/components/header';
-import { useColorScheme } from 'react-native';
-import { AuthProvider } from '@/contexts/authContext';
-import { ToastProviderWithViewport } from '@/shared/ui/molecules/Toast';
-import { queryClient } from '@/utils/queryClient';
-import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
+import { useEffect } from 'react';
+import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-reanimated';
 
-export {
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
   initialRouteName: '(drawer)',
@@ -52,8 +49,14 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    const token = SecureStore.getItem(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token');
-    const user = JSON.parse(SecureStore.getItem(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user') || '{}');
+    const token = SecureStore.getItem(
+      process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token'
+    );
+    const user = JSON.parse(
+      SecureStore.getItem(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user') ||
+        '{}'
+    );
+
     if (!token || !user?.nome) {
       router.push('/');
     } else {
@@ -66,20 +69,81 @@ function RootLayoutNav() {
       <QueryClientProvider client={queryClient}>
         <ToastProviderWithViewport>
           <AuthProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <ThemeProvider
+              value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+            >
               <Stack>
                 <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
                 <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen name="login" options={{ headerShown: true, header: () => <Header /> }} />
-                <Stack.Screen name="register" options={{ headerShown: true, header: () => <Header /> }} />
-                <Stack.Screen name="forgotPassword" options={{ headerShown: true, header: () => <Header /> }} />
-                <Stack.Screen name="caminhoes/novo" options={{ headerShown: true, header: () => <Header title="Novo Caminhão" /> }} />
-                <Stack.Screen name="documentos/novo" options={{ headerShown: true, header: () => <Header title="Novo Documento" /> }} />
-                <Stack.Screen name="abastecimentos/index" options={{ headerShown: true, header: () => <Header title="Abastecimentos" /> }} />
-                <Stack.Screen name="abastecimentos/novo" options={{ headerShown: true, header: () => <Header title="Novo Abastecimento" /> }} />
-                <Stack.Screen name="frete" options={{ headerShown: true, header: () => <Header title="Calculadora de Frete" /> }} />
+                <Stack.Screen
+                  name="login"
+                  options={{ headerShown: true, header: () => <Header /> }}
+                />
+                <Stack.Screen
+                  name="register"
+                  options={{ headerShown: true, header: () => <Header /> }}
+                />
+                <Stack.Screen
+                  name="forgotPassword"
+                  options={{ headerShown: true, header: () => <Header /> }}
+                />
+                <Stack.Screen
+                  name="caminhoes/novo"
+                  options={{
+                    headerShown: true,
+                    header: () => <Header title="Novo Caminhao" />,
+                  }}
+                />
+                <Stack.Screen
+                  name="caminhoes/editar"
+                  options={{
+                    headerShown: true,
+                    header: () => <Header title="Editar Caminhao" />,
+                  }}
+                />
+                <Stack.Screen
+                  name="documentos/novo"
+                  options={{
+                    headerShown: true,
+                    header: () => <Header title="Novo Documento" />,
+                  }}
+                />
+                <Stack.Screen
+                  name="documentos/editar"
+                  options={{
+                    headerShown: true,
+                    header: () => <Header title="Editar Documento" />,
+                  }}
+                />
+                <Stack.Screen
+                  name="abastecimentos/index"
+                  options={{
+                    headerShown: true,
+                    header: () => <Header title="Abastecimentos" />,
+                  }}
+                />
+                <Stack.Screen
+                  name="abastecimentos/novo"
+                  options={{
+                    headerShown: true,
+                    header: () => <Header title="Novo Abastecimento" />,
+                  }}
+                />
+                <Stack.Screen
+                  name="frete"
+                  options={{
+                    headerShown: true,
+                    header: () => <Header title="Calculadora de Frete" />,
+                  }}
+                />
                 <Stack.Screen name="perfil" options={{ headerShown: false }} />
-                <Stack.Screen name="meusDocumentos" options={{ headerShown: true, header: () => <Header title="Meus Documentos" /> }} />
+                <Stack.Screen
+                  name="meusDocumentos"
+                  options={{
+                    headerShown: true,
+                    header: () => <Header title="Meus Documentos" />,
+                  }}
+                />
               </Stack>
             </ThemeProvider>
           </AuthProvider>

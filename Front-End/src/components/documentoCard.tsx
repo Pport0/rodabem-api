@@ -1,9 +1,16 @@
-import colors from "@/constants/colors";
-import { Documento } from "@/@types/documento";
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { Documento } from '@/@types/documento';
+import colors from '@/constants/colors';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from 'react-native';
 
-type DocumentStatus = "valido" | "vencendo" | "vencido";
+type DocumentStatus = 'valido' | 'vencendo' | 'vencido';
 
 function getDocumentStatus(dataVencimento: string): DocumentStatus {
   const hoje = new Date();
@@ -11,9 +18,10 @@ function getDocumentStatus(dataVencimento: string): DocumentStatus {
   const diffDays = Math.ceil(
     (vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
   );
-  if (diffDays < 0) return "vencido";
-  if (diffDays <= 30) return "vencendo";
-  return "valido";
+
+  if (diffDays < 0) return 'vencido';
+  if (diffDays <= 30) return 'vencendo';
+  return 'valido';
 }
 
 function getStatusConfig(primaryColor: string): Record<
@@ -21,13 +29,13 @@ function getStatusConfig(primaryColor: string): Record<
   { label: string; color: string; borderColor: string }
 > {
   return {
-    valido: { label: "VÁLIDO", color: "#38A169", borderColor: "#38A169" },
+    valido: { label: 'VALIDO', color: '#38A169', borderColor: '#38A169' },
     vencendo: {
-      label: "VENCENDO EM BREVE",
+      label: 'VENCENDO EM BREVE',
       color: primaryColor,
       borderColor: primaryColor,
     },
-    vencido: { label: "EXPIRADO", color: "#E53E3E", borderColor: "#E53E3E" },
+    vencido: { label: 'EXPIRADO', color: '#E53E3E', borderColor: '#E53E3E' },
   };
 }
 
@@ -37,12 +45,28 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
 
   const status = getDocumentStatus(documento.dataVencimento);
   const { label, color, borderColor } = getStatusConfig(primaryColor)[status];
-  const isExpired = status === "vencido";
-  const isExpiring = status === "vencendo";
+  const isExpired = status === 'vencido';
+  const isExpiring = status === 'vencendo';
 
   const formattedDate = new Date(documento.dataVencimento).toLocaleDateString(
-    "pt-BR"
+    'pt-BR'
   );
+
+  const openEditScreen = () => {
+    if (!documento.id) return;
+
+    router.push({
+      pathname: '/documentos/editar',
+      params: {
+        id: String(documento.id),
+        nome: documento.nome,
+        numero: documento.numero,
+        dataEmissao: documento.dataEmissao,
+        dataVencimento: documento.dataVencimento,
+        observacao: documento.observacao ?? '',
+      },
+    });
+  };
 
   return (
     <View style={[styles.docCard, { borderLeftColor: borderColor }]}>
@@ -51,18 +75,22 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
           <Text style={[styles.docStatus, { color }]}>{label}</Text>
           <Text style={styles.docNome}>{documento.nome}</Text>
           <Text style={styles.docDate}>
-            {isExpired ? "Expirou em: " : "Vencimento: "}
+            {isExpired ? 'Expirou em: ' : 'Vencimento: '}
             {formattedDate}
           </Text>
         </View>
         <View style={styles.docActions}>
-          <View style={styles.eyeBtn}>
+          <TouchableOpacity
+            style={styles.eyeBtn}
+            activeOpacity={0.7}
+            onPress={openEditScreen}
+          >
             <Ionicons
               name="eye-outline"
               size={18}
-              color={isExpired ? "#E53E3E" : primaryColor}
+              color={isExpired ? '#E53E3E' : primaryColor}
             />
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -70,9 +98,12 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
         <TouchableOpacity
           style={[styles.renewBtn, isExpiring && { borderColor: primaryColor }]}
           activeOpacity={0.7}
+          onPress={openEditScreen}
         >
-          <Text style={[styles.renewBtnText, isExpiring && { color: primaryColor }]}>
-            REGISTRAR RENOVAÇÃO
+          <Text
+            style={[styles.renewBtnText, isExpiring && { color: primaryColor }]}
+          >
+            REGISTRAR RENOVACAO
           </Text>
         </TouchableOpacity>
       )}
@@ -80,69 +111,68 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
   );
 }
 
-
 const styles = StyleSheet.create({
-    docCard: {
-      backgroundColor: "#fff",
-      borderRadius: 12,
-      borderLeftWidth: 4,
-      overflow: "hidden",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    docCardInner: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      padding: 16,
-      gap: 12,
-    },
-    docInfo: {
-      flex: 1,
-      gap: 3,
-    },
-    docStatus: {
-      fontSize: 11,
-      fontWeight: "bold",
-      letterSpacing: 0.5,
-    },
-    docNome: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: "#111",
-      marginTop: 2,
-    },
-    docDate: {
-      fontSize: 13,
-      color: "#888",
-      marginTop: 2,
-    },
-    docActions: {
-      paddingTop: 2,
-    },
-    eyeBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 10,
-      backgroundColor: "#fff5ee",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    renewBtn: {
-      marginHorizontal: 16,
-      marginBottom: 14,
-      borderWidth: 1.5,
-      borderColor: "#E53E3E",
-      borderRadius: 8,
-      paddingVertical: 10,
-      alignItems: "center",
-    },
-    renewBtnText: {
-      color: "#E53E3E",
-      fontWeight: "bold",
-      fontSize: 13,
-      letterSpacing: 0.5,
-    },
-  });
+  docCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  docCardInner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    gap: 12,
+  },
+  docInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  docStatus: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  docNome: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111',
+    marginTop: 2,
+  },
+  docDate: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
+  },
+  docActions: {
+    paddingTop: 2,
+  },
+  eyeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#fff5ee',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  renewBtn: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: '#E53E3E',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  renewBtnText: {
+    color: '#E53E3E',
+    fontWeight: 'bold',
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+});

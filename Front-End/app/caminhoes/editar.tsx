@@ -1,12 +1,12 @@
-import { CreateCaminhaoDto } from '@/@types/caminhao';
+import { Caminhao, UpdateCaminhaoDto } from '@/@types/caminhao';
 import Input from '@/components/input';
 import colors from '@/constants/colors';
-import { createCaminhao } from '@/services/caminhaoService';
+import { getMeuCaminhao, updateCaminhao } from '@/services/caminhaoService';
 import { Toast } from '@/shared/ui/molecules/Toast';
 import { queryClient } from '@/utils/queryClient';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -26,7 +26,7 @@ interface FormErrors {
   numeroEixos?: string;
 }
 
-export default function NovoCaminhao() {
+export default function EditarCaminhao() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
 
@@ -39,11 +39,30 @@ export default function NovoCaminhao() {
   const [numeroEixos, setNumeroEixos] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const createCaminhaoMutation = useMutation({
-    mutationFn: (caminhao: CreateCaminhaoDto) => createCaminhao(caminhao),
+  const { data: caminhao, isLoading } = useQuery<Caminhao | null>({
+    queryKey: ['caminhao'],
+    queryFn: getMeuCaminhao,
+  });
+
+  useEffect(() => {
+    if (!caminhao) return;
+
+    setPlaca(caminhao.placa ?? '');
+    setModelo(caminhao.modelo ?? '');
+    setRenavam(caminhao.renavam ?? '');
+    setMarca(caminhao.marca ?? '');
+    setCor(caminhao.cor ?? '');
+    setAnoFabricacao(
+      caminhao.anoFabricacao ? String(caminhao.anoFabricacao) : ''
+    );
+    setNumeroEixos(caminhao.numeroEixos ? String(caminhao.numeroEixos) : '');
+  }, [caminhao]);
+
+  const updateCaminhaoMutation = useMutation({
+    mutationFn: (payload: UpdateCaminhaoDto) => updateCaminhao(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['caminhao'] });
-      Toast.show('Caminhao cadastrado com sucesso', {
+      Toast.show('Caminhao atualizado com sucesso', {
         type: 'success',
         backgroundColor: '#10B981',
       });
@@ -51,7 +70,7 @@ export default function NovoCaminhao() {
     },
     onError: (error: any) => {
       const message =
-        error?.response?.data?.message || 'Erro ao cadastrar caminhao';
+        error?.response?.data?.message || 'Erro ao atualizar caminhao';
       Toast.show(Array.isArray(message) ? message[0] : message, {
         type: 'error',
         backgroundColor: '#E53E3E',
@@ -85,7 +104,7 @@ export default function NovoCaminhao() {
   const handleSubmit = () => {
     if (!validate()) return;
 
-    createCaminhaoMutation.mutate({
+    updateCaminhaoMutation.mutate({
       placa: placa.trim().toUpperCase(),
       modelo: modelo.trim(),
       renavam: renavam.replace(/\D/g, ''),
@@ -95,6 +114,24 @@ export default function NovoCaminhao() {
       numeroEixos: Number(numeroEixos),
     });
   };
+
+  if (isLoading) {
+    return (
+      <View style={loadingStyles.container}>
+        <ActivityIndicator color={primaryColor} size="large" />
+      </View>
+    );
+  }
+
+  if (!caminhao) {
+    return (
+      <View style={loadingStyles.container}>
+        <Text style={loadingStyles.emptyText}>
+          Nenhum caminhao cadastrado para edicao.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -107,8 +144,8 @@ export default function NovoCaminhao() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>NOVO CAMINHAO</Text>
-          <Text style={styles.subtitle}>Preencha os dados do veiculo</Text>
+          <Text style={styles.title}>EDITAR CAMINHAO</Text>
+          <Text style={styles.subtitle}>Atualize os dados do veiculo</Text>
         </View>
 
         <View style={styles.divider} />
@@ -215,16 +252,16 @@ export default function NovoCaminhao() {
           style={[
             styles.submitButton,
             { backgroundColor: primaryColor },
-            createCaminhaoMutation.isPending && styles.submitButtonDisabled,
+            updateCaminhaoMutation.isPending && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit}
-          disabled={createCaminhaoMutation.isPending}
+          disabled={updateCaminhaoMutation.isPending}
           activeOpacity={0.85}
         >
-          {createCaminhaoMutation.isPending ? (
+          {updateCaminhaoMutation.isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>CADASTRAR CAMINHAO</Text>
+            <Text style={styles.submitButtonText}>SALVAR ALTERACOES</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -292,5 +329,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+});
+
+const loadingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 24,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
   },
 });

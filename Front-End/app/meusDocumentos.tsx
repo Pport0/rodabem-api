@@ -1,10 +1,12 @@
-import colors from "@/constants/colors";
-import { Documento } from "@/@types/documento";
-import { DocumentoCard } from "@/components/documentoCard";
-import { getDocumentos } from "@/services/documentoService";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { Documento } from '@/@types/documento';
+import { DocumentoCard } from '@/components/documentoCard';
+import colors from '@/constants/colors';
+import { getMeuCaminhao } from '@/services/caminhaoService';
+import { getDocumentos } from '@/services/documentoService';
+import { useToast } from '@/shared/ui/molecules/Toast';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,17 +15,37 @@ import {
   TouchableOpacity,
   useColorScheme,
   View,
-} from "react-native";
-
+} from 'react-native';
 
 export default function MeusDocumentos() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
+  const { show } = useToast();
 
   const { data: documentos, isLoading, refetch } = useQuery<Documento[]>({
     queryKey: ['documentos'],
-    queryFn: () => getDocumentos(),
+    queryFn: getDocumentos,
   });
+
+  const { data: caminhao } = useQuery({
+    queryKey: ['caminhao'],
+    queryFn: getMeuCaminhao,
+  });
+
+  const handleAddDocumento = () => {
+    if (!caminhao?.id) {
+      show('Cadastre um caminhao antes de adicionar um documento.', {
+        type: 'error',
+        backgroundColor: '#E53E3E',
+      });
+      return;
+    }
+
+    router.push({
+      pathname: '/documentos/novo',
+      params: { caminhaoId: String(caminhao.id) },
+    } as any);
+  };
 
   return (
     <View style={styles.container}>
@@ -43,7 +65,7 @@ export default function MeusDocumentos() {
           onRefresh={refetch}
           refreshing={isLoading}
           ListHeaderComponent={
-            <Text style={styles.sectionTitle}>DOCUMENTOS DO MOTORISTA</Text>
+            <Text style={styles.sectionTitle}>DOCUMENTOS DO VEICULO</Text>
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -54,7 +76,7 @@ export default function MeusDocumentos() {
               />
               <Text style={styles.emptyTitle}>Nenhum documento cadastrado</Text>
               <Text style={styles.emptySubtitle}>
-                Adicione seus documentos de motorista
+                Adicione os documentos vinculados ao seu caminhao
               </Text>
             </View>
           }
@@ -64,7 +86,7 @@ export default function MeusDocumentos() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.addBtn, { backgroundColor: primaryColor }]}
-          onPress={() => router.push("/documentos/novo" as any)}
+          onPress={handleAddDocumento}
           activeOpacity={0.85}
         >
           <Text style={styles.addBtnText}>ADICIONAR DOCUMENTO</Text>
@@ -77,7 +99,7 @@ export default function MeusDocumentos() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   listContent: {
     padding: 20,
@@ -86,40 +108,40 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontWeight: "bold",
-    color: "#555",
+    fontWeight: 'bold',
+    color: '#555',
     letterSpacing: 0.8,
     marginBottom: 8,
   },
   emptyState: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingTop: 60,
     gap: 8,
   },
   emptyTitle: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: '600',
+    color: '#333',
   },
   emptySubtitle: {
     fontSize: 13,
-    color: "#aaa",
-    textAlign: "center",
+    color: '#aaa',
+    textAlign: 'center',
   },
   footer: {
     padding: 16,
     paddingBottom: 28,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   addBtn: {
     borderRadius: 14,
     height: 56,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addBtnText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 15,
     letterSpacing: 0.5,
   },

@@ -1,14 +1,14 @@
-import { CreateDocumentoDto } from '@/@types/documento';
+import { UpdateDocumentoDto } from '@/@types/documento';
 import { DateField } from '@/components/dateField';
 import Input from '@/components/input';
 import colors from '@/constants/colors';
-import { createDocumento } from '@/services/documentoService';
+import { updateDocumento } from '@/services/documentoService';
 import { useToast } from '@/shared/ui/molecules/Toast';
 import { queryClient } from '@/utils/queryClient';
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,11 +22,11 @@ import {
 } from 'react-native';
 
 interface FormErrors {
+  id?: string;
   nome?: string;
   numero?: string;
   dataEmissao?: string;
   dataVencimento?: string;
-  caminhaoId?: string;
 }
 
 function getErrorMessage(error: unknown) {
@@ -36,28 +36,63 @@ function getErrorMessage(error: unknown) {
     if (typeof message === 'string') return message;
   }
 
-  return 'Erro ao cadastrar documento';
+  return 'Erro ao atualizar documento';
 }
 
-export default function NovoDocumento() {
+function parseRouteDate(value?: string | string[]) {
+  if (!value) return null;
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsedDate = new Date(rawValue);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
+function parseRouteString(value?: string | string[]) {
+  if (!value) return '';
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default function EditarDocumento() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
-
-  const { caminhaoId } = useLocalSearchParams<{ caminhaoId: string }>();
   const { show } = useToast();
+  const params = useLocalSearchParams<{
+    id?: string;
+    nome?: string;
+    numero?: string;
+    dataEmissao?: string;
+    dataVencimento?: string;
+    observacao?: string;
+  }>();
 
-  const [nome, setNome] = useState('');
-  const [numero, setNumero] = useState('');
-  const [dataEmissao, setDataEmissao] = useState<Date | null>(null);
-  const [dataVencimento, setDataVencimento] = useState<Date | null>(null);
-  const [observacao, setObservacao] = useState('');
+  const documentoId = useMemo(() => {
+    const parsedId = Number(parseRouteString(params.id));
+    return Number.isFinite(parsedId) ? parsedId : null;
+  }, [params.id]);
+
+  const [nome, setNome] = useState(() => parseRouteString(params.nome));
+  const [numero, setNumero] = useState(() => parseRouteString(params.numero));
+  const [dataEmissao, setDataEmissao] = useState<Date | null>(() =>
+    parseRouteDate(params.dataEmissao)
+  );
+  const [dataVencimento, setDataVencimento] = useState<Date | null>(() =>
+    parseRouteDate(params.dataVencimento)
+  );
+  const [observacao, setObservacao] = useState(() =>
+    parseRouteString(params.observacao)
+  );
   const [errors, setErrors] = useState<FormErrors>({});
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: CreateDocumentoDto) => createDocumento({ ...data }),
+    mutationFn: (data: UpdateDocumentoDto) => {
+      if (!documentoId) {
+        throw new Error('Documento invalido');
+      }
+
+      return updateDocumento(documentoId, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documentos'] });
-      show('Documento cadastrado com sucesso!', {
+      show('Documento atualizado com sucesso!', {
         type: 'success',
         backgroundColor: '#10B981',
       });
@@ -71,9 +106,10 @@ export default function NovoDocumento() {
     },
   });
 
-  const validate = (): boolean => {
+  const validate = () => {
     const newErrors: FormErrors = {};
 
+    if (!documentoId) newErrors.id = 'Documento invalido para edicao';
     if (!nome.trim()) newErrors.nome = 'Nome do documento e obrigatorio';
     if (!numero.trim()) newErrors.numero = 'Numero e obrigatorio';
     if (!dataEmissao) newErrors.dataEmissao = 'Data de emissao obrigatoria';
@@ -83,9 +119,6 @@ export default function NovoDocumento() {
     if (dataEmissao && dataVencimento && dataVencimento < dataEmissao) {
       newErrors.dataVencimento =
         'A data de vencimento nao pode ser anterior a emissao';
-    }
-    if (!caminhaoId) {
-      newErrors.caminhaoId = 'Documento deve estar vinculado a um caminhao';
     }
 
     setErrors(newErrors);
@@ -101,7 +134,6 @@ export default function NovoDocumento() {
       dataEmissao: dataEmissao!.toISOString(),
       dataVencimento: dataVencimento!.toISOString(),
       observacao: observacao.trim() || undefined,
-      caminhaoId: Number(caminhaoId),
     });
   };
 
@@ -116,15 +148,15 @@ export default function NovoDocumento() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>NOVO DOCUMENTO</Text>
-          <Text style={styles.subtitle}>Preencha os dados do documento</Text>
+          <Text style={styles.title}>EDITAR DOCUMENTO</Text>
+          <Text style={styles.subtitle}>
+            Atualize os dados e o vencimento do documento
+          </Text>
         </View>
 
         <View style={styles.divider} />
 
-        {!!errors.caminhaoId && (
-          <Text style={styles.errorText}>{errors.caminhaoId}</Text>
-        )}
+        {!!errors.id && <Text style={styles.errorText}>{errors.id}</Text>}
 
         <View style={styles.fieldContainer}>
           <Text style={styles.label}>NOME DO DOCUMENTO *</Text>
@@ -192,7 +224,7 @@ export default function NovoDocumento() {
           {isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>CADASTRAR DOCUMENTO</Text>
+            <Text style={styles.submitButtonText}>SALVAR ALTERACOES</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
