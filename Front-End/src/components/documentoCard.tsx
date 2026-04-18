@@ -3,6 +3,7 @@ import colors from '@/constants/colors';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import {
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -39,7 +40,32 @@ function getStatusConfig(primaryColor: string): Record<
   };
 }
 
-export function DocumentoCard({ documento }: { documento: Documento }) {
+function getRemainingDaysLabel(dataVencimento: string) {
+  const hoje = new Date();
+  const vencimento = new Date(dataVencimento);
+  hoje.setHours(0, 0, 0, 0);
+  vencimento.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil(
+    (vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays > 1) return `Faltam ${diffDays} dias`;
+  if (diffDays === 1) return 'Falta 1 dia';
+  if (diffDays === 0) return 'Vence hoje';
+  if (diffDays === -1) return 'Vencido ha 1 dia';
+  return `Vencido ha ${Math.abs(diffDays)} dias`;
+}
+
+export function DocumentoCard({
+  documento,
+  onDelete,
+  isDeleting,
+}: {
+  documento: Documento;
+  onDelete: (id: number) => void;
+  isDeleting?: boolean;
+}) {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
 
@@ -51,6 +77,8 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
   const formattedDate = new Date(documento.dataVencimento).toLocaleDateString(
     'pt-BR'
   );
+  const remainingDaysLabel = getRemainingDaysLabel(documento.dataVencimento);
+  const vinculoLabel = documento.caminhaoId ? 'CAMINHAO' : 'MOTORISTA';
 
   const openEditScreen = () => {
     if (!documento.id) return;
@@ -64,19 +92,41 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
         dataEmissao: documento.dataEmissao,
         dataVencimento: documento.dataVencimento,
         observacao: documento.observacao ?? '',
+        vinculo: vinculoLabel,
       },
     });
+  };
+
+  const handleDelete = () => {
+    if (!documento.id || isDeleting) return;
+
+    Alert.alert(
+      'Excluir documento',
+      `Deseja realmente excluir "${documento.nome}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => onDelete(documento.id!),
+        },
+      ]
+    );
   };
 
   return (
     <View style={[styles.docCard, { borderLeftColor: borderColor }]}>
       <View style={styles.docCardInner}>
         <View style={styles.docInfo}>
+          <Text style={styles.docVinculo}>{vinculoLabel}</Text>
           <Text style={[styles.docStatus, { color }]}>{label}</Text>
           <Text style={styles.docNome}>{documento.nome}</Text>
           <Text style={styles.docDate}>
             {isExpired ? 'Expirou em: ' : 'Vencimento: '}
             {formattedDate}
+          </Text>
+          <Text style={[styles.docRemaining, { color }]}>
+            {remainingDaysLabel}
           </Text>
         </View>
         <View style={styles.docActions}>
@@ -89,6 +139,18 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
               name="eye-outline"
               size={18}
               color={isExpired ? '#E53E3E' : primaryColor}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            activeOpacity={0.7}
+            onPress={handleDelete}
+            disabled={isDeleting}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color={isDeleting ? '#f3a5a5' : '#E53E3E'}
             />
           </TouchableOpacity>
         </View>
@@ -133,6 +195,12 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  docVinculo: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#999',
+    letterSpacing: 0.8,
+  },
   docStatus: {
     fontSize: 11,
     fontWeight: 'bold',
@@ -149,14 +217,28 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 2,
   },
+  docRemaining: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   docActions: {
     paddingTop: 2,
+    gap: 10,
   },
   eyeBtn: {
     width: 40,
     height: 40,
     borderRadius: 10,
     backgroundColor: '#fff5ee',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#fef2f2',
     justifyContent: 'center',
     alignItems: 'center',
   },

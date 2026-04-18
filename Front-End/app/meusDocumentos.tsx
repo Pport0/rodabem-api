@@ -1,12 +1,14 @@
-import { Documento } from '@/@types/documento';
+import { Documento, DocumentoVinculo } from '@/@types/documento';
 import { DocumentoCard } from '@/components/documentoCard';
 import colors from '@/constants/colors';
 import { getMeuCaminhao } from '@/services/caminhaoService';
-import { getDocumentos } from '@/services/documentoService';
+import { deleteDocumento, getDocumentos } from '@/services/documentoService';
 import { useToast } from '@/shared/ui/molecules/Toast';
+import { queryClient } from '@/utils/queryClient';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -21,6 +23,7 @@ export default function MeusDocumentos() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
   const { show } = useToast();
+  const [activeTab, setActiveTab] = useState<DocumentoVinculo>('CAMINHAO');
 
   const { data: documentos, isLoading, refetch } = useQuery<Documento[]>({
     queryKey: ['documentos'],
@@ -32,8 +35,27 @@ export default function MeusDocumentos() {
     queryFn: getMeuCaminhao,
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteDocumento(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentos'] });
+      show('Documento excluido com sucesso.', {
+        type: 'success',
+        backgroundColor: '#10B981',
+      });
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message || 'Nao foi possivel excluir o documento.';
+      show(Array.isArray(message) ? message[0] : message, {
+        type: 'error',
+        backgroundColor: '#E53E3E',
+      });
+    },
+  });
+
   const handleAddDocumento = () => {
-    if (!caminhao?.id) {
+    if (activeTab === 'CAMINHAO' && !caminhao?.id) {
       show('Cadastre um caminhao antes de adicionar um documento.', {
         type: 'error',
         backgroundColor: '#E53E3E',
@@ -43,9 +65,24 @@ export default function MeusDocumentos() {
 
     router.push({
       pathname: '/documentos/novo',
-      params: { caminhaoId: String(caminhao.id) },
+      params: {
+        tipoVinculo: activeTab,
+        ...(activeTab === 'CAMINHAO' && caminhao?.id
+          ? { caminhaoId: String(caminhao.id) }
+          : {}),
+      },
     } as any);
   };
+
+  const documentosFiltrados =
+    documentos?.filter((documento) =>
+      activeTab === 'CAMINHAO' ? !!documento.caminhaoId : !documento.caminhaoId
+    ) ?? [];
+
+  const headerTitle =
+    activeTab === 'CAMINHAO'
+      ? 'DOCUMENTOS DO CAMINHAO'
+      : 'DOCUMENTOS DO MOTORISTA';
 
   return (
     <View style={styles.container}>
@@ -57,15 +94,67 @@ export default function MeusDocumentos() {
         />
       ) : (
         <FlatList
-          data={documentos}
+          data={documentosFiltrados}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <DocumentoCard documento={item} />}
+          renderItem={({ item }) => (
+            <DocumentoCard
+              documento={item}
+              onDelete={(id) => deleteMutation.mutate(id)}
+              isDeleting={
+                deleteMutation.isPending && deleteMutation.variables === item.id
+              }
+            />
+          )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           onRefresh={refetch}
           refreshing={isLoading}
           ListHeaderComponent={
-            <Text style={styles.sectionTitle}>DOCUMENTOS DO VEICULO</Text>
+            <View style={styles.headerContainer}>
+              <Text style={styles.sectionTitle}>{headerTitle}</Text>
+              <View style={styles.tabsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    activeTab === 'CAMINHAO' && {
+                      backgroundColor: primaryColor,
+                      borderColor: primaryColor,
+                    },
+                  ]}
+                  onPress={() => setActiveTab('CAMINHAO')}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      activeTab === 'CAMINHAO' && styles.tabButtonTextActive,
+                    ]}
+                  >
+                    Caminhao
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    activeTab === 'MOTORISTA' && {
+                      backgroundColor: primaryColor,
+                      borderColor: primaryColor,
+                    },
+                  ]}
+                  onPress={() => setActiveTab('MOTORISTA')}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      activeTab === 'MOTORISTA' && styles.tabButtonTextActive,
+                    ]}
+                  >
+                    Motorista
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -76,7 +165,9 @@ export default function MeusDocumentos() {
               />
               <Text style={styles.emptyTitle}>Nenhum documento cadastrado</Text>
               <Text style={styles.emptySubtitle}>
-                Adicione os documentos vinculados ao seu caminhao
+                {activeTab === 'CAMINHAO'
+                  ? 'Adicione os documentos vinculados ao seu caminhao'
+                  : 'Adicione os documentos pessoais do motorista'}
               </Text>
             </View>
           }
@@ -89,7 +180,11 @@ export default function MeusDocumentos() {
           onPress={handleAddDocumento}
           activeOpacity={0.85}
         >
-          <Text style={styles.addBtnText}>ADICIONAR DOCUMENTO</Text>
+          <Text style={styles.addBtnText}>
+            {activeTab === 'CAMINHAO'
+              ? 'ADICIONAR DOCUMENTO DO CAMINHAO'
+              : 'ADICIONAR DOCUMENTO DO MOTORISTA'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -106,12 +201,36 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 12,
   },
+  headerContainer: {
+    gap: 12,
+    marginBottom: 8,
+  },
   sectionTitle: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#555',
     letterSpacing: 0.8,
-    marginBottom: 8,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  tabButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  tabButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+  },
+  tabButtonTextActive: {
+    color: '#fff',
   },
   emptyState: {
     alignItems: 'center',

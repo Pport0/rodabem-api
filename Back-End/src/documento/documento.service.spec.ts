@@ -8,6 +8,9 @@ describe('DocumentoService', () => {
   let service: DocumentoService;
 
   const prisma = {
+    caminhao: {
+      findUnique: jest.fn(),
+    },
     documento: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -26,6 +29,7 @@ describe('DocumentoService', () => {
   });
 
   it('deve cadastrar documento com dados validos', async () => {
+    prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId });
     prisma.documento.create.mockResolvedValue({ id: 1, userId });
 
     const result = await service.create(userId, {
@@ -37,6 +41,28 @@ describe('DocumentoService', () => {
     });
 
     expect(prisma.documento.create).toHaveBeenCalled();
+    expect(result.message).toBe('Documento cadastrado com sucesso');
+  });
+
+  it('deve cadastrar documento de motorista sem caminhao', async () => {
+    prisma.documento.create.mockResolvedValue({ id: 2, userId, caminhaoId: null });
+
+    const result = await service.create(userId, {
+      nome: 'CNH',
+      numero: 'MOT-001',
+      dataEmissao: '2026-01-01',
+      dataVencimento: '2026-12-31',
+    });
+
+    expect(prisma.caminhao.findUnique).not.toHaveBeenCalled();
+    expect(prisma.documento.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        nome: 'CNH',
+        numero: 'MOT-001',
+        caminhaoId: null,
+        userId,
+      }),
+    });
     expect(result.message).toBe('Documento cadastrado com sucesso');
   });
 
@@ -57,24 +83,29 @@ describe('DocumentoService', () => {
       {
         id: 1,
         userId,
+        caminhaoId: 10,
         dataVencimento: new Date(now.getTime() + 45 * 24 * 60 * 60 * 1000),
       },
       {
         id: 2,
         userId,
+        caminhaoId: null,
         dataVencimento: new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000),
       },
       {
         id: 3,
         userId,
+        caminhaoId: 11,
         dataVencimento: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
       },
     ]);
 
     const result = await service.findAll(userId);
 
-    expect(result[0].status).toBe('VÁLIDO');
+    expect(result[0].status).toBe('VALIDO');
+    expect(result[0].vinculo).toBe('CAMINHAO');
     expect(result[1].status).toBe('VENCENDO');
+    expect(result[1].vinculo).toBe('MOTORISTA');
     expect(result[2].status).toBe('EXPIRADO');
   });
 

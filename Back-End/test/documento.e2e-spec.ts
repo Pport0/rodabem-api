@@ -28,7 +28,7 @@ describe('Fluxo de documentos (e2e)', () => {
     await app.close();
   });
 
-  it('deve cadastrar documento valido, bloquear vencimento anterior e negar acesso entre usuarios', async () => {
+  it('deve cadastrar documento de caminhao e motorista, bloquear vencimento anterior e negar acesso entre usuarios', async () => {
     const owner = await registerAndLogin(app, '100003');
     const intruder = await registerAndLogin(app, '100004');
 
@@ -49,12 +49,27 @@ describe('Fluxo de documentos (e2e)', () => {
 
     expect(createResponse.body.documento.nome).toBe('CRLV');
 
+    const motoristaResponse = await request(app.getHttpServer())
+      .post('/documentos')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        nome: 'CNH',
+        numero: 'MOT-9',
+        dataEmissao: '2026-01-01',
+        dataVencimento: '2026-12-31',
+      })
+      .expect(201);
+
+    expect(motoristaResponse.body.documento.caminhaoId).toBeNull();
+
     const listResponse = await request(app.getHttpServer())
       .get('/documentos')
       .set('Authorization', `Bearer ${owner.token}`)
       .expect(200);
 
-    expect(listResponse.body).toHaveLength(1);
+    expect(listResponse.body).toHaveLength(2);
+    expect(listResponse.body.some((doc) => doc.vinculo === 'CAMINHAO')).toBe(true);
+    expect(listResponse.body.some((doc) => doc.vinculo === 'MOTORISTA')).toBe(true);
 
     await request(app.getHttpServer())
       .post('/documentos')

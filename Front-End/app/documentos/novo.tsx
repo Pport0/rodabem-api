@@ -1,4 +1,4 @@
-import { CreateDocumentoDto } from '@/@types/documento';
+import { CreateDocumentoDto, DocumentoVinculo } from '@/@types/documento';
 import { DateField } from '@/components/dateField';
 import Input from '@/components/input';
 import colors from '@/constants/colors';
@@ -43,8 +43,13 @@ export default function NovoDocumento() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
 
-  const { caminhaoId } = useLocalSearchParams<{ caminhaoId: string }>();
+  const { caminhaoId, tipoVinculo } = useLocalSearchParams<{
+    caminhaoId?: string;
+    tipoVinculo?: DocumentoVinculo;
+  }>();
   const { show } = useToast();
+  const vinculo: DocumentoVinculo =
+    tipoVinculo === 'MOTORISTA' ? 'MOTORISTA' : 'CAMINHAO';
 
   const [nome, setNome] = useState('');
   const [numero, setNumero] = useState('');
@@ -84,7 +89,7 @@ export default function NovoDocumento() {
       newErrors.dataVencimento =
         'A data de vencimento nao pode ser anterior a emissao';
     }
-    if (!caminhaoId) {
+    if (vinculo === 'CAMINHAO' && !caminhaoId) {
       newErrors.caminhaoId = 'Documento deve estar vinculado a um caminhao';
     }
 
@@ -101,7 +106,9 @@ export default function NovoDocumento() {
       dataEmissao: dataEmissao!.toISOString(),
       dataVencimento: dataVencimento!.toISOString(),
       observacao: observacao.trim() || undefined,
-      caminhaoId: Number(caminhaoId),
+      vinculo,
+      caminhaoId:
+        vinculo === 'CAMINHAO' && caminhaoId ? Number(caminhaoId) : undefined,
     });
   };
 
@@ -117,7 +124,11 @@ export default function NovoDocumento() {
       >
         <View style={styles.titleContainer}>
           <Text style={styles.title}>NOVO DOCUMENTO</Text>
-          <Text style={styles.subtitle}>Preencha os dados do documento</Text>
+          <Text style={styles.subtitle}>
+            {vinculo === 'CAMINHAO'
+              ? 'Preencha os dados do documento do caminhao'
+              : 'Preencha os dados do documento do motorista'}
+          </Text>
         </View>
 
         <View style={styles.divider} />
@@ -129,7 +140,7 @@ export default function NovoDocumento() {
         <View style={styles.fieldContainer}>
           <Text style={styles.label}>NOME DO DOCUMENTO *</Text>
           <Input
-            placeholder="Ex: CRLV, ANTT, Seguro"
+            placeholder="Ex: CRLV, ANTT, Seguro, CNH"
             value={nome}
             onChangeText={setNome}
             autoCapitalize="words"

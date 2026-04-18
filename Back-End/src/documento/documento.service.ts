@@ -1,7 +1,7 @@
 import {
-  Injectable,
   BadRequestException,
   ForbiddenException,
+  Injectable,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
@@ -22,24 +22,26 @@ export class DocumentoService {
       arquivoUrl,
     } = data;
 
-    
     if (!nome || !numero || !dataEmissao || !dataVencimento) {
-      throw new BadRequestException('Campos obrigatórios ausentes');
+      throw new BadRequestException('Campos obrigatorios ausentes');
     }
 
-   
     if (new Date(dataVencimento) < new Date(dataEmissao)) {
-      throw new BadRequestException('Data de vencimento inválida');
+      throw new BadRequestException('Data de vencimento invalida');
     }
 
-    
-    if (!caminhaoId) {
-      throw new BadRequestException(
-        'Documento deve estar vinculado a um caminhão',
-      );
+    if (caminhaoId) {
+      const caminhao = await this.prisma.caminhao.findUnique({
+        where: { id: caminhaoId },
+      });
+
+      if (!caminhao || caminhao.userId !== userId) {
+        throw new ForbiddenException(
+          'Voce nao pode vincular documento a este caminhao.',
+        );
+      }
     }
 
-   
     const documento = await this.prisma.documento.create({
       data: {
         nome,
@@ -48,8 +50,8 @@ export class DocumentoService {
         dataVencimento: new Date(dataVencimento),
         observacao,
         arquivoUrl,
-        caminhaoId,
-        userId, 
+        caminhaoId: caminhaoId ?? null,
+        userId,
       },
     });
 
@@ -66,6 +68,7 @@ export class DocumentoService {
 
     return documentos.map((doc) => ({
       ...doc,
+      vinculo: doc.caminhaoId ? 'CAMINHAO' : 'MOTORISTA',
       status: this.getStatus(doc.dataVencimento),
       diasRestantes: this.getDiasRestantes(doc.dataVencimento),
     }));
@@ -77,11 +80,11 @@ export class DocumentoService {
     });
 
     if (!doc) {
-      throw new BadRequestException('Documento não encontrado');
+      throw new BadRequestException('Documento nao encontrado');
     }
 
     if (doc.userId !== userId) {
-      throw new ForbiddenException('Acesso não permitido');
+      throw new ForbiddenException('Acesso nao permitido');
     }
 
     if (
@@ -89,7 +92,7 @@ export class DocumentoService {
       data.dataVencimento &&
       new Date(data.dataVencimento) < new Date(data.dataEmissao)
     ) {
-      throw new BadRequestException('Data inválida');
+      throw new BadRequestException('Data invalida');
     }
 
     return this.prisma.documento.update({
@@ -112,11 +115,11 @@ export class DocumentoService {
     });
 
     if (!doc) {
-      throw new BadRequestException('Documento não encontrado');
+      throw new BadRequestException('Documento nao encontrado');
     }
 
     if (doc.userId !== userId) {
-      throw new ForbiddenException('Acesso não permitido');
+      throw new ForbiddenException('Acesso nao permitido');
     }
 
     await this.prisma.documento.delete({
@@ -138,7 +141,7 @@ export class DocumentoService {
 
     if (diff < 0) return 'EXPIRADO';
     if (diff <= diasConfig) return 'VENCENDO';
-    return 'VÁLIDO';
+    return 'VALIDO';
   }
 
   private getDiasRestantes(dataVencimento: Date) {

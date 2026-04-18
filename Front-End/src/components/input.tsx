@@ -1,4 +1,5 @@
 import Colors from "@/constants/colors";
+import { useFontSize } from "@/contexts/fontSizeContext";
 import { StyleSheet, TextInput, TextInputProps, useColorScheme, View } from "react-native";
 
 interface InputProps extends Omit<TextInputProps, 'value' | 'onChangeText'> {
@@ -11,13 +12,14 @@ interface InputProps extends Omit<TextInputProps, 'value' | 'onChangeText'> {
 export default function Input({ placeholder, value, onChangeText, type = 'text', ...rest }: InputProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
+  const { scaleFont } = useFontSize();
 
   return (
     <View style={[styles.container, { borderColor: colors.tint, backgroundColor: colors.background }]}>
       <TextInput
         placeholderTextColor={colorScheme === 'dark' ? '#888' : '#aaa'}
         keyboardAppearance={colorScheme}
-        style={[styles.input, { color: colors.text }]}
+        style={[styles.input, { color: colors.text, fontSize: scaleFont(16) }]}
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}

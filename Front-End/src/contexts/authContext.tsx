@@ -2,11 +2,18 @@ import { User } from '@/@types/user';
 import { signIn } from '@/services/authService';
 import { createUser } from '@/services/userService';
 import { useToast } from '@/shared/ui/molecules/Toast';
+import { queryClient } from '@/utils/queryClient';
 import { UseMutateFunction, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { createContext, ReactNode, useContext } from 'react';
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 
 interface AuthContextType {
   login: UseMutateFunction<
@@ -19,6 +26,7 @@ interface AuthContextType {
     unknown
   >;
   logout: () => void;
+  isAuthenticated: boolean;
   signUp: UseMutateFunction<
     User,
     Error,
@@ -57,6 +65,38 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { show } = useToast();
+  const pathname = usePathname();
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const token = SecureStore.getItem(
+      process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token'
+    );
+    const userRaw = SecureStore.getItem(
+      process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user'
+    );
+    const user = userRaw ? JSON.parse(userRaw) : null;
+
+    setIsAuthenticated(Boolean(token && user?.nome));
+    setIsAuthReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthReady) return;
+
+    const publicRoutes = new Set(['/', '/login', '/register', '/forgotPassword']);
+    const isPublicRoute = publicRoutes.has(pathname);
+
+    if (!isAuthenticated && !isPublicRoute) {
+      router.replace('/');
+      return;
+    }
+
+    if (isAuthenticated && isPublicRoute) {
+      router.replace('/(drawer)/home');
+    }
+  }, [isAuthReady, isAuthenticated, pathname]);
 
   const { mutate: loginMutation } = useMutation({
     mutationFn: async ({
@@ -85,7 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user',
           JSON.stringify(data.user)
         );
-        router.push('/(drawer)/home');
+        setIsAuthenticated(true);
+        router.replace('/(drawer)/home');
       }
     },
     onError: (error) => {
@@ -117,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         type: 'success',
         backgroundColor: '#10B981',
       });
-      router.push('/login');
+      router.replace('/login');
     },
     onError: (error) => {
       show(getErrorMessage(error, 'Falha ao criar usuario'), {
@@ -127,19 +168,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const logout = () => {
-    SecureStore.deleteItemAsync(
+  const logout = async () => {
+    await SecureStore.deleteItemAsync(
       process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token'
     );
-    SecureStore.deleteItemAsync(
+    await SecureStore.deleteItemAsync(
       process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user'
     );
-    router.push('/');
+    await queryClient.clear();
+    setIsAuthenticated(false);
+    router.replace('/');
   };
 
   return (
     <AuthContext.Provider
-      value={{ login: loginMutation, logout, signUp: signUpMutation }}
+      value={{
+        login: loginMutation,
+        logout,
+        isAuthenticated,
+        signUp: signUpMutation,
+      }}
     >
       {children}
     </AuthContext.Provider>

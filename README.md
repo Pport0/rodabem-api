@@ -1,111 +1,45 @@
-# 🚛 RodaBem — Full Stack
+# RodaBem
 
-![Node](https://img.shields.io/badge/Node.js-18+-green)
-![NestJS](https://img.shields.io/badge/NestJS-API-red)
-![Expo](https://img.shields.io/badge/Expo-Mobile-blue)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue)
-![License](https://img.shields.io/badge/License-MIT-lightgrey)
+Projeto full stack para apoio ao caminhoneiro, com API em NestJS e aplicativo mobile em Expo/React Native.
 
-Aplicação **mobile + API** para gestão de caminhoneiros, incluindo autenticação, controle de caminhões e documentos.
+## Estrutura
 
----
-
-## 📁 Estrutura do Projeto
-rodabem-full/
-├── Back-End/ # API NestJS (porta 3000)
-└── Front-End/ # App mobile com Expo
-
----
-
-## ⚙️ Tecnologias
-
-### 🔙 Back-End
-- NestJS
-- Prisma ORM
-- PostgreSQL
-- JWT Authentication
-
-### 📱 Front-End
-- React Native
-- Expo
-- React Query
-- Expo Router
-
----
-
-## 🚀 Como rodar o projeto
-
----
-
-## 🔧 1. Back-End
-
-### 📁 Acesse
-
-```bash
-cd Back-End 
-```
-```bash
-npm install
+```text
+rodabem-api/
+|-- Back-End/   API NestJS + Prisma + PostgreSQL
+|-- Front-End/  App Expo/React Native
+`-- logs/       Logs locais de execucao
 ```
 
-### Configure o .env
+## Estado Atual
 
-### Crie o arquivo .env:
-```bash
-DATABASE_URL="postgresql://root:root@localhost:5432/rodabem"
-JWT_SECRET="rodabem-secret-key"
-JWT_EXPIRES_IN="7d"
-PORT=3000
-```
-### Suba o banco
-```bash
-docker compose up -d
-```
-### Rode migrations
-```bash
-npx prisma migrate deploy
-npx prisma generate
-```
-### Inicie
-```bash
-npm run start:dev
-```
-### API
-```bash
-http://localhost:3000
-```
-### 2. Front-End (Expo)
-📁 Acesse
-```bash
-cd Front-End
-```
-### 📦 Instale
-```bash
-npm install
-```
-### 🧪 Configure o .env
+- Back-end com autenticacao, caminhao, documentos, abastecimentos e simulacao de frete.
+- Front-end integrado aos fluxos principais e preparado para Expo Go em celular fisico.
+- Seed da tabela ANTT disponivel no back-end.
 
-### 🤖 Android Studio (Emulador)
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3000
-EXPO_PUBLIC_TOKEN_KEY=rodabem_token
-EXPO_PUBLIC_USER_KEY=rodabem_user
+## O que consultar
 
-### ▶️ Rodar
+- API e banco: [Back-End/README.md](./Back-End/README.md)
+- App mobile: [Front-End/README.md](./Front-End/README.md)
+
+## Setup Rapido
+
+1. Suba o banco e a API seguindo o README do back-end.
+2. Configure o `.env` do front-end.
+3. Inicie o Expo em rede local com `npx expo start --lan`.
+
+## Observacoes Importantes
+
+- A calculadora de frete depende de:
+  - `ORS_API_KEY` valida no back-end
+  - tabela ANTT populada
+  - caminhão com `numeroEixos`
+  - historico de abastecimento suficiente ou consumo manual
+- Para popular a tabela ANTT no banco local:
+
 ```bash
-npx expo start
-```
-### 🤖 Android Studio (Guia rápido)
-Abrir Android Studio
-Virtual Device Manager
-Create Device (Pixel 5 recomendado)
-Baixar Android 13/14
-Iniciar emulador
-No terminal do Expo:
-```bash
-a
+cd Back-End
+npx prisma db seed
 ```
 
-###🔐 Autenticação
-JWT armazenado automaticamente
-Enviado via:
-Authorization: Bearer TOKEN
+- O seed recria os registros da `tabela_antt`.

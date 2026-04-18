@@ -1,37 +1,70 @@
 # RodaBem Front-End
 
-Aplicativo mobile em Expo/React Native para uso com a API do projeto.
+Aplicativo mobile em Expo/React Native para consumo da API do projeto RodaBem.
 
-## Como rodar
+## Stack
 
-1. Instale as dependencias:
+- Expo
+- React Native
+- Expo Router
+- React Query
+- Secure Store
+
+## Instalacao
+
 ```bash
+cd Front-End
 npm install
 ```
 
-2. Configure o `.env` na raiz do front:
+## Variaveis de Ambiente
+
+Crie o arquivo `.env` em `Front-End/`:
+
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3000
 EXPO_PUBLIC_TOKEN_KEY=rodabem_token
 EXPO_PUBLIC_USER_KEY=rodabem_user
 ```
 
-3. Suba o back-end antes de abrir o app.
+## Como Rodar
 
-4. Inicie o Expo:
+Com a API ja ativa:
+
 ```bash
 npx expo start --lan
 ```
 
-## Emulador x celular fisico
+## Emulador x Celular Fisico
 
-- No emulador Android, `10.0.2.2` aponta para a maquina host.
-- No celular fisico, use preferencialmente o IP local da sua maquina, por exemplo `http://192.168.0.15:3000`.
-- O app agora tenta trocar `10.0.2.2` automaticamente pelo IP do computador quando estiver no Expo Go, mas o back-end ainda precisa estar acessivel pela rede.
+- Emulador Android:
+  - `10.0.2.2` aponta para a maquina host
+- Celular fisico com Expo Go:
+  - use o IP local do computador, por exemplo `http://192.168.0.15:3000`
+  - computador e celular precisam estar na mesma rede Wi-Fi
+
+O app tenta substituir `10.0.2.2` automaticamente pelo IP do host quando detecta Expo Go, mas isso nao elimina a necessidade de a API estar acessivel pela rede.
 
 ## Checklist para Expo Go
 
-- Computador e celular na mesma rede Wi-Fi.
-- Back-end rodando na porta `3000`.
-- Firewall do Windows liberando a porta `3000`.
-- Se o Expo abrir mas o login falhar, ajuste `EXPO_PUBLIC_API_BASE_URL` para o IP local da maquina.
+- Back-end rodando na porta `3000`
+- Firewall liberando a porta `3000`
+- Mesmo Wi-Fi entre computador e celular
+- `.env` apontando para a API correta
+
+## Fluxos Principais Ja Integrados
+
+- login e cadastro
+- perfil do usuario
+- cadastro e edicao de caminhão
+- documentos e renovacao via edicao
+- abastecimentos
+- simulacao de frete
+
+## Observacoes
+
+- A simulacao de frete depende do back-end estar com:
+  - `ORS_API_KEY` valida
+  - tabela ANTT populada
+  - caminhão com `numeroEixos`
+- Se o app abrir mas nao conseguir autenticar ou buscar dados, revise primeiro `EXPO_PUBLIC_API_BASE_URL`.

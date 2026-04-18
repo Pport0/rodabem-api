@@ -1,3 +1,5 @@
+export type DocumentoVinculo = 'CAMINHAO' | 'MOTORISTA';
+
 export interface Documento {
   id?: number;
   nome: string;
@@ -6,8 +8,11 @@ export interface Documento {
   dataVencimento: string;
   observacao?: string;
   arquivoUrl?: string;
+  vinculo?: DocumentoVinculo;
+  status?: string;
+  diasRestantes?: number;
   motoristaId?: number;
-  caminhaoId?: number;
+  caminhaoId?: number | null;
 }
 
 export interface CreateDocumentoDto {
@@ -18,6 +23,7 @@ export interface CreateDocumentoDto {
   dataVencimento: string;
   observacao?: string;
   arquivoUrl?: string;
+  vinculo?: DocumentoVinculo;
   motoristaId?: number;
   caminhaoId?: number;
 }
@@ -29,4 +35,4 @@ export interface UpdateDocumentoDto {
   dataVencimento?: string;
   observacao?: string;
   arquivoUrl?: string;
-  }
+}
