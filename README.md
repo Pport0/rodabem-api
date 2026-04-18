@@ -8,7 +8,6 @@ Projeto full stack para apoio ao caminhoneiro, com API em NestJS e aplicativo mo
 rodabem-api/
 |-- Back-End/   API NestJS + Prisma + PostgreSQL
 |-- Front-End/  App Expo/React Native
-`-- logs/       Logs locais de execucao
 ```
 
 ## Estado Atual
