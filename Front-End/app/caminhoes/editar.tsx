@@ -261,7 +261,7 @@ export default function EditarCaminhao() {
           {updateCaminhaoMutation.isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>SALVAR ALTERACOES</Text>
+            <Text style={styles.submitButtonText}>SALVAR ALTERAÇÕES</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

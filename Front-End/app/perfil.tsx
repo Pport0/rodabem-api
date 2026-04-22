@@ -138,7 +138,7 @@ export default function Perfil() {
                 <Text
                   style={[styles.editTruckLinkText, { color: primaryColor }]}
                 >
-                  Editar caminhao
+                  Editar caminhão
                 </Text>
               </TouchableOpacity>
             </>

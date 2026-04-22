@@ -166,7 +166,7 @@ export default function MeusDocumentos() {
               <Text style={styles.emptyTitle}>Nenhum documento cadastrado</Text>
               <Text style={styles.emptySubtitle}>
                 {activeTab === 'CAMINHAO'
-                  ? 'Adicione os documentos vinculados ao seu caminhao'
+                  ? 'Adicione os documentos vinculados ao seu caminhão'
                   : 'Adicione os documentos pessoais do motorista'}
               </Text>
             </View>

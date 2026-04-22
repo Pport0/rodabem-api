@@ -21,17 +21,17 @@ export default function Home() {
     >
       <View style={styles.greetingSection}>
         <Text style={[styles.greeting, { fontSize: scaleFont(26) }]}>
-          Ola, {firstName}!
+          Olá, {firstName}!
         </Text>
         <Text style={[styles.subGreeting, { fontSize: scaleFont(14) }]}>
-          O que voce precisa hoje?
+          O que você precisa hoje?
         </Text>
       </View>
 
       <View style={styles.cardsSection}>
         <ActionCard
-          title="MEU CAMINHAO"
-          subtitle="Acesse os dados do seu veiculo"
+          title="MEU CAMINHÃO"
+          subtitle="Acesse os dados do seu veículo"
           iconName="bus-outline"
           backgroundColor={primaryColor}
           onPress={() => router.push('/perfil' as any)}
@@ -45,7 +45,7 @@ export default function Home() {
         />
         <ActionCard
           title="ABASTECIMENTOS"
-          subtitle="Registre abastecimentos e acompanhe a media"
+          subtitle="Registre abastecimentos e acompanhe a média"
           iconName="water-outline"
           backgroundColor="#D97706"
           onPress={() => router.push('/abastecimentos' as any)}

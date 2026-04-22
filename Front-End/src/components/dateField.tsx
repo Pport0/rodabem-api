@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import {
+  Modal,
   Platform,
   StyleSheet,
   Text,
@@ -31,7 +32,7 @@ export function DateField({ label, value, onChange, error }: DateFieldProps) {
       <Text style={[styles.label, { fontSize: scaleFont(13) }]}>{label}</Text>
       <TouchableOpacity
         style={[styles.dateInput, error ? styles.dateInputError : null]}
-        onPress={() => setShow(true)}
+        onPress={() => setShow(prev => !prev)}
         activeOpacity={0.7}
       >
         <Text
@@ -48,17 +49,30 @@ export function DateField({ label, value, onChange, error }: DateFieldProps) {
       {error && (
         <Text style={[styles.errorText, { fontSize: scaleFont(12) }]}>{error}</Text>
       )}
-      {show && (
-        <DateTimePicker
-          value={value ?? new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(_event, selectedDate) => {
-            setShow(Platform.OS === 'ios');
-            if (selectedDate) onChange(selectedDate);
-          }}
-        />
-      )}
+
+      <Modal
+        transparent
+        visible={show}
+        animationType="slide"
+        onRequestClose={() => setShow(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShow(false)}
+        >
+          <View style={styles.modalContent}>
+            <DateTimePicker
+              value={value ?? new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(_event, selectedDate) => {
+                if (selectedDate) onChange(selectedDate);
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -94,5 +108,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#E53E3E',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 16,
+    paddingLeft: 40,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
 });
