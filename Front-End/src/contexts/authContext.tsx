@@ -2,149 +2,52 @@ import { User } from '@/@types/user';
 import { signIn } from '@/services/authService';
 import { createUser } from '@/services/userService';
 import { useToast } from '@/shared/ui/molecules/Toast';
-import { queryClient } from '@/utils/queryClient';
 import { UseMutateFunction, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
-import { router, usePathname } from 'expo-router';
+import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+import { createContext, ReactNode, useContext } from 'react';
+
 
 interface AuthContextType {
-  login: UseMutateFunction<
-    User,
-    Error,
-    {
-      cpfOrPhone: string;
-      password: string;
-    },
-    unknown
-  >;
+  login: UseMutateFunction<User, Error, {
+    cpfOrPhone: string;
+    password: string;
+  }, unknown>;
   logout: () => void;
-  isAuthenticated: boolean;
-  signUp: UseMutateFunction<
-    User,
-    Error,
-    {
-      nome: string;
-      cpf?: string;
-      telefone?: string;
-      senha: string;
-      email?: string;
-    },
-    unknown
-  >;
+  signUp: UseMutateFunction<User, Error, {
+    nome: string;
+    cpf?: string;
+    telefone?: string;
+    senha: string;
+    email?: string;
+  }, unknown>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function getErrorMessage(error: unknown, fallback: string) {
-  if (axios.isAxiosError(error)) {
-    const apiMessage = error.response?.data?.message;
-
-    if (Array.isArray(apiMessage)) {
-      return apiMessage.join(', ');
-    }
-
-    if (typeof apiMessage === 'string' && apiMessage.trim()) {
-      return apiMessage;
-    }
-  }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallback;
-}
-
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) { 
   const { show } = useToast();
-  const pathname = usePathname();
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    const token = SecureStore.getItem(
-      process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token'
-    );
-    const userRaw = SecureStore.getItem(
-      process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user'
-    );
-    const user = userRaw ? JSON.parse(userRaw) : null;
-
-    setIsAuthenticated(Boolean(token && user?.nome));
-    setIsAuthReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthReady) return;
-
-    const publicRoutes = new Set(['/', '/login', '/register', '/forgotPassword']);
-    const isPublicRoute = publicRoutes.has(pathname);
-
-    if (!isAuthenticated && !isPublicRoute) {
-      router.replace('/');
-      return;
-    }
-
-    if (isAuthenticated && isPublicRoute) {
-      router.replace('/(drawer)/home');
-    }
-  }, [isAuthReady, isAuthenticated, pathname]);
-
   const { mutate: loginMutation } = useMutation({
-    mutationFn: async ({
-      cpfOrPhone,
-      password,
-    }: {
-      cpfOrPhone: string;
-      password: string;
-    }) => {
+    mutationFn: async ({ cpfOrPhone, password }: { cpfOrPhone: string, password: string }) => {
+      let userData: { cpf?: string; telefone?: string, senha: string } = { senha: password };
       return signIn({ cpf: cpfOrPhone, telefone: cpfOrPhone, senha: password });
     },
     onSuccess: (data: any) => {
-      show('Login realizado com sucesso', {
-        type: 'success',
-        backgroundColor: '#10B981',
-      });
-
+      show('Login realizado com sucesso', { type: 'success', backgroundColor: '#10B981' }); 
       const token = data.access_token;
-
-      if (token) {
-        SecureStore.setItem(
-          process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token',
-          token
-        );
-        SecureStore.setItem(
-          process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user',
-          JSON.stringify(data.user)
-        );
-        setIsAuthenticated(true);
-        router.replace('/(drawer)/home');
+      if(token) {
+        SecureStore.setItem(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token', token);
+        SecureStore.setItem(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user', JSON.stringify(data.user));
+        router.push('/(drawer)/home');
       }
     },
     onError: (error) => {
-      show(getErrorMessage(error, 'Falha ao fazer login'), {
-        type: 'error',
-        backgroundColor: '#bf0a30',
-      });
+      show('Falha ao fazer login' + error.message, { type: 'error',backgroundColor: '#bf0a30' });
     },
   });
 
   const { mutate: signUpMutation } = useMutation({
-    mutationFn: async (userData: {
-      nome: string;
-      cpf?: string;
-      telefone?: string;
-      senha: string;
-      email?: string;
-    }) => {
+    mutationFn: async (userData: { nome: string, cpf?: string; telefone?: string, senha: string, email?: string }) => {
       return createUser({
         cpf: userData.cpf,
         telefone: userData.telefone,
@@ -153,42 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nome: userData.nome,
       });
     },
-    onSuccess: () => {
-      show('Usuario criado com sucesso', {
-        type: 'success',
-        backgroundColor: '#10B981',
-      });
-      router.replace('/login');
+    onSuccess: (data) => {
+      show('Usuário criado com sucesso', { type: 'success', backgroundColor: '#10B981' });
+      router.push('/login');
     },
     onError: (error) => {
-      show(getErrorMessage(error, 'Falha ao criar usuario'), {
-        type: 'error',
-        backgroundColor: '#bf0a30',
-      });
+      show('Falha ao criar usuário', { type: 'error',backgroundColor: '#bf0a30' });
     },
   });
 
-  const logout = async () => {
-    await SecureStore.deleteItemAsync(
-      process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token'
-    );
-    await SecureStore.deleteItemAsync(
-      process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user'
-    );
-    await queryClient.clear();
-    setIsAuthenticated(false);
-    router.replace('/');
+  const logout = () => {
+    SecureStore.deleteItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token');
+    router.push('/');
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        login: loginMutation,
-        logout,
-        isAuthenticated,
-        signUp: signUpMutation,
-      }}
-    >
+    <AuthContext.Provider value={{ login: loginMutation, logout, signUp: signUpMutation }}>
       {children}
     </AuthContext.Provider>
   );

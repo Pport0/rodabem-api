@@ -11,7 +11,6 @@ export interface Documento {
   vinculo?: DocumentoVinculo;
   status?: string;
   diasRestantes?: number;
-  motoristaId?: number;
   caminhaoId?: number | null;
 }
 
@@ -23,8 +22,6 @@ export interface CreateDocumentoDto {
   dataVencimento: string;
   observacao?: string;
   arquivoUrl?: string;
-  vinculo?: DocumentoVinculo;
-  motoristaId?: number;
   caminhaoId?: number;
 }
 

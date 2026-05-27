@@ -1,70 +1,55 @@
-# RodaBem Front-End
+# 🚚 RodaBem — Front-end
 
-Aplicativo mobile em Expo/React Native para consumo da API do projeto RodaBem.
+Aplicativo mobile para caminhoneiros focado na organização financeira e operacional. Permite registrar ganhos e despesas, calcular consumo de combustível, localizar postos próximos e acompanhar documentos com alertas de vencimento.
 
-## Stack
+---
 
-- Expo
-- React Native
-- Expo Router
-- React Query
-- Secure Store
+## Tecnologias
 
-## Instalacao
+- [Expo](https://expo.dev) + [React Native](https://reactnative.dev)
+- [Expo Router](https://expo.github.io/router) (navegação por arquivos)
+- [TanStack Query](https://tanstack.com/query) (gerenciamento de dados)
+- [Axios](https://axios-http.com) (cliente HTTP)
 
+---
+
+## Como rodar
+
+**1. Clone o repositório**
 ```bash
-cd Front-End
+git clone <url-do-repositorio>
+cd frontend
+```
+
+**2. Instale as dependências**
+```bash
 npm install
 ```
 
-## Variaveis de Ambiente
+**3. Configure as variáveis de ambiente**
 
-Crie o arquivo `.env` em `Front-End/`:
-
+Crie um arquivo `.env` na raiz com base no exemplo abaixo:
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3000
 EXPO_PUBLIC_TOKEN_KEY=rodabem_token
 EXPO_PUBLIC_USER_KEY=rodabem_user
 ```
 
-## Como Rodar
+> Para emulador Android use `10.0.2.2`. Para dispositivo físico use o IP local da máquina.
 
-Com a API ja ativa:
+**4. Suba o back-end**
 
+Certifique-se que a API está rodando antes de iniciar o app.
+
+**5. Rode o front-end**
 ```bash
-npx expo start --lan
+npx expo start
 ```
 
-## Emulador x Celular Fisico
+**6. Abra no dispositivo**
 
-- Emulador Android:
-  - `10.0.2.2` aponta para a maquina host
-- Celular fisico com Expo Go:
-  - use o IP local do computador, por exemplo `http://192.168.0.15:3000`
-  - computador e celular precisam estar na mesma rede Wi-Fi
+- **Android Studio** — pressione `a` no terminal
+- **iOS Simulator** — pressione `i` no terminal
+- **Dispositivo físico** — escaneie o QR Code com o app [Expo Go](https://expo.dev/go)
 
-O app tenta substituir `10.0.2.2` automaticamente pelo IP do host quando detecta Expo Go, mas isso nao elimina a necessidade de a API estar acessivel pela rede.
-
-## Checklist para Expo Go
-
-- Back-end rodando na porta `3000`
-- Firewall liberando a porta `3000`
-- Mesmo Wi-Fi entre computador e celular
-- `.env` apontando para a API correta
-
-## Fluxos Principais Ja Integrados
-
-- login e cadastro
-- perfil do usuario
-- cadastro e edicao de caminhão
-- documentos e renovacao via edicao
-- abastecimentos
-- simulacao de frete
-
-## Observacoes
-
-- A simulacao de frete depende do back-end estar com:
-  - `ORS_API_KEY` valida
-  - tabela ANTT populada
-  - caminhão com `numeroEixos`
-- Se o app abrir mas nao conseguir autenticar ou buscar dados, revise primeiro `EXPO_PUBLIC_API_BASE_URL`.
+---

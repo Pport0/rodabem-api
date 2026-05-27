@@ -1,17 +1,9 @@
-import { Documento } from '@/@types/documento';
-import colors from '@/constants/colors';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useColorScheme,
-} from 'react-native';
+import colors from "@/constants/colors";
+import { Documento } from "@/@types/documento";
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
-type DocumentStatus = 'valido' | 'vencendo' | 'vencido';
+type DocumentStatus = "valido" | "vencendo" | "vencido";
 
 function getDocumentStatus(dataVencimento: string): DocumentStatus {
   const hoje = new Date();
@@ -19,10 +11,22 @@ function getDocumentStatus(dataVencimento: string): DocumentStatus {
   const diffDays = Math.ceil(
     (vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
   );
+  if (diffDays < 0) return "vencido";
+  if (diffDays <= 30) return "vencendo";
+  return "valido";
+}
 
-  if (diffDays < 0) return 'vencido';
-  if (diffDays <= 30) return 'vencendo';
-  return 'valido';
+function getBackendStatus(status?: string): DocumentStatus | null {
+  switch (status?.toUpperCase()) {
+    case "VALIDO":
+      return "valido";
+    case "VENCENDO":
+      return "vencendo";
+    case "EXPIRADO":
+      return "vencido";
+    default:
+      return null;
+  }
 }
 
 function getStatusConfig(primaryColor: string): Record<
@@ -30,129 +34,50 @@ function getStatusConfig(primaryColor: string): Record<
   { label: string; color: string; borderColor: string }
 > {
   return {
-    valido: { label: 'VALIDO', color: '#38A169', borderColor: '#38A169' },
+    valido: { label: "VÁLIDO", color: "#38A169", borderColor: "#38A169" },
     vencendo: {
-      label: 'VENCENDO EM BREVE',
+      label: "VENCENDO EM BREVE",
       color: primaryColor,
       borderColor: primaryColor,
     },
-    vencido: { label: 'EXPIRADO', color: '#E53E3E', borderColor: '#E53E3E' },
+    vencido: { label: "EXPIRADO", color: "#E53E3E", borderColor: "#E53E3E" },
   };
 }
 
-function getRemainingDaysLabel(dataVencimento: string) {
-  const hoje = new Date();
-  const vencimento = new Date(dataVencimento);
-  hoje.setHours(0, 0, 0, 0);
-  vencimento.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.ceil(
-    (vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  if (diffDays > 1) return `Faltam ${diffDays} dias`;
-  if (diffDays === 1) return 'Falta 1 dia';
-  if (diffDays === 0) return 'Vence hoje';
-  if (diffDays === -1) return 'Vencido ha 1 dia';
-  return `Vencido ha ${Math.abs(diffDays)} dias`;
-}
-
-export function DocumentoCard({
-  documento,
-  onDelete,
-  isDeleting,
-}: {
-  documento: Documento;
-  onDelete: (id: number) => void;
-  isDeleting?: boolean;
-}) {
+export function DocumentoCard({ documento }: { documento: Documento }) {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
 
-  const status = getDocumentStatus(documento.dataVencimento);
+  const status = getBackendStatus(documento.status) ?? getDocumentStatus(documento.dataVencimento);
   const { label, color, borderColor } = getStatusConfig(primaryColor)[status];
-  const isExpired = status === 'vencido';
-  const isExpiring = status === 'vencendo';
+  const isExpired = status === "vencido";
+  const isExpiring = status === "vencendo";
+  const vinculoLabel = documento.vinculo === "CAMINHAO" ? "Vinculado ao caminhão" : "Documento pessoal";
 
   const formattedDate = new Date(documento.dataVencimento).toLocaleDateString(
-    'pt-BR'
+    "pt-BR"
   );
-  const remainingDaysLabel = getRemainingDaysLabel(documento.dataVencimento);
-  const vinculoLabel = documento.caminhaoId ? 'CAMINHAO' : 'MOTORISTA';
-
-  const openEditScreen = () => {
-    if (!documento.id) return;
-
-    router.push({
-      pathname: '/documentos/editar',
-      params: {
-        id: String(documento.id),
-        nome: documento.nome,
-        numero: documento.numero,
-        dataEmissao: documento.dataEmissao,
-        dataVencimento: documento.dataVencimento,
-        observacao: documento.observacao ?? '',
-        vinculo: vinculoLabel,
-      },
-    });
-  };
-
-  const handleDelete = () => {
-    if (!documento.id || isDeleting) return;
-
-    Alert.alert(
-      'Excluir documento',
-      `Deseja realmente excluir "${documento.nome}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => onDelete(documento.id!),
-        },
-      ]
-    );
-  };
 
   return (
     <View style={[styles.docCard, { borderLeftColor: borderColor }]}>
       <View style={styles.docCardInner}>
         <View style={styles.docInfo}>
-          <Text style={styles.docVinculo}>{vinculoLabel}</Text>
           <Text style={[styles.docStatus, { color }]}>{label}</Text>
           <Text style={styles.docNome}>{documento.nome}</Text>
           <Text style={styles.docDate}>
-            {isExpired ? 'Expirou em: ' : 'Vencimento: '}
+            {isExpired ? "Expirou em: " : "Vencimento: "}
             {formattedDate}
           </Text>
-          <Text style={[styles.docRemaining, { color }]}>
-            {remainingDaysLabel}
-          </Text>
+          <Text style={styles.docLink}>{vinculoLabel}</Text>
         </View>
         <View style={styles.docActions}>
-          <TouchableOpacity
-            style={styles.eyeBtn}
-            activeOpacity={0.7}
-            onPress={openEditScreen}
-          >
+          <View style={styles.eyeBtn}>
             <Ionicons
               name="eye-outline"
               size={18}
-              color={isExpired ? '#E53E3E' : primaryColor}
+              color={isExpired ? "#E53E3E" : primaryColor}
             />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            activeOpacity={0.7}
-            onPress={handleDelete}
-            disabled={isDeleting}
-          >
-            <Ionicons
-              name="trash-outline"
-              size={18}
-              color={isDeleting ? '#f3a5a5' : '#E53E3E'}
-            />
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -160,12 +85,9 @@ export function DocumentoCard({
         <TouchableOpacity
           style={[styles.renewBtn, isExpiring && { borderColor: primaryColor }]}
           activeOpacity={0.7}
-          onPress={openEditScreen}
         >
-          <Text
-            style={[styles.renewBtnText, isExpiring && { color: primaryColor }]}
-          >
-            REGISTRAR RENOVACAO
+          <Text style={[styles.renewBtnText, isExpiring && { color: primaryColor }]}>
+            REGISTRAR RENOVAÇÃO
           </Text>
         </TouchableOpacity>
       )}
@@ -173,88 +95,74 @@ export function DocumentoCard({
   );
 }
 
+
 const styles = StyleSheet.create({
-  docCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  docCardInner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 16,
-    gap: 12,
-  },
-  docInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  docVinculo: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#999',
-    letterSpacing: 0.8,
-  },
-  docStatus: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  docNome: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111',
-    marginTop: 2,
-  },
+    docCard: {
+      backgroundColor: "#fff",
+      borderRadius: 12,
+      borderLeftWidth: 4,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    docCardInner: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      padding: 16,
+      gap: 12,
+    },
+    docInfo: {
+      flex: 1,
+      gap: 3,
+    },
+    docStatus: {
+      fontSize: 11,
+      fontWeight: "bold",
+      letterSpacing: 0.5,
+    },
+    docNome: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: "#111",
+      marginTop: 2,
+    },
   docDate: {
-    fontSize: 13,
-    color: '#888',
-    marginTop: 2,
-  },
-  docRemaining: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  docActions: {
-    paddingTop: 2,
-    gap: 10,
-  },
-  eyeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#fff5ee',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#fef2f2',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  renewBtn: {
-    marginHorizontal: 16,
-    marginBottom: 14,
-    borderWidth: 1.5,
-    borderColor: '#E53E3E',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  renewBtnText: {
-    color: '#E53E3E',
-    fontWeight: 'bold',
-    fontSize: 13,
-    letterSpacing: 0.5,
-  },
-});
+      fontSize: 13,
+      color: "#888",
+      marginTop: 2,
+    },
+    docLink: {
+      fontSize: 12,
+      color: "#9a9a9a",
+      marginTop: 2,
+    },
+    docActions: {
+      paddingTop: 2,
+    },
+    eyeBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: "#fff5ee",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    renewBtn: {
+      marginHorizontal: 16,
+      marginBottom: 14,
+      borderWidth: 1.5,
+      borderColor: "#E53E3E",
+      borderRadius: 8,
+      paddingVertical: 10,
+      alignItems: "center",
+    },
+    renewBtnText: {
+      color: "#E53E3E",
+      fontWeight: "bold",
+      fontSize: 13,
+      letterSpacing: 0.5,
+    },
+  });

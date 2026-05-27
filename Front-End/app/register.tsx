@@ -1,19 +1,12 @@
-import colors from '@/constants/colors';
-import Input from '@/components/input';
-import { useAuth } from '@/contexts/authContext';
-import Button from '@/shared/ui/base/button';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { maskCpf } from '@/utils/maskCpf';
-import { maskPhone } from '@/utils/maskPhone';
-import { useState } from 'react';
-import {
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import colors from "@/constants/colors";
+import Input from "@/components/input";
+import { useAuth } from "@/contexts/authContext";
+import Button from "@/shared/ui/base/button";
+import { maskCpf } from "@/utils/maskCpf";
+import { maskPhone } from "@/utils/maskPhone";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useState } from "react";
+import { Dimensions, ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
 
 interface FormErrors {
   nome?: string;
@@ -40,35 +33,28 @@ export default function Register() {
 
   const isMinLength = senha.length >= 6;
   const hasChars = senha.length > 0;
-  const normalizedEmail = email.trim();
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
 
     if (!nome.trim()) {
-      newErrors.nome = 'Nome completo e obrigatorio';
+      newErrors.nome = 'Nome completo é obrigatório';
     }
     if (cpf.replace(/\D/g, '').length !== 11) {
-      newErrors.cpf = 'CPF invalido';
+      newErrors.cpf = 'CPF inválido';
     }
     if (telefone.replace(/\D/g, '').length < 10) {
-      newErrors.telefone = 'Telefone invalido';
-    }
-    if (!normalizedEmail) {
-      newErrors.email = 'Email e obrigatorio';
-    } else if (!isEmailValid) {
-      newErrors.email = 'Email invalido';
+      newErrors.telefone = 'Telefone inválido';
     }
     if (!senha) {
-      newErrors.senha = 'Senha e obrigatoria';
+      newErrors.senha = 'Senha é obrigatória';
     } else if (!isMinLength) {
-      newErrors.senha = 'A senha deve ter no minimo 6 caracteres';
+      newErrors.senha = 'A senha deve ter no mínimo 6 caracteres';
     }
     if (!confirmarSenha) {
-      newErrors.confirmarSenha = 'Confirmacao de senha e obrigatoria';
+      newErrors.confirmarSenha = 'Confirmação de senha é obrigatória';
     } else if (senha !== confirmarSenha) {
-      newErrors.confirmarSenha = 'As senhas nao coincidem';
+      newErrors.confirmarSenha = 'As senhas não coincidem';
     }
 
     setErrors(newErrors);
@@ -77,14 +63,7 @@ export default function Register() {
 
   const handleRegister = async () => {
     if (!validate()) return;
-
-    await signUp({
-      cpf: cpf.replace(/\D/g, ''),
-      telefone: telefone.replace(/\D/g, ''),
-      senha,
-      email: normalizedEmail,
-      nome: nome.trim(),
-    });
+    await signUp({ cpf: cpf.replace(/\D/g, ''), telefone: telefone.replace(/\D/g, ''), senha, email: email.trim(), nome: nome.trim() });
   };
 
   return (
@@ -114,7 +93,7 @@ export default function Register() {
         <Input
           placeholder="000.000.000-00"
           value={cpf}
-          onChangeText={(text) => setCpf(maskCpf(text))}
+          onChangeText={(t) => setCpf(maskCpf(t))}
           keyboardType="numeric"
         />
         {errors.cpf && <Text style={styles.errorText}>{errors.cpf}</Text>}
@@ -125,12 +104,10 @@ export default function Register() {
         <Input
           placeholder="(00) 00000-0000"
           value={telefone}
-          onChangeText={(text) => setTelefone(maskPhone(text))}
+          onChangeText={(t) => setTelefone(maskPhone(t))}
           keyboardType="numeric"
         />
-        {errors.telefone && (
-          <Text style={styles.errorText}>{errors.telefone}</Text>
-        )}
+        {errors.telefone && <Text style={styles.errorText}>{errors.telefone}</Text>}
       </View>
 
       <View style={styles.inputContainer}>
@@ -138,7 +115,7 @@ export default function Register() {
         <Input
           placeholder="Digite aqui o seu email"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(t) => setEmail(t)}
           keyboardType="email-address"
         />
         {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
@@ -155,26 +132,22 @@ export default function Register() {
         <View style={styles.passwordHints}>
           <View style={styles.passwordHint}>
             <Ionicons
-              name={hasChars ? 'checkmark-circle' : 'checkmark-circle-outline'}
+              name={hasChars ? "checkmark-circle" : "checkmark-circle-outline"}
               size={18}
               color={hasChars ? '#10B981' : '#aaa'}
             />
             <Text style={[styles.hintText, hasChars && styles.hintTextValid]}>
-              Pode conter letras, numeros e simbolos
+              Pode conter letras, números e símbolos
             </Text>
           </View>
           <View style={styles.passwordHint}>
             <Ionicons
-              name={
-                isMinLength ? 'checkmark-circle' : 'checkmark-circle-outline'
-              }
+              name={isMinLength ? "checkmark-circle" : "checkmark-circle-outline"}
               size={18}
               color={isMinLength ? '#10B981' : '#aaa'}
             />
-            <Text
-              style={[styles.hintText, isMinLength && styles.hintTextValid]}
-            >
-              Minimo de 6 caracteres
+            <Text style={[styles.hintText, isMinLength && styles.hintTextValid]}>
+              Mínimo de 6 caracteres
             </Text>
           </View>
         </View>
