@@ -1,12 +1,10 @@
-import { Caminhao } from '@/@types/caminhao';
-import { InfoRow } from '@/components/infoRow';
-import { PlacaBadge } from '@/components/placaBadge';
-import colors from '@/constants/colors';
-import { useUser } from '@/hooks/useUser';
-import { getMeuCaminhao } from '@/services/caminhaoService';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import colors from "@/constants/colors";
+import { Caminhao } from "@/@types/caminhao";
+import { useUser } from "@/hooks/useUser";
+import { getMeuCaminhao } from "@/services/caminhaoService";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import {
   ActivityIndicator,
   ScrollView,
@@ -15,8 +13,10 @@ import {
   TouchableOpacity,
   useColorScheme,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { InfoRow } from "@/components/infoRow";
+import { PlacaBadge } from "@/components/placaBadge";
 
 export default function Perfil() {
   const colorScheme = useColorScheme();
@@ -25,23 +25,21 @@ export default function Perfil() {
   const { user } = useUser();
   const { data: caminhao, isLoading } = useQuery<Caminhao | null>({
     queryKey: ['caminhao'],
-    queryFn: getMeuCaminhao,
+    queryFn: () => getMeuCaminhao(),
   });
 
   const initials = user?.nome
     ? user.nome
-        .split(' ')
+        .split(" ")
         .map((n) => n[0])
         .slice(0, 2)
-        .join('')
+        .join("")
         .toUpperCase()
-    : 'U';
+    : "U";
 
   return (
     <View style={styles.wrapper}>
-      <SafeAreaView
-        style={[styles.headerSafe, { backgroundColor: primaryColor }]}
-      >
+      <SafeAreaView style={[styles.headerSafe, { backgroundColor: primaryColor }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -56,18 +54,16 @@ export default function Perfil() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Avatar */}
         <View style={styles.avatarSection}>
-          <View
-            style={[styles.avatarCircle, { backgroundColor: primaryColor }]}
-          >
+          <View style={[styles.avatarCircle, { backgroundColor: primaryColor }]}>
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
-          <Text style={styles.userName}>{user?.nome ?? 'Usuario'}</Text>
-          <Text style={[styles.userRole, { color: primaryColor }]}>
-            MOTORISTA
-          </Text>
+          <Text style={styles.userName}>{user?.nome ?? "Usuário"}</Text>
+          <Text style={[styles.userRole, { color: primaryColor }]}>MOTORISTA</Text>
         </View>
 
+        {/* MEUS DADOS */}
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>MEUS DADOS</Text>
           <InfoRow label="Nome" value={user?.nome} />
@@ -80,12 +76,9 @@ export default function Perfil() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>MEU CAMINHAO</Text>
+          <Text style={styles.cardSectionTitle}>MEU CAMINHÃO</Text>
           {isLoading ? (
-            <ActivityIndicator
-              color={primaryColor}
-              style={{ paddingVertical: 20 }}
-            />
+            <ActivityIndicator color={primaryColor} style={{ paddingVertical: 20 }} />
           ) : caminhao ? (
             <>
               <View style={styles.infoRow}>
@@ -103,10 +96,7 @@ export default function Perfil() {
               {caminhao.anoFabricacao && (
                 <>
                   <View style={styles.separator} />
-                  <InfoRow
-                    label="Ano"
-                    value={String(caminhao.anoFabricacao)}
-                  />
+                  <InfoRow label="Ano" value={String(caminhao.anoFabricacao)} />
                 </>
               )}
               {caminhao.cor && (
@@ -115,57 +105,33 @@ export default function Perfil() {
                   <InfoRow label="Cor" value={caminhao.cor} />
                 </>
               )}
-              {caminhao.numeroEixos && (
-                <>
-                  <View style={styles.separator} />
-                  <InfoRow
-                    label="Numero de eixos"
-                    value={String(caminhao.numeroEixos)}
-                  />
-                </>
-              )}
               <View style={styles.separator} />
               <TouchableOpacity
                 style={styles.editTruckLink}
-                onPress={() => router.push('/caminhoes/editar' as any)}
+                onPress={() => router.push("/caminhoes/novo" as any)}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name="create-outline"
-                  size={16}
-                  color={primaryColor}
-                />
-                <Text
-                  style={[styles.editTruckLinkText, { color: primaryColor }]}
-                >
-                  Editar caminhão
-                </Text>
+                <Ionicons name="create-outline" size={16} color={primaryColor} />
+                <Text style={[styles.editTruckLinkText, { color: primaryColor }]}>Editar caminhão</Text>
               </TouchableOpacity>
             </>
           ) : (
             <View style={styles.emptyTruck}>
               <Ionicons name="bus-outline" size={40} color="#e0e0e0" />
-              <Text style={styles.emptyTruckText}>
-                Nenhum caminhao cadastrado
-              </Text>
-              <TouchableOpacity
+              <Text style={styles.emptyTruckText}>Nenhum caminhão cadastrado</Text>
+                <TouchableOpacity
                 style={[styles.addTruckBtn, { backgroundColor: primaryColor }]}
-                onPress={() => router.push('/caminhoes/novo' as any)}
+                onPress={() => router.push("/caminhoes/novo" as any)}
                 activeOpacity={0.85}
               >
-                <Text style={styles.addTruckBtnText}>Cadastrar Caminhao</Text>
+                <Text style={styles.addTruckBtnText}>Cadastrar Caminhão</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
-        <TouchableOpacity
-          style={[styles.outlineButton, { borderColor: primaryColor }]}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.outlineButtonText, { color: primaryColor }]}>
-            ALTERAR SENHA
-          </Text>
+        <TouchableOpacity style={[styles.outlineButton, { borderColor: primaryColor }]} activeOpacity={0.85}>
+          <Text style={[styles.outlineButtonText, { color: primaryColor }]}>ALTERAR SENHA</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -175,15 +141,15 @@ export default function Perfil() {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   headerSafe: {
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 18,
     paddingTop: 4,
@@ -193,10 +159,10 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    textAlign: 'center',
-    color: '#fff',
+    textAlign: "center",
+    color: "#fff",
     fontSize: 17,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     letterSpacing: 1.2,
   },
   scroll: {
@@ -208,7 +174,7 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   avatarSection: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 8,
     marginTop: 8,
     marginBottom: 4,
@@ -217,71 +183,79 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarInitials: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   userName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
+    fontWeight: "bold",
+    color: "#111",
   },
   userRole: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     letterSpacing: 1,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 18,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: "#f0f0f0",
   },
   cardSectionTitle: {
     fontSize: 11,
-    fontWeight: 'bold',
-    color: '#aaa',
+    fontWeight: "bold",
+    color: "#aaa",
     letterSpacing: 1.2,
     marginBottom: 14,
   },
   infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 10,
   },
   infoLabel: {
     fontSize: 13,
-    color: '#888',
+    color: "#888",
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#222",
+    textAlign: "right",
+    flex: 1,
+    marginLeft: 16,
   },
   separator: {
     height: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   editTruckLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingVertical: 10,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   editTruckLinkText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   emptyTruck: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 24,
     gap: 8,
   },
   emptyTruckText: {
     fontSize: 14,
-    color: '#aaa',
+    color: "#aaa",
   },
   addTruckBtn: {
     borderRadius: 12,
@@ -290,19 +264,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   addTruckBtnText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 14,
   },
   outlineButton: {
     borderWidth: 1.5,
     borderRadius: 14,
     height: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   outlineButtonText: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 14,
     letterSpacing: 0.5,
   },

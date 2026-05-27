@@ -270,7 +270,7 @@ export default function NovoAbastecimento() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.submitButtonText}>
-                  {isEditing ? "SALVAR ALTERAÇÕES" : "CADASTRAR ABASTECIMENTO"}
+                  {isEditing ? "SALVAR ALTERACOES" : "CADASTRAR ABASTECIMENTO"}
                 </Text>
               )}
             </TouchableOpacity>

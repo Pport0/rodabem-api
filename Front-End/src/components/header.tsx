@@ -1,5 +1,4 @@
 import colors from '@/constants/colors';
-import { useFontSize } from '@/contexts/fontSizeContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from "expo-router";
 import { Image, StyleSheet, Text, TouchableOpacity, useColorScheme } from "react-native";
@@ -12,13 +11,12 @@ function goBackToStartScreen() {
 export default function Header({ title }: { title?: string }) {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
-  const { scaleFont } = useFontSize();
 
   return <SafeAreaView style={[styles.container, { backgroundColor: primaryColor }]}>
     <TouchableOpacity style={styles.backButton} onPress={goBackToStartScreen}>
       <Ionicons name="arrow-back" size={20} color="#fff" />
     </TouchableOpacity>
-    {title ? <Text style={[styles.text, { fontSize: scaleFont(20) }]}>{title}</Text> : <Image source={require('../../assets/images/icon.png')} style={styles.logo} resizeMode="contain" />}
+    {title ? <Text style={styles.text}>{title}</Text> : <Image source={require('../../assets/images/icon.png')} style={styles.logo} resizeMode="contain" />}
   </SafeAreaView>
 }
 

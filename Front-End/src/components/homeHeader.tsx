@@ -1,5 +1,4 @@
 import colors from '@/constants/colors';
-import { useFontSize } from '@/contexts/fontSizeContext';
 import { useUser } from '@/hooks/useUser';
 import Avatar from '@/shared/ui/base/avatar';
 import { DrawerActions } from '@react-navigation/native';
@@ -11,7 +10,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function HomeHeader() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
-  const { scaleFont } = useFontSize();
 
   const { user } = useUser();
   const navigation = useNavigation();
@@ -26,7 +24,7 @@ export default function HomeHeader() {
         <Ionicons name="menu" size={24} color="#fff" />
       </TouchableOpacity>
 
-      <Text style={[styles.text, { fontSize: scaleFont(20) }]}>RB</Text>
+      <Text style={styles.text}>RB</Text>
 
       <Avatar
         backgroundColor={primaryColor}
