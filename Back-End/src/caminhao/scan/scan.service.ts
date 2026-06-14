@@ -109,31 +109,63 @@ export class ScanService {
     }
   }
 
-  private interpretarTextoCaminhao(texto: string) {
-    const placaMatch = texto.match(/\b[A-Z]{3}[\s-]?\d[A-Z0-9]\d{2}\b|\b[A-Z]{3}[\s-]?\d{4}\b/);
-    const renavamMatch = texto.match(/RENAVAM[:\s]*(\d[\d\s]{8,12}\d)/i);
-    const chassiMatch = texto.match(/[A-HJ-NPR-Z0-9]{17}/);
-    const anoMatch = texto.match(/\b(19|20)\d{2}\b/);
+ private interpretarTextoCaminhao(texto: string) {
+  
+  const placaMatch = texto.match(/\b[A-Z]{3}[\s-]?\d[A-Z0-9]\d{2}\b|\b[A-Z]{3}[\s-]?\d{4}\b/);
 
-    const upper = texto.toUpperCase();
-    let marca: string | null = null;
-    ['VOLVO', 'SCANIA', 'MERCEDES', 'DAF', 'IVECO', 'MAN', 'FORD', 'VOLKSWAGEN'].forEach((m) => {
-      if (upper.includes(m)) marca = m;
-    });
+  const renavamMatch = texto.match(/\b(\d{11})\b/);
 
-    return {
-      placa: placaMatch ? placaMatch[0].replace(/[\s-]/g, '') : null,
-      modelo: null,
-      renavam: renavamMatch ? renavamMatch[1].replace(/\s/g, '') : null,
-      crv: null,
-      marca,
-      especieTipo: null,
-      chassi: chassiMatch ? chassiMatch[0] : null,
-      cor: null,
-      anoFabricacao: anoMatch ? parseInt(anoMatch[0]) : null,
-    };
+  const chassiMatch = texto.match(/[A-HJ-NPR-Z0-9]{17}/);
+
+  const anoDuploMatch = texto.match(/ano\S*[\s\S]{0,40}?ano\S*[\s\S]{0,150}?\b((?:19|20)\d{2})\s+((?:19|20)\d{2})\b/i);
+
+  const parAnosMatch = texto.match(/\b((?:19|20)\d{2})\s+((?:19|20)\d{2})\b/);
+
+  const anoFallback = texto.match(/\b(19|20)\d{2}\b/);
+
+  const modeloLinhaMatch = texto.match(/\b([A-Z]{2,})\/([A-Z0-9\s]+\d{2,4})\b/);
+
+  const corMatch = texto.match(
+    /\b(BRANCA|BRANCO|PRETA|PRETO|CINZA|AZUL|VERMELHA|VERMELHO|VERDE|AMARELA|AMARELO|PRATA|MARROM|BEGE|DOURADA|DOURADO)\b/i,
+  );
+
+  const especieMatch = texto.match(
+    /\b(CAMINHAO\s*TRATOR|CAMINH[ÃA]O|REBOQUE|SEMI[\s-]?REBOQUE|CAVALO\s*MECANICO|UTILITARIO|ÔNIBUS|MICRO[\s-]?ONIBUS)\b/i,
+  );
+
+  const upper = texto.toUpperCase();
+  let marca: string | null = null;
+  ['VOLVO', 'SCANIA', 'MERCEDES', 'DAF', 'IVECO', 'MAN', 'FORD', 'VOLKSWAGEN'].forEach((m) => {
+    if (upper.includes(m)) marca = m;
+  });
+
+  let modelo: string | null = null;
+  if (modeloLinhaMatch) {
+    const marcaEncontrada = modeloLinhaMatch[1];
+    const resto = modeloLinhaMatch[2].trim();
+    
+    modelo = resto;
+    if (!marca) marca = marcaEncontrada;
   }
 
+  return {
+    placa: placaMatch ? placaMatch[0].replace(/[\s-]/g, '') : null,
+    modelo,
+    renavam: renavamMatch ? renavamMatch[1] : null,
+    crv: null,
+    marca,
+    especieTipo: especieMatch ? especieMatch[0].replace(/\s+/g, ' ').trim() : null,
+    chassi: chassiMatch ? chassiMatch[0] : null,
+    cor: corMatch ? corMatch[0].toUpperCase() : null,
+    anoFabricacao: anoDuploMatch
+  ? parseInt(anoDuploMatch[1])
+  : parAnosMatch
+  ? parseInt(parAnosMatch[1])
+  : anoFallback
+  ? parseInt(anoFallback[0])
+  : null,
+  };
+}
   private camposVazios() {
     return {
       placa: null,

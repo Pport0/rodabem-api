@@ -15,7 +15,7 @@ export class ScanDocumentoService {
   constructor(
     private configService: ConfigService,
     private cloudinaryService: CloudinaryService,
-  ) {}
+  ) { }
 
   async processarDocumento(file: Express.Multer.File) {
     if (!FORMATOS_ACEITOS.includes(file.mimetype)) {
@@ -101,7 +101,7 @@ export class ScanDocumentoService {
       return this.interpretarTexto(text);
     } catch (error) {
       console.error('Tesseract error:', error?.message);
-      if (worker) await worker.terminate().catch(() => {});
+      if (worker) await worker.terminate().catch(() => { });
       return this.camposVazios();
     } finally {
       if (fs.existsSync(`${tempPath}.jpg`)) fs.unlinkSync(`${tempPath}.jpg`);
@@ -148,37 +148,46 @@ export class ScanDocumentoService {
   }
 
   private detectarDatas(texto: string): { emissao: string | null; vencimento: string | null } {
+
+    const cnhMatch = texto.match(
+      /4a\s*DATA\s*EMISS[ÃA]O[\s\S]{0,50}?4b\s*VALIDADE[\s\S]{0,30}?(\d{2})[\/\-](\d{2})[\/\-](\d{4})[\s\S]{0,10}?(\d{2})[\/\-](\d{2})[\/\-](\d{4})/i,
+    );
+
+    if (cnhMatch) {
+      const [, d1, m1, a1, d2, m2, a2] = cnhMatch;
+      return {
+        emissao: `${a1}-${m1}-${d1}`,
+        vencimento: `${a2}-${m2}-${d2}`,
+      };
+    }
+
     const vencimentoMatch = texto.match(
-      /(?:validade|vencimento|válido\s*até|val\.|VALIDADE)[:\s]*(\d{2})[\/\-](\d{2})[\/\-](\d{4})/i,
+      /(?:validade|vencimento|válido\s*até|val\.)[:\s]*(\d{2})[\/\-](\d{2})[\/\-](\d{4})/i,
     );
 
     const emissaoMatch = texto.match(
-      /(?:emiss[aã]o|expedição|1ª\s*hab|EMISSÃO|primeira\s*habilitação)[:\s]*(\d{2})[\/\-](\d{2})[\/\-](\d{4})/i,
+      /(?:emiss[aã]o|expedição)[:\s]*(\d{2})[\/\-](\d{2})[\/\-](\d{4})/i,
     );
 
+
     const regexData = /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/g;
-    const todasDatas: { data: string; index: number }[] = [];
+    const todasDatas: string[] = [];
     let match;
 
     while ((match = regexData.exec(texto)) !== null) {
       const [, dia, mes, ano] = match;
       if (parseInt(ano) >= 2000) {
-        todasDatas.push({
-          data: `${ano}-${mes}-${dia}`,
-          index: match.index,
-        });
+        todasDatas.push(`${ano}-${mes}-${dia}`);
       }
     }
 
-    todasDatas.sort((a, b) => a.data.localeCompare(b.data));
-
     const emissao = emissaoMatch
       ? `${emissaoMatch[3]}-${emissaoMatch[2]}-${emissaoMatch[1]}`
-      : todasDatas[0]?.data ?? null;
+      : todasDatas[1] ?? null;
 
     const vencimento = vencimentoMatch
       ? `${vencimentoMatch[3]}-${vencimentoMatch[2]}-${vencimentoMatch[1]}`
-      : todasDatas[todasDatas.length - 1]?.data ?? null;
+      : todasDatas[2] ?? todasDatas[todasDatas.length - 1] ?? null;
 
     return { emissao, vencimento };
   }
