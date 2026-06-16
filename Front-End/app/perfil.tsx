@@ -1,7 +1,9 @@
 import colors from "@/constants/colors";
+import { User } from "@/@types/user";
 import { Caminhao } from "@/@types/caminhao";
 import { useUser } from "@/hooks/useUser";
 import { getMeuCaminhao } from "@/services/caminhaoService";
+import { getMeuPerfil } from "@/services/userService";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -20,16 +22,21 @@ import { PlacaBadge } from "@/components/placaBadge";
 
 export default function Perfil() {
   const colorScheme = useColorScheme();
-  const primaryColor = colors[colorScheme ?? 'light'].primary;
+  const primaryColor = colors[colorScheme ?? "light"].primary;
 
   const { user } = useUser();
+  const { data: perfil } = useQuery<User | null>({
+    queryKey: ["perfil"],
+    queryFn: () => getMeuPerfil(),
+  });
   const { data: caminhao, isLoading } = useQuery<Caminhao | null>({
-    queryKey: ['caminhao'],
+    queryKey: ["caminhao"],
     queryFn: () => getMeuCaminhao(),
   });
 
-  const initials = user?.nome
-    ? user.nome
+  const perfilExibido = perfil ?? user;
+  const initials = perfilExibido?.nome
+    ? perfilExibido.nome
         .split(" ")
         .map((n) => n[0])
         .slice(0, 2)
@@ -54,25 +61,23 @@ export default function Perfil() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={[styles.avatarCircle, { backgroundColor: primaryColor }]}>
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
-          <Text style={styles.userName}>{user?.nome ?? "Usuário"}</Text>
+          <Text style={styles.userName}>{perfilExibido?.nome ?? "Usuário"}</Text>
           <Text style={[styles.userRole, { color: primaryColor }]}>MOTORISTA</Text>
         </View>
 
-        {/* MEUS DADOS */}
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>MEUS DADOS</Text>
-          <InfoRow label="Nome" value={user?.nome} />
+          <InfoRow label="Nome" value={perfilExibido?.nome} />
           <View style={styles.separator} />
-          <InfoRow label="CPF" value={user?.cpf} />
+          <InfoRow label="CPF" value={perfilExibido?.cpf} />
           <View style={styles.separator} />
-          <InfoRow label="Telefone" value={user?.telefone} />
+          <InfoRow label="Telefone" value={perfilExibido?.telefone} />
           <View style={styles.separator} />
-          <InfoRow label="E-mail" value={user?.email} />
+          <InfoRow label="E-mail" value={perfilExibido?.email} />
         </View>
 
         <View style={styles.card}>
@@ -119,7 +124,7 @@ export default function Perfil() {
             <View style={styles.emptyTruck}>
               <Ionicons name="bus-outline" size={40} color="#e0e0e0" />
               <Text style={styles.emptyTruckText}>Nenhum caminhão cadastrado</Text>
-                <TouchableOpacity
+              <TouchableOpacity
                 style={[styles.addTruckBtn, { backgroundColor: primaryColor }]}
                 onPress={() => router.push("/caminhoes/novo" as any)}
                 activeOpacity={0.85}
@@ -130,7 +135,10 @@ export default function Perfil() {
           )}
         </View>
 
-        <TouchableOpacity style={[styles.outlineButton, { borderColor: primaryColor }]} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.outlineButton, { borderColor: primaryColor }]}
+          activeOpacity={0.85}
+        >
           <Text style={[styles.outlineButtonText, { color: primaryColor }]}>ALTERAR SENHA</Text>
         </TouchableOpacity>
       </ScrollView>

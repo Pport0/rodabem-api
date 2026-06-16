@@ -1,21 +1,18 @@
-import { createUserDto, User } from "@/@types/user";
+import { User } from "@/@types/user";
 import { api } from "./api";
 
-export async function getUser(id: number): Promise<User> {
-  const response = await api.get<User>(`/users/${id}`);
+export async function createUser(userData: {
+  nome: string;
+  email?: string;
+  cpf?: string;
+  telefone?: string;
+  senha: string;
+}): Promise<User> {
+  const response = await api.post<User>("/users", userData);
   return response.data;
 }
 
-export async function createUser(user: createUserDto): Promise<User> {
-  const response = await api.post<User>(`/users`, user);
+export async function getMeuPerfil(): Promise<User | null> {
+  const response = await api.get<User>("/users/me");
   return response.data;
-}
-
-export async function updateUser(id: number, user: User): Promise<User> {
-  const response = await api.put<User>(`/users/${id}`, user);
-  return response.data;
-}
-
-export async function deleteUser(id: number): Promise<void> {
-  await api.delete(`/users/${id}`);
 }
