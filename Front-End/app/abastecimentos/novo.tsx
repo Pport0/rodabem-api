@@ -137,7 +137,8 @@ export default function NovoAbastecimento() {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.container}
@@ -274,6 +275,8 @@ export default function NovoAbastecimento() {
                 </Text>
               )}
             </TouchableOpacity>
+
+            <View style={styles.bottomSpacer} />
           </>
         )}
       </ScrollView>
@@ -288,8 +291,9 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
     gap: 16,
+    flexGrow: 1,
   },
   titleContainer: {
     gap: 4,
@@ -380,5 +384,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     letterSpacing: 0.5,
+  },
+  bottomSpacer: {
+    height: 32,
   },
 });
