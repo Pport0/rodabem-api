@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -33,6 +33,28 @@ export class UsersService {
 
     const { senhaHash: _, cpfEncrypted: __, cpfHash: ___, ...result } = user;
     return result;
+  }
+
+  
+  async findById(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        telefone: true,
+        avatarUrl: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Usuário não encontrado');
+    }
+
+    return user;
   }
 
   async findAll(params: { page?: number; limit?: number; nome?: string; status?: string }) {
