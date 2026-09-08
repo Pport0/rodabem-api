@@ -7,7 +7,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { encrypt, createHash } from '../common/utils/crypto.util';
+import { encrypt, createHash, decrypt } from '../common/utils/crypto.util'; // 👈 adicionar decrypt
 
 function isValidCPF(cpf: string): boolean {
   const cleaned = cpf.replace(/\D/g, '');
@@ -31,10 +31,9 @@ function isValidCPF(cpf: string): boolean {
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateUserDto) {
-    // Item 4 — valida CPF antes de prosseguir
     if (!isValidCPF(dto.cpf)) {
       throw new BadRequestException('CPF inválido.');
     }
@@ -76,6 +75,7 @@ export class UsersService {
         avatarUrl: true,
         status: true,
         createdAt: true,
+        cpfEncrypted: true, 
       },
     });
 
@@ -83,7 +83,13 @@ export class UsersService {
       throw new BadRequestException('Usuário não encontrado');
     }
 
-    return user;
+    const { cpfEncrypted, ...resto } = user;
+    const cpf = cpfEncrypted ? decrypt(cpfEncrypted) : null;
+
+    return {
+      ...resto,
+      cpf,
+    };
   }
 
   async findAll(params: { page?: number; limit?: number; nome?: string; status?: string }) {

@@ -20,7 +20,7 @@ describe('DocumentoService', () => {
     },
   };
 
-  // 👇 adicionar mock do ConfigService
+  
   const configService = {
     get: jest.fn().mockReturnValue(30),
   };
