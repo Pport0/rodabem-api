@@ -20,12 +20,17 @@ describe('DocumentoService', () => {
     },
   };
 
+  // 👇 adicionar mock do ConfigService
+  const configService = {
+    get: jest.fn().mockReturnValue(30),
+  };
+
   const userId = 1;
   const now = new Date();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new DocumentoService(prisma as any);
+    service = new DocumentoService(prisma as any, configService as any); // 👈 passar configService
   });
 
   it('deve cadastrar documento com dados validos', async () => {
