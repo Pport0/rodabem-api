@@ -3,13 +3,22 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 
 @Injectable()
 export class DocumentoService {
-  constructor(private prisma: PrismaService) {}
+  
+  private readonly diasAlerta: number;
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
+    this.diasAlerta = this.configService.get<number>('DIAS_ALERTA_VENCIMENTO') ?? 30;
+  }
 
   async create(userId: number, data: CreateDocumentoDto) {
     const {
@@ -99,12 +108,8 @@ export class DocumentoService {
       where: { id },
       data: {
         ...data,
-        dataEmissao: data.dataEmissao
-          ? new Date(data.dataEmissao)
-          : undefined,
-        dataVencimento: data.dataVencimento
-          ? new Date(data.dataVencimento)
-          : undefined,
+        dataEmissao: data.dataEmissao ? new Date(data.dataEmissao) : undefined,
+        dataVencimento: data.dataVencimento ? new Date(data.dataVencimento) : undefined,
       },
     });
   }
@@ -133,20 +138,17 @@ export class DocumentoService {
 
   private getStatus(dataVencimento: Date) {
     const hoje = new Date();
-    const diasConfig = 30;
-
     const diff =
       (new Date(dataVencimento).getTime() - hoje.getTime()) /
       (1000 * 60 * 60 * 24);
 
     if (diff < 0) return 'EXPIRADO';
-    if (diff <= diasConfig) return 'VENCENDO';
+    if (diff <= this.diasAlerta) return 'VENCENDO';
     return 'VALIDO';
   }
 
   private getDiasRestantes(dataVencimento: Date) {
     const hoje = new Date();
-
     return Math.ceil(
       (new Date(dataVencimento).getTime() - hoje.getTime()) /
         (1000 * 60 * 60 * 24),
