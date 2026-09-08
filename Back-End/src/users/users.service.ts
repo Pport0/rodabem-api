@@ -9,7 +9,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { encrypt, createHash } from '../common/utils/crypto.util';
 
-// Item 4 — validação real de CPF
 function isValidCPF(cpf: string): boolean {
   const cleaned = cpf.replace(/\D/g, '');
   if (cleaned.length !== 11) return false;
@@ -32,7 +31,7 @@ function isValidCPF(cpf: string): boolean {
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(dto: CreateUserDto) {
     // Item 4 — valida CPF antes de prosseguir
@@ -145,7 +144,6 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
-    // Item 5 — verifica vínculos antes de excluir
     const caminhao = await this.prisma.caminhao.findUnique({ where: { userId: id } });
     if (caminhao) {
       throw new BadRequestException(
@@ -169,5 +167,31 @@ export class UsersService {
 
     await this.prisma.user.delete({ where: { id } });
     return { message: 'Usuário excluído com sucesso!' };
+  }
+
+  async alterarSenha(
+    id: number,
+    dto: { senhaAtual: string; novaSenha: string },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    const senhaValida = await bcrypt.compare(dto.senhaAtual, user.senhaHash);
+    if (!senhaValida) {
+      throw new BadRequestException('Senha atual incorreta.');
+    }
+
+    if (dto.novaSenha.length < 6) {
+      throw new BadRequestException('A nova senha deve ter pelo menos 6 caracteres.');
+    }
+
+    const novaSenhaHash = await bcrypt.hash(dto.novaSenha, 10);
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { senhaHash: novaSenhaHash },
+    });
+
+    return { message: 'Senha alterada com sucesso.' };
   }
 }
