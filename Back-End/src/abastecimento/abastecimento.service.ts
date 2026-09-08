@@ -12,11 +12,7 @@ import { UpdateAbastecimentoDto } from './dto/update-abastecimento.dto';
 export class AbastecimentoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ------------------------------------------------------------------ //
-  // CRIAR
-  // ------------------------------------------------------------------ //
   async create(userId: number, dto: CreateAbastecimentoDto) {
-    // 1. Verifica se o usuário possui caminhão cadastrado
     const caminhao = await this.prisma.caminhao.findUnique({
       where: { userId },
     });
@@ -27,15 +23,12 @@ export class AbastecimentoService {
       );
     }
 
-    // 2. Valida quilometragem regressiva
     await this.validarQuilometragem(caminhao.id, dto.quilometragem);
 
-    // 3. Calcula valor total automaticamente
     const valorTotal = parseFloat(
       (dto.precoPorLitro * dto.totalLitros).toFixed(2),
     );
 
-    // 4. Persiste o abastecimento
     const abastecimento = await this.prisma.abastecimento.create({
       data: {
         precoPorLitro: dto.precoPorLitro,
@@ -57,7 +50,6 @@ export class AbastecimentoService {
 
     return abastecimento;
   }
-
 
   async findAll(userId: number) {
     return this.prisma.abastecimento.findMany({
@@ -84,7 +76,6 @@ export class AbastecimentoService {
     });
   }
 
- 
   async findOne(userId: number, id: number) {
     const abastecimento = await this.prisma.abastecimento.findUnique({
       where: { id },
@@ -103,13 +94,9 @@ export class AbastecimentoService {
     return abastecimento;
   }
 
-  // ------------------------------------------------------------------ //
-  // EDITAR
-  // ------------------------------------------------------------------ //
   async update(userId: number, id: number, dto: UpdateAbastecimentoDto) {
     const abastecimento = await this.findOne(userId, id);
 
-    // Recalcula quilometragem se foi alterada
     if (
       dto.quilometragem !== undefined &&
       dto.quilometragem !== abastecimento.quilometragem
@@ -117,11 +104,10 @@ export class AbastecimentoService {
       await this.validarQuilometragem(
         abastecimento.caminhaoId,
         dto.quilometragem,
-        id, // ignora o próprio registro na validação
+        id,
       );
     }
 
-    // Recalcula valorTotal se preço ou litros foram alterados
     const novoPreco = dto.precoPorLitro ?? abastecimento.precoPorLitro;
     const novosLitros = dto.totalLitros ?? abastecimento.totalLitros;
     const valorTotal = parseFloat((novoPreco * novosLitros).toFixed(2));
@@ -129,25 +115,15 @@ export class AbastecimentoService {
     const atualizado = await this.prisma.abastecimento.update({
       where: { id },
       data: {
-        ...(dto.precoPorLitro !== undefined && {
-          precoPorLitro: dto.precoPorLitro,
-        }),
+        ...(dto.precoPorLitro !== undefined && { precoPorLitro: dto.precoPorLitro }),
         ...(dto.totalLitros !== undefined && { totalLitros: dto.totalLitros }),
         valorTotal,
-        ...(dto.quilometragem !== undefined && {
-          quilometragem: dto.quilometragem,
-        }),
-        ...(dto.tipoCombustivel !== undefined && {
-          tipoCombustivel: dto.tipoCombustivel,
-        }),
+        ...(dto.quilometragem !== undefined && { quilometragem: dto.quilometragem }),
+        ...(dto.tipoCombustivel !== undefined && { tipoCombustivel: dto.tipoCombustivel }),
         ...(dto.latitude !== undefined && { latitude: dto.latitude }),
         ...(dto.longitude !== undefined && { longitude: dto.longitude }),
-        ...(dto.localDescricao !== undefined && {
-          localDescricao: dto.localDescricao,
-        }),
-        ...(dto.postoIdentificado !== undefined && {
-          postoIdentificado: dto.postoIdentificado,
-        }),
+        ...(dto.localDescricao !== undefined && { localDescricao: dto.localDescricao }),
+        ...(dto.postoIdentificado !== undefined && { postoIdentificado: dto.postoIdentificado }),
         ...(dto.imagemUrl !== undefined && { imagemUrl: dto.imagemUrl }),
         ...(dto.observacao !== undefined && { observacao: dto.observacao }),
       },
@@ -156,16 +132,69 @@ export class AbastecimentoService {
     return atualizado;
   }
 
-  
   async remove(userId: number, id: number) {
     await this.findOne(userId, id);
-
     await this.prisma.abastecimento.delete({ where: { id } });
-
     return { message: 'Abastecimento excluído com sucesso.' };
   }
 
+  // Item 15 — relatório por período
+  async relatorio(userId: number, dataInicio: string, dataFim: string) {
+    if (!dataInicio || !dataFim) {
+      throw new BadRequestException('dataInicio e dataFim são obrigatórios.');
+    }
 
+    const inicio = new Date(dataInicio);
+    const fim = new Date(dataFim);
+    fim.setHours(23, 59, 59, 999); // inclui o dia final completo
+
+    if (inicio > fim) {
+      throw new BadRequestException('dataInicio não pode ser maior que dataFim.');
+    }
+
+    const abastecimentos = await this.prisma.abastecimento.findMany({
+      where: {
+        userId,
+        dataAbastecimento: {
+          gte: inicio,
+          lte: fim,
+        },
+      },
+      orderBy: { dataAbastecimento: 'asc' },
+      select: {
+        id: true,
+        dataAbastecimento: true,
+        localDescricao: true,
+        postoIdentificado: true,
+        totalLitros: true,
+        valorTotal: true,
+        quilometragem: true,
+        tipoCombustivel: true,
+        precoPorLitro: true,
+      },
+    });
+
+    const totalLitros = parseFloat(
+      abastecimentos.reduce((acc, a) => acc + a.totalLitros, 0).toFixed(2),
+    );
+
+    const totalGasto = parseFloat(
+      abastecimentos.reduce((acc, a) => acc + a.valorTotal, 0).toFixed(2),
+    );
+
+    const kmInicial = abastecimentos[0]?.quilometragem ?? 0;
+    const kmFinal = abastecimentos[abastecimentos.length - 1]?.quilometragem ?? 0;
+    const distanciaPercorrida = kmFinal - kmInicial;
+
+    return {
+      periodo: { dataInicio, dataFim },
+      totalAbastecimentos: abastecimentos.length,
+      totalLitros,
+      totalGasto,
+      distanciaPercorrida,
+      abastecimentos,
+    };
+  }
 
   private async validarQuilometragem(
     caminhaoId: number,
@@ -188,62 +217,56 @@ export class AbastecimentoService {
     }
   }
 
+  async calcularMediaConsumo(userId: number) {
+    const abastecimentos = await this.prisma.abastecimento.findMany({
+      where: { userId },
+      orderBy: { quilometragem: 'asc' },
+      select: {
+        quilometragem: true,
+        totalLitros: true,
+        dataAbastecimento: true,
+      },
+    });
 
-async calcularMediaConsumo(userId: number) {
-  const abastecimentos = await this.prisma.abastecimento.findMany({
-    where: { userId },
-    orderBy: { quilometragem: 'asc' },
-    select: {
-      quilometragem: true,
-      totalLitros: true,
-      dataAbastecimento: true,
-    },
-  });
+    if (abastecimentos.length < 2) {
+      return {
+        mediaConsumo: null,
+        unidade: 'km/L',
+        mensagem: 'São necessários pelo menos dois abastecimentos para calcular a média de consumo.',
+        totalAbastecimentos: abastecimentos.length,
+      };
+    }
 
- 
-  if (abastecimentos.length < 2) {
+    const consumos: number[] = [];
+
+    for (let i = 1; i < abastecimentos.length; i++) {
+      const atual = abastecimentos[i];
+      const anterior = abastecimentos[i - 1];
+      const distancia = atual.quilometragem - anterior.quilometragem;
+
+      if (distancia <= 0 || atual.totalLitros <= 0) continue;
+
+      const consumo = distancia / atual.totalLitros;
+      consumos.push(consumo);
+    }
+
+    if (consumos.length === 0) {
+      return {
+        mediaConsumo: null,
+        unidade: 'km/L',
+        mensagem: 'Não foi possível calcular a média com os registros disponíveis.',
+        totalAbastecimentos: abastecimentos.length,
+      };
+    }
+
+    const media = consumos.reduce((acc, val) => acc + val, 0) / consumos.length;
+
     return {
-      mediaConsumo: null,
+      mediaConsumo: parseFloat(media.toFixed(2)),
       unidade: 'km/L',
-      mensagem: 'São necessários pelo menos dois abastecimentos para calcular a média de consumo.',
+      mensagem: 'Média de consumo calculada com sucesso.',
       totalAbastecimentos: abastecimentos.length,
+      totalTrechosCalculados: consumos.length,
     };
   }
-
-  
-  const consumos: number[] = [];
-
-  for (let i = 1; i < abastecimentos.length; i++) {
-    const atual = abastecimentos[i];
-    const anterior = abastecimentos[i - 1];
-
-    const distancia = atual.quilometragem - anterior.quilometragem;
-
-    
-    if (distancia <= 0 || atual.totalLitros <= 0) continue;
-
-    const consumo = distancia / atual.totalLitros;
-    consumos.push(consumo);
-  }
-
-  if (consumos.length === 0) {
-    return {
-      mediaConsumo: null,
-      unidade: 'km/L',
-      mensagem: 'Não foi possível calcular a média com os registros disponíveis.',
-      totalAbastecimentos: abastecimentos.length,
-    };
-  }
-
-  const media = consumos.reduce((acc, val) => acc + val, 0) / consumos.length;
-
-  return {
-    mediaConsumo: parseFloat(media.toFixed(2)),
-    unidade: 'km/L',
-    mensagem: 'Média de consumo calculada com sucesso.',
-    totalAbastecimentos: abastecimentos.length,
-    totalTrechosCalculados: consumos.length,
-  };
-}
-
 }
