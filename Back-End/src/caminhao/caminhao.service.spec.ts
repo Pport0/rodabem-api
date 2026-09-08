@@ -11,6 +11,15 @@ describe('CaminhaoService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    documento: {
+      count: jest.fn(),
+    },
+    abastecimento: {
+      count: jest.fn(),
+    },
+    simulacaoFrete: {
+      count: jest.fn(),
+    },
   };
 
   const userId = 1;
@@ -78,24 +87,52 @@ describe('CaminhaoService', () => {
   it('deve impedir editar caminhao inexistente para o usuario', async () => {
     prisma.caminhao.findUnique.mockResolvedValue(null);
 
-    await expect(service.update(userId, { modelo: 'FH 460' } as any)).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(
+      service.update(userId, { modelo: 'FH 460' } as any),
+    ).rejects.toThrow(BadRequestException);
   });
 
-  it('deve excluir caminhao do proprio usuario', async () => {
+  it('deve excluir caminhao sem vinculos', async () => {
     prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, ...createDto });
+    prisma.documento.count.mockResolvedValue(0);
+    prisma.abastecimento.count.mockResolvedValue(0);
+    prisma.simulacaoFrete.count.mockResolvedValue(0);
     prisma.caminhao.delete.mockResolvedValue({ id: 10 });
 
     const result = await service.delete(userId);
 
-    expect(prisma.caminhao.delete).toHaveBeenCalledWith({
-      where: { userId },
-    });
+    expect(prisma.caminhao.delete).toHaveBeenCalledWith({ where: { userId } });
     expect(result.message).toContain('removido com sucesso');
   });
 
-  it.todo(
-    'deve bloquear exclusao quando houver vinculos impeditivos, caso essa regra seja implementada no service',
-  );
+ 
+  it('deve bloquear exclusao quando houver documentos vinculados', async () => {
+    prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, ...createDto });
+    prisma.documento.count.mockResolvedValue(2);
+
+    await expect(service.delete(userId)).rejects.toThrow(BadRequestException);
+  });
+
+  it('deve bloquear exclusao quando houver abastecimentos vinculados', async () => {
+    prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, ...createDto });
+    prisma.documento.count.mockResolvedValue(0);
+    prisma.abastecimento.count.mockResolvedValue(3);
+
+    await expect(service.delete(userId)).rejects.toThrow(BadRequestException);
+  });
+
+  it('deve bloquear exclusao quando houver simulacoes de frete vinculadas', async () => {
+    prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, ...createDto });
+    prisma.documento.count.mockResolvedValue(0);
+    prisma.abastecimento.count.mockResolvedValue(0);
+    prisma.simulacaoFrete.count.mockResolvedValue(1);
+
+    await expect(service.delete(userId)).rejects.toThrow(BadRequestException);
+  });
+
+  it('deve impedir exclusao de caminhao inexistente', async () => {
+    prisma.caminhao.findUnique.mockResolvedValue(null);
+
+    await expect(service.delete(userId)).rejects.toThrow(BadRequestException);
+  });
 });
