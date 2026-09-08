@@ -10,7 +10,7 @@ import { UpdateDocumentoDto } from './dto/update-documento.dto';
 
 @Injectable()
 export class DocumentoService {
-  
+
   private readonly diasAlerta: number;
 
   constructor(
@@ -135,6 +135,46 @@ export class DocumentoService {
       message: 'Documento removido com sucesso',
     };
   }
+
+  async alertasVencimento(userId: number) {
+  const diasAlerta = this.diasAlerta;
+  const hoje = new Date();
+  const limite = new Date(hoje.getTime() + diasAlerta * 24 * 60 * 60 * 1000);
+
+  const documentos = await this.prisma.documento.findMany({
+    where: {
+      userId,
+      dataVencimento: {
+        lte: limite,
+        gte: hoje, 
+      },
+    },
+    orderBy: { dataVencimento: 'asc' },
+    select: {
+      id: true,
+      nome: true,
+      numero: true,
+      dataVencimento: true,
+      caminhaoId: true,
+    },
+  });
+
+  if (documentos.length === 0) {
+    return {
+      alertas: [],
+      mensagem: 'Nenhum documento a vencer.',
+    };
+  }
+
+  return {
+    alertas: documentos.map((doc) => ({
+      ...doc,
+      vinculo: doc.caminhaoId ? 'CAMINHAO' : 'MOTORISTA',
+      diasRestantes: this.getDiasRestantes(doc.dataVencimento),
+    })),
+    mensagem: `${documentos.length} documento(s) vencendo nos próximos ${diasAlerta} dias.`,
+  };
+}
 
   private getStatus(dataVencimento: Date) {
     const hoje = new Date();

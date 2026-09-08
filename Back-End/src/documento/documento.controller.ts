@@ -27,7 +27,7 @@ export class DocumentoController {
   constructor(
     private service: DocumentoService,
     private scanService: ScanDocumentoService,
-  ) {}
+  ) { }
 
   @UseGuards(JwtAuthGuard)
   @Post('scan')
@@ -39,7 +39,7 @@ export class DocumentoController {
     return this.scanService.processarDocumento(file);
   }
 
-y
+  y
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Req() req, @Body() data: CreateDocumentoDto) {
@@ -66,5 +66,11 @@ y
   @Delete(':id')
   remove(@Req() req, @Param('id', ParseIntPipe) id: number) {
     return this.service.remove(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('alertas')
+  alertasVencimento(@Req() req) {
+    return this.service.alertasVencimento(req.user.userId);
   }
 }
