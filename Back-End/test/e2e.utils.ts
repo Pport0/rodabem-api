@@ -12,12 +12,34 @@ export async function clearDatabase(prisma: PrismaService) {
   await prisma.tabelaAntt.deleteMany();
 }
 
+export function buildValidCpf(seed: string): string {
+  let base = `${seed}`.replace(/\D/g, '').padStart(9, '0').slice(-9);
+
+  if (/^(\d)\1{8}$/.test(base)) {
+    base = base.slice(0, 8) + ((Number(base[8]) + 1) % 10);
+  }
+
+  const digito = (parcial: string, pesoInicial: number) => {
+    let soma = 0;
+    for (let i = 0; i < parcial.length; i++) {
+      soma += Number(parcial[i]) * (pesoInicial - i);
+    }
+    const resto = (soma * 10) % 11;
+    return resto === 10 || resto === 11 ? 0 : resto;
+  };
+
+  const primeiro = digito(base, 10);
+  const segundo = digito(`${base}${primeiro}`, 11);
+
+  return `${base}${primeiro}${segundo}`;
+}
+
 export function buildUserPayload(suffix: string) {
   return {
     nome: `Usuario ${suffix}`,
     email: `usuario.${suffix}@example.com`,
     senha: '123456',
-    cpf: `${suffix}`.padStart(11, '1').slice(0, 11),
+    cpf: buildValidCpf(suffix),
     telefone: `62999${suffix.padStart(6, '0').slice(0, 6)}`,
   };
 }
