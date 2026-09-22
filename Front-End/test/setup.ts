@@ -17,6 +17,7 @@ jest.mock('expo-secure-store', () => {
     setItemAsync: jest.fn(async (chave: string, valor: string) => {
       memoria.set(chave, valor);
     }),
+    getItem: jest.fn((chave: string) => memoria.get(chave) ?? null),
     getItemAsync: jest.fn(async (chave: string) => memoria.get(chave) ?? null),
     deleteItemAsync: jest.fn(async (chave: string) => {
       memoria.delete(chave);
