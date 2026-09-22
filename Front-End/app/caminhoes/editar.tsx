@@ -1,7 +1,7 @@
 import { Caminhao, UpdateCaminhaoDto } from '@/@types/caminhao';
 import Input from '@/components/input';
 import colors from '@/constants/colors';
-import { getMeuCaminhao, updateCaminhao } from '@/services/caminhaoService';
+import { getMeuCaminhao, updateCaminhao, deleteCaminhao } from '@/services/caminhaoService';
 import { Toast } from '@/shared/ui/molecules/Toast';
 import { queryClient } from '@/utils/queryClient';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -24,6 +25,18 @@ interface FormErrors {
   modelo?: string;
   renavam?: string;
   numeroEixos?: string;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as {
+      response?: { data?: { message?: string | string[] } };
+    };
+    const message = axiosError.response?.data?.message;
+    if (Array.isArray(message)) return message[0];
+    if (typeof message === 'string') return message;
+  }
+  return 'Ocorreu um erro inesperado. Tente novamente.';
 }
 
 export default function EditarCaminhao() {
@@ -46,18 +59,16 @@ export default function EditarCaminhao() {
 
   useEffect(() => {
     if (!caminhao) return;
-
     setPlaca(caminhao.placa ?? '');
     setModelo(caminhao.modelo ?? '');
     setRenavam(caminhao.renavam ?? '');
     setMarca(caminhao.marca ?? '');
     setCor(caminhao.cor ?? '');
-    setAnoFabricacao(
-      caminhao.anoFabricacao ? String(caminhao.anoFabricacao) : ''
-    );
+    setAnoFabricacao(caminhao.anoFabricacao ? String(caminhao.anoFabricacao) : '');
     setNumeroEixos(caminhao.numeroEixos ? String(caminhao.numeroEixos) : '');
   }, [caminhao]);
 
+  // ── Mutation: atualizar ──────────────────────────────
   const updateCaminhaoMutation = useMutation({
     mutationFn: (payload: UpdateCaminhaoDto) => updateCaminhao(payload),
     onSuccess: () => {
@@ -68,15 +79,47 @@ export default function EditarCaminhao() {
       });
       router.back();
     },
-    onError: (error: any) => {
-      const message =
-        error?.response?.data?.message || 'Erro ao atualizar caminhao';
-      Toast.show(Array.isArray(message) ? message[0] : message, {
+    onError: (error: unknown) => {
+      Toast.show(getErrorMessage(error), {
         type: 'error',
         backgroundColor: '#E53E3E',
       });
     },
   });
+
+  // ── Mutation: excluir ────────────────────────────────
+  const deleteCaminhaoMutation = useMutation({
+    mutationFn: deleteCaminhao,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['caminhao'] });
+      Toast.show('Caminhão removido com sucesso.', {
+        type: 'success',
+        backgroundColor: '#10B981',
+      });
+      router.back();
+    },
+    onError: (error: unknown) => {
+      Toast.show(getErrorMessage(error), {
+        type: 'error',
+        backgroundColor: '#E53E3E',
+      });
+    },
+  });
+
+  const handleDeleteConfirm = () => {
+    Alert.alert(
+      'Excluir caminhão',
+      'Tem certeza que deseja excluir este caminhão? Esta ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => deleteCaminhaoMutation.mutate(),
+        },
+      ]
+    );
+  };
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -103,7 +146,6 @@ export default function EditarCaminhao() {
 
   const handleSubmit = () => {
     if (!validate()) return;
-
     updateCaminhaoMutation.mutate({
       placa: placa.trim().toUpperCase(),
       modelo: modelo.trim(),
@@ -132,6 +174,8 @@ export default function EditarCaminhao() {
       </View>
     );
   }
+
+  const isBusy = updateCaminhaoMutation.isPending || deleteCaminhaoMutation.isPending;
 
   return (
     <KeyboardAvoidingView
@@ -248,14 +292,15 @@ export default function EditarCaminhao() {
           />
         </View>
 
+        {/* ── Salvar ──────────────────────────────────── */}
         <TouchableOpacity
           style={[
             styles.submitButton,
             { backgroundColor: primaryColor },
-            updateCaminhaoMutation.isPending && styles.submitButtonDisabled,
+            isBusy && styles.buttonDisabled,
           ]}
           onPress={handleSubmit}
-          disabled={updateCaminhaoMutation.isPending}
+          disabled={isBusy}
           activeOpacity={0.85}
         >
           {updateCaminhaoMutation.isPending ? (
@@ -264,6 +309,28 @@ export default function EditarCaminhao() {
             <Text style={styles.submitButtonText}>SALVAR ALTERAÇÕES</Text>
           )}
         </TouchableOpacity>
+
+        {/* ── Excluir ─────────────────────────────────── */}
+        <View style={styles.deleteSection}>
+          <View style={styles.deleteDivider} />
+          <Text style={styles.deleteSectionLabel}>ZONA DE PERIGO</Text>
+          <TouchableOpacity
+            style={[styles.deleteButton, isBusy && styles.buttonDisabled]}
+            onPress={handleDeleteConfirm}
+            disabled={isBusy}
+            activeOpacity={0.85}
+          >
+            {deleteCaminhaoMutation.isPending ? (
+              <ActivityIndicator color="#E53E3E" />
+            ) : (
+              <Text style={styles.deleteButtonText}>EXCLUIR CAMINHÃO</Text>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.deleteHint}>
+            O caminhão só pode ser excluído se não houver abastecimentos,
+            documentos ou simulações de frete vinculados.
+          </Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -276,7 +343,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 48,
     gap: 16,
   },
   titleContainer: {
@@ -321,7 +388,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  submitButtonDisabled: {
+  buttonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
@@ -329,6 +396,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  // ── Delete section ──────────────────────────────────
+  deleteSection: {
+    gap: 12,
+    marginTop: 8,
+  },
+  deleteDivider: {
+    height: 1,
+    backgroundColor: '#f0e0e0',
+  },
+  deleteSectionLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#E53E3E',
+    letterSpacing: 1,
+  },
+  deleteButton: {
+    borderRadius: 16,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E53E3E',
+    backgroundColor: '#fff',
+  },
+  deleteButtonText: {
+    color: '#E53E3E',
+    fontSize: 15,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  deleteHint: {
+    fontSize: 12,
+    color: '#aaa',
+    textAlign: 'center',
+    lineHeight: 17,
   },
 });
 

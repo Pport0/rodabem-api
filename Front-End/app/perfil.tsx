@@ -1,14 +1,18 @@
 import colors from "@/constants/colors";
 import { User } from "@/@types/user";
 import { Caminhao } from "@/@types/caminhao";
+import { useAuth } from "@/contexts/authContext";
 import { useUser } from "@/hooks/useUser";
 import { getMeuCaminhao } from "@/services/caminhaoService";
-import { getMeuPerfil } from "@/services/userService";
+import { getMeuPerfil, deleteUser } from "@/services/userService";
+import { Toast } from "@/shared/ui/molecules/Toast";
+import { queryClient } from "@/utils/queryClient";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,19 +24,72 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { InfoRow } from "@/components/infoRow";
 import { PlacaBadge } from "@/components/placaBadge";
 
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "response" in error) {
+    const axiosError = error as {
+      response?: { data?: { message?: string | string[] } };
+    };
+    const message = axiosError.response?.data?.message;
+    if (Array.isArray(message)) return message[0];
+    if (typeof message === "string") return message;
+  }
+  return "Ocorreu um erro inesperado. Tente novamente.";
+}
+
 export default function Perfil() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? "light"].primary;
 
   const { user } = useUser();
+  const { logout } = useAuth();
+
   const { data: perfil } = useQuery<User | null>({
     queryKey: ["perfil"],
     queryFn: () => getMeuPerfil(),
   });
+
   const { data: caminhao, isLoading } = useQuery<Caminhao | null>({
     queryKey: ["caminhao"],
     queryFn: () => getMeuCaminhao(),
   });
+
+  // ── Mutation: excluir conta ──────────────────────────
+  const deleteUserMutation = useMutation({
+    mutationFn: () => {
+      const userId = perfil?.id ?? user?.id;
+      if (!userId) throw new Error("ID do usuário não encontrado.");
+      return deleteUser(userId);
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      Toast.show("Conta excluída com sucesso.", {
+        type: "success",
+        backgroundColor: "#10B981",
+      });
+      logout();
+    },
+    onError: (error: unknown) => {
+      Toast.show(getErrorMessage(error), {
+        type: "error",
+        backgroundColor: "#E53E3E",
+      });
+    },
+  });
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Excluir conta",
+      "Tem certeza que deseja excluir sua conta permanentemente? Esta ação não pode ser desfeita.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () => deleteUserMutation.mutate(),
+        },
+      ]
+    );
+  };
 
   const perfilExibido = perfil ?? user;
   const initials = perfilExibido?.nome
@@ -46,7 +103,9 @@ export default function Perfil() {
 
   return (
     <View style={styles.wrapper}>
-      <SafeAreaView style={[styles.headerSafe, { backgroundColor: primaryColor }]}>
+      <SafeAreaView
+        style={[styles.headerSafe, { backgroundColor: primaryColor }]}
+      >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -61,14 +120,18 @@ export default function Perfil() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={[styles.avatarCircle, { backgroundColor: primaryColor }]}>
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
           <Text style={styles.userName}>{perfilExibido?.nome ?? "Usuário"}</Text>
-          <Text style={[styles.userRole, { color: primaryColor }]}>MOTORISTA</Text>
+          <Text style={[styles.userRole, { color: primaryColor }]}>
+            MOTORISTA
+          </Text>
         </View>
 
+        {/* Dados pessoais */}
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>MEUS DADOS</Text>
           <InfoRow label="Nome" value={perfilExibido?.nome} />
@@ -80,10 +143,14 @@ export default function Perfil() {
           <InfoRow label="E-mail" value={perfilExibido?.email} />
         </View>
 
+        {/* Caminhão */}
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>MEU CAMINHÃO</Text>
           {isLoading ? (
-            <ActivityIndicator color={primaryColor} style={{ paddingVertical: 20 }} />
+            <ActivityIndicator
+              color={primaryColor}
+              style={{ paddingVertical: 20 }}
+            />
           ) : caminhao ? (
             <>
               <View style={styles.infoRow}>
@@ -113,17 +180,21 @@ export default function Perfil() {
               <View style={styles.separator} />
               <TouchableOpacity
                 style={styles.editTruckLink}
-                onPress={() => router.push("/caminhoes/novo" as any)}
+                onPress={() => router.push("/caminhoes/editar" as any)}
                 activeOpacity={0.7}
               >
                 <Ionicons name="create-outline" size={16} color={primaryColor} />
-                <Text style={[styles.editTruckLinkText, { color: primaryColor }]}>Editar caminhão</Text>
+                <Text style={[styles.editTruckLinkText, { color: primaryColor }]}>
+                  Editar caminhão
+                </Text>
               </TouchableOpacity>
             </>
           ) : (
             <View style={styles.emptyTruck}>
               <Ionicons name="bus-outline" size={40} color="#e0e0e0" />
-              <Text style={styles.emptyTruckText}>Nenhum caminhão cadastrado</Text>
+              <Text style={styles.emptyTruckText}>
+                Nenhum caminhão cadastrado
+              </Text>
               <TouchableOpacity
                 style={[styles.addTruckBtn, { backgroundColor: primaryColor }]}
                 onPress={() => router.push("/caminhoes/novo" as any)}
@@ -135,12 +206,42 @@ export default function Perfil() {
           )}
         </View>
 
+        {/* Alterar senha */}
         <TouchableOpacity
           style={[styles.outlineButton, { borderColor: primaryColor }]}
           activeOpacity={0.85}
         >
-          <Text style={[styles.outlineButtonText, { color: primaryColor }]}>ALTERAR SENHA</Text>
+          <Text style={[styles.outlineButtonText, { color: primaryColor }]}>
+            ALTERAR SENHA
+          </Text>
         </TouchableOpacity>
+
+        {/* ── Zona de perigo ── */}
+        <View style={styles.dangerSection}>
+          <View style={styles.dangerHeader}>
+            <Ionicons name="warning-outline" size={15} color="#E53E3E" />
+            <Text style={styles.dangerSectionLabel}>ZONA DE PERIGO</Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.dangerButton,
+              deleteUserMutation.isPending && styles.buttonDisabled,
+            ]}
+            onPress={handleDeleteAccount}
+            disabled={deleteUserMutation.isPending}
+            activeOpacity={0.85}
+          >
+            {deleteUserMutation.isPending ? (
+              <ActivityIndicator color="#E53E3E" />
+            ) : (
+              <Text style={styles.dangerButtonText}>EXCLUIR MINHA CONTA</Text>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.dangerHint}>
+            A conta só pode ser excluída se não houver caminhão, documentos,
+            abastecimentos ou simulações de frete cadastrados.
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -178,7 +279,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 48,
+    paddingBottom: 52,
     gap: 20,
   },
   avatarSection: {
@@ -287,5 +388,44 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 14,
     letterSpacing: 0.5,
+  },
+  // ── Zona de perigo ──────────────────────────────────
+  dangerSection: {
+    gap: 12,
+  },
+  dangerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  dangerSectionLabel: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#E53E3E",
+    letterSpacing: 1,
+  },
+  dangerButton: {
+    borderRadius: 14,
+    height: 52,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#E53E3E",
+    backgroundColor: "#fff",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  dangerButtonText: {
+    color: "#E53E3E",
+    fontSize: 14,
+    fontWeight: "bold",
+    letterSpacing: 0.5,
+  },
+  dangerHint: {
+    fontSize: 12,
+    color: "#bbb",
+    textAlign: "center",
+    lineHeight: 17,
   },
 });

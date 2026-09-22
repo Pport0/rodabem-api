@@ -16,3 +16,8 @@ export async function getMeuPerfil(): Promise<User | null> {
   const response = await api.get<User>("/users/me");
   return response.data;
 }
+
+export async function deleteUser(id: number): Promise<{ message: string }> {
+  const response = await api.delete<{ message: string }>(`/users/${id}`);
+  return response.data;
+}
