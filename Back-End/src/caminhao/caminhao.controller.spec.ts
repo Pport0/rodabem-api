@@ -90,10 +90,10 @@ describe('CaminhaoController - endpoint de scan', () => {
     );
   });
 
-  it('o endpoint de scan nao exige autenticacao', async () => {
+  
+  it('o endpoint de scan exige autenticacao', async () => {
     const guards = Reflect.getMetadata('__guards__', CaminhaoController.prototype.scan);
-
-    expect(guards).toBeUndefined();
+    expect(guards).toEqual([JwtAuthGuard]);
   });
 
   it('os demais endpoints do controller exigem autenticacao', async () => {
@@ -101,7 +101,6 @@ describe('CaminhaoController - endpoint de scan', () => {
       '__guards__',
       CaminhaoController.prototype.create,
     );
-
     expect(guardsDoCreate).toEqual([JwtAuthGuard]);
   });
 });
