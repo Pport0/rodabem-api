@@ -80,4 +80,536 @@ describe('Fluxo de abastecimento (e2e)', () => {
 
     expect(listResponse.body).toHaveLength(2);
   });
+
+  const abastecer = (token: string, dados: Record<string, unknown> = {}) =>
+    request(app.getHttpServer())
+      .post('/abastecimentos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        precoPorLitro: 6,
+        totalLitros: 100,
+        quilometragem: 1000,
+        tipoCombustivel: TipoCombustivel.DIESEL_S10,
+        ...dados,
+      });
+
+  /**
+   * Grava o abastecimento direto no banco com data e hora fixas.
+   *
+   * O endpoint sempre carimba `now()`, e o relatorio devolve resultado
+   * diferente conforme a hora em que a suite roda, entao um teste que dependa
+   * do relogio acusa o defeito em umas horas do dia e nao em outras.
+   */
+  const abastecerEm = async (
+    token: string,
+    dataISO: string,
+    dados: Record<string, unknown> = {},
+  ) => {
+    const perfil = await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const caminhao = await prisma.caminhao.findFirst({
+      where: { userId: perfil.body.id },
+    });
+
+    return prisma.abastecimento.create({
+      data: {
+        precoPorLitro: 6,
+        totalLitros: 100,
+        valorTotal: 600,
+        quilometragem: 1000,
+        tipoCombustivel: TipoCombustivel.DIESEL_S10,
+        dataAbastecimento: new Date(dataISO),
+        userId: perfil.body.id,
+        caminhaoId: caminhao!.id,
+        ...dados,
+      },
+    });
+  };
+
+  const comCaminhao = async (sufixo: string) => {
+    const { token } = await registerAndLogin(app, sufixo);
+    await createTruck(app, token).expect(201);
+    return token;
+  };
+
+  describe('POST /abastecimentos', () => {
+    it('deve recusar registro sem caminhao cadastrado', async () => {
+      const { token } = await registerAndLogin(app, '700001');
+
+      const resposta = await abastecer(token).expect(400);
+
+      expect(resposta.body.message).toMatch(/cadastrar um caminhão/);
+    });
+
+    it('deve calcular o valor total a partir de preco e litros', async () => {
+      const token = await comCaminhao('700002');
+
+      const resposta = await abastecer(token, {
+        precoPorLitro: 6.5,
+        totalLitros: 40,
+      }).expect(201);
+
+      expect(resposta.body.valorTotal).toBe(260);
+    });
+
+    it('deve vincular o registro ao caminhao do usuario', async () => {
+      const token = await comCaminhao('700003');
+
+      const resposta = await abastecer(token).expect(201);
+
+      expect(resposta.body.caminhaoId).toBeDefined();
+    });
+
+    it('deve recusar quilometragem menor que a ultima registrada', async () => {
+      const token = await comCaminhao('700004');
+      await abastecer(token, { quilometragem: 5000 }).expect(201);
+
+      const resposta = await abastecer(token, { quilometragem: 4000 }).expect(400);
+
+      expect(resposta.body.message).toMatch(/não pode ser menor que a última registrada/);
+    });
+
+    it('deve recusar quilometragem igual a ultima registrada', async () => {
+      const token = await comCaminhao('700005');
+      await abastecer(token, { quilometragem: 5000 }).expect(201);
+
+      await abastecer(token, { quilometragem: 5000 }).expect(400);
+    });
+
+    it('nao deve criar o segundo registro quando a quilometragem se repete', async () => {
+      const token = await comCaminhao('700006');
+      await abastecer(token, { quilometragem: 5000 }).expect(201);
+
+      await abastecer(token, { quilometragem: 5000 });
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body).toHaveLength(1);
+    });
+
+    it('deve exigir autenticacao', async () => {
+      await request(app.getHttpServer()).post('/abastecimentos').send({}).expect(401);
+    });
+  });
+
+  describe('GET /abastecimentos', () => {
+    it('deve listar apenas os abastecimentos do proprio usuario', async () => {
+      const primeiro = await comCaminhao('700010');
+      const segundo = await comCaminhao('700011');
+      await abastecer(primeiro, { quilometragem: 1000 }).expect(201);
+      await abastecer(segundo, { quilometragem: 2000 }).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos')
+        .set('Authorization', `Bearer ${primeiro}`)
+        .expect(200);
+
+      expect(resposta.body).toHaveLength(1);
+      expect(resposta.body[0].quilometragem).toBe(1000);
+    });
+
+    it('nao deve expor o vinculo com o usuario na listagem', async () => {
+      const token = await comCaminhao('700012');
+      await abastecer(token).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body[0]).not.toHaveProperty('userId');
+    });
+
+    it('deve devolver lista vazia para usuario sem abastecimentos', async () => {
+      const { token } = await registerAndLogin(app, '700013');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body).toEqual([]);
+    });
+
+    it('deve exigir autenticacao', async () => {
+      await request(app.getHttpServer()).get('/abastecimentos').expect(401);
+    });
+  });
+
+  describe('GET /abastecimentos/:id', () => {
+    it('deve devolver o abastecimento do proprio usuario', async () => {
+      const token = await comCaminhao('700020');
+      const criado = await abastecer(token).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .get(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.id).toBe(criado.body.id);
+    });
+
+    it('deve recusar acesso a abastecimento de outro usuario', async () => {
+      const dono = await comCaminhao('700021');
+      const invasor = await comCaminhao('700022');
+      const criado = await abastecer(dono).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .get(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${invasor}`)
+        .expect(403);
+
+      expect(resposta.body.message).toMatch(/permissão para acessar/);
+    });
+
+    it('deve responder 404 para abastecimento inexistente', async () => {
+      const token = await comCaminhao('700023');
+
+      await request(app.getHttpServer())
+        .get('/abastecimentos/999999')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
+    });
+  });
+
+  describe('PATCH /abastecimentos/:id', () => {
+    it('deve recalcular o valor total ao alterar o preco', async () => {
+      const token = await comCaminhao('700030');
+      const criado = await abastecer(token, {
+        precoPorLitro: 6,
+        totalLitros: 100,
+      }).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .patch(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ precoPorLitro: 7 })
+        .expect(200);
+
+      expect(resposta.body.valorTotal).toBe(700);
+    });
+
+    it('deve preservar os campos nao enviados', async () => {
+      const token = await comCaminhao('700031');
+      const criado = await abastecer(token, { localDescricao: 'Posto A' }).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .patch(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ observacao: 'nota' })
+        .expect(200);
+
+      expect(resposta.body.localDescricao).toBe('Posto A');
+      expect(resposta.body.observacao).toBe('nota');
+    });
+
+    it('deve recusar edicao de abastecimento de outro usuario', async () => {
+      const dono = await comCaminhao('700032');
+      const invasor = await comCaminhao('700033');
+      const criado = await abastecer(dono).expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${invasor}`)
+        .send({ observacao: 'invadido' })
+        .expect(403);
+    });
+
+    it('deve permitir manter a mesma quilometragem na edicao', async () => {
+      const token = await comCaminhao('700034');
+      const criado = await abastecer(token, { quilometragem: 3000 }).expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ quilometragem: 3000 })
+        .expect(200);
+    });
+  });
+
+  /**
+   * Regra: a quilometragem de um abastecimento deve ser maior que a do registro
+   * anterior e menor que a do posterior, pela ordem de data.
+   */
+  describe('PATCH /abastecimentos/:id - quilometragem entre os vizinhos', () => {
+    /** Tres abastecimentos em datas crescentes: 1000, 2000 e 3000 km. */
+    const comHistorico = async (sufixo: string) => {
+      const token = await comCaminhao(sufixo);
+      const primeiro = await abastecerEm(token, '2026-03-01T12:00:00.000Z', {
+        quilometragem: 1000,
+      });
+      const meio = await abastecerEm(token, '2026-03-10T12:00:00.000Z', {
+        quilometragem: 2000,
+      });
+      const ultimo = await abastecerEm(token, '2026-03-20T12:00:00.000Z', {
+        quilometragem: 3000,
+      });
+      return { token, primeiro, meio, ultimo };
+    };
+
+    const editarKm = (token: string, id: number, quilometragem: number) =>
+      request(app.getHttpServer())
+        .patch(`/abastecimentos/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ quilometragem });
+
+    describe('registro intermediario', () => {
+      it('deve aceitar quilometragem entre a do anterior e a do posterior', async () => {
+        const { token, meio } = await comHistorico('700060');
+
+        await editarKm(token, meio.id, 2500).expect(200);
+      });
+
+      it('deve recusar quilometragem igual a do registro anterior', async () => {
+        const { token, meio } = await comHistorico('700061');
+
+        await editarKm(token, meio.id, 1000).expect(400);
+      });
+
+      it('deve recusar quilometragem igual a do registro posterior', async () => {
+        const { token, meio } = await comHistorico('700062');
+
+        await editarKm(token, meio.id, 3000).expect(400);
+      });
+
+      it('deve recusar quilometragem acima da do registro posterior', async () => {
+        const { token, meio } = await comHistorico('700063');
+
+        await editarKm(token, meio.id, 3500).expect(400);
+      });
+
+      it('nao deve gravar a quilometragem recusada', async () => {
+        const { token, meio } = await comHistorico('700064');
+
+        await editarKm(token, meio.id, 3500);
+
+        const resposta = await request(app.getHttpServer())
+          .get(`/abastecimentos/${meio.id}`)
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200);
+
+        expect(resposta.body.quilometragem).toBe(2000);
+      });
+    });
+
+    describe('ultimo registro', () => {
+      it('deve aceitar quilometragem acima da do anterior', async () => {
+        const { token, ultimo } = await comHistorico('700065');
+
+        await editarKm(token, ultimo.id, 3500).expect(200);
+      });
+
+      it('deve recusar quilometragem igual a do anterior', async () => {
+        const { token, ultimo } = await comHistorico('700066');
+
+        await editarKm(token, ultimo.id, 2000).expect(400);
+      });
+    });
+
+    describe('primeiro registro', () => {
+      it('deve aceitar quilometragem abaixo da do posterior', async () => {
+        const { token, primeiro } = await comHistorico('700067');
+
+        await editarKm(token, primeiro.id, 1500).expect(200);
+      });
+
+      it('deve recusar quilometragem igual a do posterior', async () => {
+        const { token, primeiro } = await comHistorico('700068');
+
+        await editarKm(token, primeiro.id, 2000).expect(400);
+      });
+    });
+  });
+
+  describe('DELETE /abastecimentos/:id', () => {
+    it('deve excluir o abastecimento do proprio usuario', async () => {
+      const token = await comCaminhao('700040');
+      const criado = await abastecer(token).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .delete(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.message).toBe('Abastecimento excluído com sucesso.');
+    });
+
+    it('deve remover o registro da listagem apos excluir', async () => {
+      const token = await comCaminhao('700041');
+      const criado = await abastecer(token).expect(201);
+
+      await request(app.getHttpServer())
+        .delete(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const lista = await request(app.getHttpServer())
+        .get('/abastecimentos')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(lista.body).toEqual([]);
+    });
+
+    it('deve recusar exclusao de abastecimento de outro usuario', async () => {
+      const dono = await comCaminhao('700042');
+      const invasor = await comCaminhao('700043');
+      const criado = await abastecer(dono).expect(201);
+
+      await request(app.getHttpServer())
+        .delete(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${invasor}`)
+        .expect(403);
+
+      await request(app.getHttpServer())
+        .get(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${dono}`)
+        .expect(200);
+    });
+  });
+
+  describe('GET /abastecimentos/relatorio', () => {
+    it('deve exigir data inicial e final', async () => {
+      const token = await comCaminhao('700050');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/relatorio')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(resposta.body.message).toBe('dataInicio e dataFim são obrigatórios.');
+    });
+
+    it('deve recusar periodo invertido', async () => {
+      const token = await comCaminhao('700051');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/relatorio')
+        .query({ dataInicio: '2026-02-01', dataFim: '2026-01-01' })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(resposta.body.message).toBe('dataInicio não pode ser maior que dataFim.');
+    });
+
+    it('deve somar litros, valores e distancia do periodo', async () => {
+      const token = await comCaminhao('700052');
+      await abastecerEm(token, '2026-03-10T14:00:00.000Z', {
+        quilometragem: 1000,
+        totalLitros: 100,
+        precoPorLitro: 6,
+        valorTotal: 600,
+      });
+      await abastecerEm(token, '2026-03-10T17:00:00.000Z', {
+        quilometragem: 1800,
+        totalLitros: 50,
+        precoPorLitro: 6,
+        valorTotal: 300,
+      });
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/relatorio')
+        .query({ dataInicio: '2026-03-10', dataFim: '2026-03-10' })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.totalAbastecimentos).toBe(2);
+      expect(resposta.body.totalLitros).toBe(150);
+      expect(resposta.body.totalGasto).toBe(900);
+      expect(resposta.body.distanciaPercorrida).toBe(800);
+    });
+
+    it('deve devolver relatorio zerado para periodo sem registros', async () => {
+      const token = await comCaminhao('700053');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/relatorio')
+        .query({ dataInicio: '2020-01-01', dataFim: '2020-01-31' })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.totalAbastecimentos).toBe(0);
+      expect(resposta.body.totalLitros).toBe(0);
+      expect(resposta.body.abastecimentos).toEqual([]);
+    });
+
+    it('deve incluir os abastecimentos do dia consultado', async () => {
+      const primeiro = await comCaminhao('700054');
+      const segundo = await comCaminhao('700055');
+      await abastecerEm(primeiro, '2026-03-10T14:00:00.000Z');
+      await abastecerEm(segundo, '2026-03-10T14:00:00.000Z');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/relatorio')
+        .query({ dataInicio: '2026-03-10', dataFim: '2026-03-10' })
+        .set('Authorization', `Bearer ${primeiro}`)
+        .expect(200);
+
+      expect(resposta.body.totalAbastecimentos).toBe(1);
+    });
+
+    it('deve exigir autenticacao', async () => {
+      await request(app.getHttpServer())
+        .get('/abastecimentos/relatorio')
+        .query({ dataInicio: '2026-01-01', dataFim: '2026-01-31' })
+        .expect(401);
+    });
+  });
+
+  describe('GET /abastecimentos/media-consumo', () => {
+    it('deve calcular a media com dois ou mais registros', async () => {
+      const token = await comCaminhao('700060');
+      await abastecer(token, { quilometragem: 1000, totalLitros: 100 }).expect(201);
+      await abastecer(token, { quilometragem: 1500, totalLitros: 100 }).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/media-consumo')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.mediaConsumo).toBe(5);
+      expect(resposta.body.unidade).toBe('km/L');
+    });
+
+    it('deve informar quando nao ha registros suficientes', async () => {
+      const token = await comCaminhao('700061');
+      await abastecer(token).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/media-consumo')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.mediaConsumo).toBeNull();
+      expect(resposta.body.mensagem).toMatch(/pelo menos dois abastecimentos/);
+    });
+
+    it('nao deve considerar abastecimentos de outro usuario', async () => {
+      const primeiro = await comCaminhao('700062');
+      const segundo = await comCaminhao('700063');
+      await abastecer(primeiro, { quilometragem: 1000 }).expect(201);
+      await abastecer(segundo, { quilometragem: 2000 }).expect(201);
+      await abastecer(segundo, { quilometragem: 3000 }).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/media-consumo')
+        .set('Authorization', `Bearer ${primeiro}`)
+        .expect(200);
+
+      expect(resposta.body.totalAbastecimentos).toBe(1);
+    });
+
+    it('deve exigir autenticacao', async () => {
+      await request(app.getHttpServer())
+        .get('/abastecimentos/media-consumo')
+        .expect(401);
+    });
+  });
+
 });
