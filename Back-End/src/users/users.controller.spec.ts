@@ -67,22 +67,25 @@ describe('UsersController', () => {
   });
 
   describe('listagem', () => {
-    it('ignora os parametros de busca e devolve apenas o usuario autenticado', async () => {
-      usersService.findById.mockResolvedValue({ id: 7 });
+    it('deve delegar a listagem paginada ao service', async () => {
+      usersService.findAll.mockResolvedValue({ data: [], total: 0 });
 
       await controller.findAll(autenticadoComo(7), 2, 20, 'gabriel', 'true');
 
-      expect(usersService.findById).toHaveBeenCalledWith(7);
-      expect(usersService.findAll).not.toHaveBeenCalled();
+      expect(usersService.findAll).toHaveBeenCalled();
     });
 
-    it('nao repassa pagina, limite, nome nem status a lugar algum', async () => {
-      usersService.findById.mockResolvedValue({ id: 7 });
+    it('deve repassar pagina, limite, nome e status ao service', async () => {
+      usersService.findAll.mockResolvedValue({ data: [], total: 0 });
 
       await controller.findAll(autenticadoComo(7), 5, 50, 'busca', 'false');
 
-      expect(usersService.findById).toHaveBeenCalledWith(7);
-      expect(usersService.findById).toHaveBeenCalledTimes(1);
+      expect(usersService.findAll).toHaveBeenCalledWith({
+        page: 5,
+        limit: 50,
+        nome: 'busca',
+        status: 'false',
+      });
     });
 
     it('deve exigir autenticacao', () => {

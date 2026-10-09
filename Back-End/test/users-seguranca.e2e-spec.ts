@@ -240,44 +240,42 @@ describe('Usuarios - seguranca (e2e)', () => {
       expect(JSON.stringify(resposta.body)).not.toContain('injetado');
     });
 
-    it('aceita campos sensiveis no corpo da edicao de perfil', async () => {
+    it('deve recusar campos nao permitidos na edicao de perfil', async () => {
       const { token, id } = await autenticar('400032');
 
       await request(app.getHttpServer())
         .put(`/users/${id}`)
         .set('Authorization', `Bearer ${token}`)
         .send({ nome: 'Alterado', senhaHash: 'injetado' })
-        .expect(200);
+        .expect(400);
     });
 
-    it('a injecao de senhaHash na edicao de perfil invalida o acesso do usuario', async () => {
+    it('a edicao de perfil nao deve alterar a senha do usuario', async () => {
       const { token, id, user } = await autenticar('400034');
 
       await request(app.getHttpServer())
         .put(`/users/${id}`)
         .set('Authorization', `Bearer ${token}`)
-        .send({ nome: 'Alterado', senhaHash: 'injetado' })
-        .expect(200);
+        .send({ nome: 'Alterado', senhaHash: 'injetado' });
 
       await request(app.getHttpServer())
         .post('/auth/login')
         .send({ telefone: user.telefone, senha: user.senha })
-        .expect(401);
+        .expect(201);
     });
 
-    it('a injecao de status na edicao de perfil desativa a conta', async () => {
+    it('a edicao de perfil nao deve alterar o status da conta', async () => {
       const { token, id, user } = await autenticar('400035');
 
       await request(app.getHttpServer())
         .put(`/users/${id}`)
         .set('Authorization', `Bearer ${token}`)
-        .send({ nome: 'Alterado', status: false })
-        .expect(200);
+        .send({ nome: 'Alterado', status: false });
 
       await request(app.getHttpServer())
         .post('/auth/login')
         .send({ telefone: user.telefone, senha: user.senha })
-        .expect(401);
+        .expect(201);
     });
 
     it('deve suportar payload muito extenso sem derrubar a aplicacao', async () => {

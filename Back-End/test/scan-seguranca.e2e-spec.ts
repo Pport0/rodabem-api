@@ -56,22 +56,20 @@ describe('Scan - seguranca (e2e)', () => {
   });
 
   describe('controle de acesso', () => {
-    it('o scan de caminhao aceita requisicao sem autenticacao', async () => {
+    it('o scan de caminhao deve exigir autenticacao', async () => {
       const resposta = await request(app.getHttpServer())
         .post('/caminhao/scan')
         .attach('documento', Buffer.from('imagem'), 'crlv.jpg');
 
-      expect(resposta.status).toBe(201);
-      expect(scanCaminhao.processarDocumento).toHaveBeenCalled();
+      expect(resposta.status).toBe(401);
     });
 
-    it('o scan de caminhao processa arquivo de solicitante anonimo', async () => {
+    it('o scan de caminhao nao deve processar arquivo anonimo', async () => {
       await request(app.getHttpServer())
         .post('/caminhao/scan')
-        .attach('documento', Buffer.from('imagem'), 'crlv.jpg')
-        .expect(201);
+        .attach('documento', Buffer.from('imagem'), 'crlv.jpg');
 
-      expect(arquivoRecebido(scanCaminhao)).toBeDefined();
+      expect(scanCaminhao.processarDocumento).not.toHaveBeenCalled();
     });
 
     it('o scan de documento exige autenticacao', async () => {
@@ -104,30 +102,28 @@ describe('Scan - seguranca (e2e)', () => {
   });
 
   describe('confianca no tipo declarado pelo cliente', () => {
-    it('o tipo do arquivo vem do cliente, nao do conteudo', async () => {
-      await request(app.getHttpServer())
+    it('deve recusar conteudo executavel declarado como imagem', async () => {
+      const resposta = await request(app.getHttpServer())
         .post('/documentos/scan')
         .set('Authorization', `Bearer ${token}`)
         .attach('documento', Buffer.from('MZ\x90\x00conteudo-executavel'), {
           filename: 'malicioso.jpg',
           contentType: 'image/jpeg',
-        })
-        .expect(201);
+        });
 
-      expect(arquivoRecebido(scanDocumento).mimetype).toBe('image/jpeg');
+      expect(resposta.status).toBe(400);
     });
 
-    it('conteudo de PDF declarado como imagem chega ao servico como imagem', async () => {
-      await request(app.getHttpServer())
+    it('deve validar o tipo pelo conteudo, nao pelo cabecalho do cliente', async () => {
+      const resposta = await request(app.getHttpServer())
         .post('/documentos/scan')
         .set('Authorization', `Bearer ${token}`)
         .attach('documento', Buffer.from('%PDF-1.4'), {
           filename: 'arquivo.jpg',
           contentType: 'image/jpeg',
-        })
-        .expect(201);
+        });
 
-      expect(arquivoRecebido(scanDocumento).mimetype).toBe('image/jpeg');
+      expect(resposta.status).toBe(400);
     });
 
     it('arquivo vazio e aceito quando o tipo declarado e valido', async () => {

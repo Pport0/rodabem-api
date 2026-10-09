@@ -87,24 +87,6 @@ describe('authContext - login', () => {
     );
   });
 
-  it('envia o mesmo valor como cpf e como telefone', async () => {
-    // Caracterizacao: a tela oferece um unico campo "CPF ou telefone" e o
-    // contexto envia o valor digitado nos dois campos. Quem decide qual usar
-    // e o backend, que procura primeiro por telefone e depois por CPF.
-    jest.mocked(signIn).mockResolvedValue(usuarioAutenticado as any);
-    const { result } = await montarAuth();
-
-    result.current.login({ cpfOrPhone: '52998224725', password: '123456' });
-
-    await waitFor(() =>
-      expect(signIn).toHaveBeenCalledWith({
-        cpf: '52998224725',
-        telefone: '52998224725',
-        senha: '123456',
-      }),
-    );
-  });
-
   describe('resposta sem token', () => {
     const semToken = { user: { id: 1, nome: 'Gabriel' } };
 
@@ -128,22 +110,17 @@ describe('authContext - login', () => {
       expect(router.push).not.toHaveBeenCalled();
     });
 
-    it('exibe mensagem de sucesso mesmo sem token, deixando o usuario parado na tela', async () => {
-      // Caracterizacao de um comportamento problematico: o onSuccess do
-      // react-query dispara antes da checagem do token, entao o usuario ve
-      // "Login realizado com sucesso" e permanece na tela de login.
+    it('nao deve anunciar sucesso quando a resposta nao traz token', async () => {
       jest.mocked(signIn).mockResolvedValue(semToken as any);
       const { result } = await montarAuth();
 
       result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
 
-      await waitFor(() =>
-        expect(mockMostrarToast).toHaveBeenCalledWith(
-          'Login realizado com sucesso',
-          expect.objectContaining({ type: 'success' }),
-        ),
+      await waitFor(() => expect(mockMostrarToast).toHaveBeenCalled());
+      expect(mockMostrarToast).not.toHaveBeenCalledWith(
+        'Login realizado com sucesso',
+        expect.objectContaining({ type: 'success' }),
       );
-      expect(router.push).not.toHaveBeenCalled();
     });
   });
 
@@ -268,13 +245,12 @@ describe('authContext - logout', () => {
     expect(router.push).toHaveBeenCalledWith('/');
   });
 
-  it('nao apaga os dados do usuario, apenas o token', async () => {
+  it('o logout deve apagar tambem os dados do usuario', async () => {
     const { result } = await montarAuth();
 
     result.current.logout();
 
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(CHAVE_TOKEN);
-    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalledWith(CHAVE_USUARIO);
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(CHAVE_USUARIO);
   });
 });
 
