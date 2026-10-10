@@ -117,15 +117,15 @@ describe('Tela de login - envio', () => {
     expect(mockLogin).toHaveBeenCalledTimes(1);
   });
 
-  it('envia a requisicao mesmo com os campos vazios', async () => {
+  it('deve recusar envio com os campos vazios', async () => {
     await render(<Login />);
 
     await fireEvent.press(screen.getByRole('button'));
 
-    expect(mockLogin).toHaveBeenCalledWith({ cpfOrPhone: '', password: '' });
+    expect(mockLogin).not.toHaveBeenCalled();
   });
 
-  it('envia a requisicao com apenas um dos campos preenchido', async () => {
+  it('deve recusar envio com a senha em branco', async () => {
     await render(<Login />);
 
     await fireEvent.changeText(
@@ -134,10 +134,7 @@ describe('Tela de login - envio', () => {
     );
     await fireEvent.press(screen.getByRole('button'));
 
-    expect(mockLogin).toHaveBeenCalledWith({
-      cpfOrPhone: '62999999999',
-      password: '',
-    });
+    expect(mockLogin).not.toHaveBeenCalled();
   });
 });
 

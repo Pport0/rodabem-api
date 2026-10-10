@@ -142,21 +142,20 @@ describe('Scan de documentos (e2e)', () => {
       expect(resposta.body.message).toContain('10MB');
     });
 
-    it('aceita requisicao sem autenticacao', async () => {
+    it('deve exigir autenticacao, como o scan de documento', async () => {
       const resposta = await request(app.getHttpServer())
         .post('/caminhao/scan')
         .attach('documento', imagem(), 'crlv.jpg');
 
-      expect(resposta.status).not.toBe(401);
-      expect(resposta.status).toBe(201);
+      expect(resposta.status).toBe(401);
     });
 
-    it('processa o arquivo de um solicitante nao autenticado', async () => {
+    it('nao deve processar arquivo de solicitante anonimo', async () => {
       await request(app.getHttpServer())
         .post('/caminhao/scan')
         .attach('documento', imagem(), 'crlv.jpg');
 
-      expect(scanCaminhao.processarDocumento).toHaveBeenCalled();
+      expect(scanCaminhao.processarDocumento).not.toHaveBeenCalled();
     });
   });
 

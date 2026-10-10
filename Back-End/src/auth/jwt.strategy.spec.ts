@@ -81,13 +81,11 @@ describe('JwtStrategy', () => {
     expect(Object.keys(result).sort()).toEqual(['email', 'userId']);
   });
 
-  it('deve consultar a blacklist com token indefinido quando nao ha header authorization', async () => {
+  it('nao deve consultar a blacklist quando nao ha header authorization', async () => {
     prisma.tokenBlackList.findFirst.mockResolvedValue(null);
 
     await strategy.validate(requestComToken(), payload);
 
-    expect(prisma.tokenBlackList.findFirst).toHaveBeenCalledWith({
-      where: { token: undefined },
-    });
+    expect(prisma.tokenBlackList.findFirst).not.toHaveBeenCalled();
   });
 });

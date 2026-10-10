@@ -169,19 +169,19 @@ describe('Usuarios (e2e)', () => {
   });
 
   describe('GET /users', () => {
-    it('devolve apenas o usuario autenticado, ignorando os filtros de busca', async () => {
-      const { user, token } = await autenticar('300020');
+    it('deve devolver uma lista paginada de usuarios', async () => {
+      const { token } = await autenticar('300020');
       await registerAndLogin(app, '300021');
 
       const resposta = await request(app.getHttpServer())
         .get('/users')
-        .query({ page: 1, limit: 50, nome: 'Usuario', status: 'true' })
+        .query({ page: 1, limit: 50 })
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      expect(Array.isArray(resposta.body)).toBe(false);
-      expect(resposta.body).not.toHaveProperty('data');
-      expect(resposta.body.email).toBe(user.email);
+      expect(resposta.body).toHaveProperty('data');
+      expect(Array.isArray(resposta.body.data)).toBe(true);
+      expect(resposta.body.total).toBeGreaterThanOrEqual(2);
     });
 
     it('deve exigir autenticacao', async () => {

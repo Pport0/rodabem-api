@@ -81,7 +81,7 @@ describe('Autenticacao - seguranca (e2e)', () => {
   });
 
   describe('sessao apos troca de senha', () => {
-    it('o token anterior continua valido depois da troca de senha', async () => {
+    it('a troca de senha deve invalidar o token anterior', async () => {
       const { user, token } = await registerAndLogin(app, '500010');
 
       await request(app.getHttpServer())
@@ -93,10 +93,10 @@ describe('Autenticacao - seguranca (e2e)', () => {
       await request(app.getHttpServer())
         .get('/users/me')
         .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .expect(401);
     });
 
-    it('sessoes abertas em outros aparelhos sobrevivem a troca de senha', async () => {
+    it('a troca de senha deve encerrar as sessoes em outros aparelhos', async () => {
       const { user } = await registerAndLogin(app, '500011');
 
       const primeiraSessao = await request(app.getHttpServer())
@@ -118,49 +118,41 @@ describe('Autenticacao - seguranca (e2e)', () => {
       await request(app.getHttpServer())
         .get('/users/me')
         .set('Authorization', `Bearer ${segundaSessao.body.access_token}`)
-        .expect(200);
+        .expect(401);
     });
   });
 
+  // nao e um sleep arbitrario: alinha o inicio do teste a borda do segundo
+  // para que os dois logins seguintes caiam no mesmo `iat`.
+  const aguardarInicioDeSegundo = () =>
+    new Promise((resolve) => setTimeout(resolve, 1000 - (Date.now() % 1000)));
+
   describe('encerramento de sessao', () => {
-    it('dois logins do mesmo usuario no mesmo segundo devolvem o token identico', async () => {
-      const { user } = await registerAndLogin(app, '500020');
-
-      const sessaoA = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({ telefone: user.telefone, senha: user.senha })
-        .expect(201);
-
-      const sessaoB = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({ telefone: user.telefone, senha: user.senha })
-        .expect(201);
-
-      expect(sessaoB.body.access_token).toBe(sessaoA.body.access_token);
-    });
-
-    it('o token nao carrega identificador de sessao', async () => {
+    it('o token deve carregar identificador de sessao', async () => {
       const { token } = await registerAndLogin(app, '500021');
       const payload = JSON.parse(
         Buffer.from(token.split('.')[1], 'base64url').toString(),
       );
 
-      expect(payload).not.toHaveProperty('jti');
-      expect(Object.keys(payload).sort()).toEqual(['email', 'exp', 'iat', 'sub']);
+      expect(payload).toHaveProperty('jti');
     });
 
-    it('o logout derruba todas as sessoes abertas no mesmo segundo', async () => {
+    it('o logout deve encerrar apenas a sessao utilizada', async () => {
       const { user } = await registerAndLogin(app, '500022');
 
-      const sessaoA = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({ telefone: user.telefone, senha: user.senha })
-        .expect(201);
-
-      const sessaoB = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({ telefone: user.telefone, senha: user.senha })
-        .expect(201);
+      // o `iat` do JWT tem resolucao de segundos: as duas sessoes precisam
+      // nascer dentro do mesmo segundo para o defeito ficar observavel.
+      await aguardarInicioDeSegundo();
+      const [sessaoA, sessaoB] = await Promise.all([
+        request(app.getHttpServer())
+          .post('/auth/login')
+          .send({ telefone: user.telefone, senha: user.senha })
+          .expect(201),
+        request(app.getHttpServer())
+          .post('/auth/login')
+          .send({ telefone: user.telefone, senha: user.senha })
+          .expect(201),
+      ]);
 
       await request(app.getHttpServer())
         .post('/auth/logout')
@@ -170,10 +162,10 @@ describe('Autenticacao - seguranca (e2e)', () => {
       await request(app.getHttpServer())
         .get('/users/me')
         .set('Authorization', `Bearer ${sessaoB.body.access_token}`)
-        .expect(401);
+        .expect(200);
     });
 
-    it('cada logout de token distinto acrescenta um registro permanente na blacklist', async () => {
+    it('caracterizacao: cada logout acrescenta um registro permanente na blacklist', async () => {
       const antes = await prisma.tokenBlackList.count();
 
       for (let i = 0; i < 3; i++) {
@@ -206,20 +198,20 @@ describe('Autenticacao - seguranca (e2e)', () => {
   });
 
   describe('tentativas repetidas de autenticacao', () => {
-    it('aceita tentativas ilimitadas de login sem bloquear a conta', async () => {
+    it('deve limitar tentativas consecutivas de login', async () => {
       const { user } = await registerAndLogin(app, '500030');
 
       for (let i = 0; i < 12; i++) {
         await request(app.getHttpServer())
           .post('/auth/login')
-          .send({ telefone: user.telefone, senha: `tentativa-${i}` })
-          .expect(401);
+          .send({ telefone: user.telefone, senha: `tentativa-${i}` });
       }
 
-      await request(app.getHttpServer())
+      const aposExcesso = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ telefone: user.telefone, senha: user.senha })
-        .expect(201);
+        .send({ telefone: user.telefone, senha: `tentativa-final` });
+
+      expect(aposExcesso.status).toBe(429);
     });
   });
 
@@ -262,18 +254,17 @@ describe('Autenticacao - seguranca (e2e)', () => {
         .expect(401);
     });
 
-    it('aceita senha abaixo do minimo declarado no DTO, pois nao ha ValidationPipe', async () => {
+    it('deve recusar senha abaixo do minimo declarado no DTO', async () => {
       const resposta = await request(app.getHttpServer())
         .post('/auth/login')
         .send({ telefone: '62000000000', senha: '1' });
 
-      expect(resposta.status).toBe(401);
-      expect(resposta.status).not.toBe(400);
+      expect(resposta.status).toBe(400);
     });
   });
 
   describe('cadastro e enumeracao de contas', () => {
-    it('a recusa por cpf duplicado revela que o cpf ja existe', async () => {
+    it('caracterizacao: a recusa por cpf duplicado revela que o cpf ja existe', async () => {
       const payload = buildUserPayload('500050');
       await request(app.getHttpServer()).post('/users').send(payload).expect(201);
 
@@ -285,7 +276,7 @@ describe('Autenticacao - seguranca (e2e)', () => {
       expect(resposta.body.message).toBe('CPF já cadastrado');
     });
 
-    it('a recusa por email duplicado revela que o email ja existe', async () => {
+    it('caracterizacao: a recusa por email duplicado revela que o email ja existe', async () => {
       const payload = buildUserPayload('500051');
       await request(app.getHttpServer()).post('/users').send(payload).expect(201);
 

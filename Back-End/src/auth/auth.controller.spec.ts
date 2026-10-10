@@ -76,12 +76,12 @@ describe('AuthController', () => {
       ).resolves.toEqual({ message: 'Logout realizado com sucesso' });
     });
 
-    it('deve repassar token indefinido quando nao ha header authorization', async () => {
+    it('nao deve acionar o logout sem token no header', async () => {
       authService.logout.mockResolvedValue({ message: 'ok' });
 
       await controller.logout(requisicaoCom());
 
-      expect(authService.logout).toHaveBeenCalledWith(undefined);
+      expect(authService.logout).not.toHaveBeenCalled();
     });
 
     it('deve remover apenas a primeira ocorrencia do prefixo Bearer', async () => {

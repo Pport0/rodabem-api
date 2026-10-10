@@ -185,22 +185,18 @@ describe('Tela de cadastro - validacao', () => {
     expect(screen.queryByText('CPF inválido')).toBeNull();
   });
 
-  it('o email e marcado como obrigatorio mas nunca e validado', async () => {
+  it('deve exigir o email, que o rotulo marca como obrigatorio', async () => {
     await preencher({ email: '' });
     await enviar();
 
-    expect(mockSignUp).toHaveBeenCalledWith(
-      expect.objectContaining({ email: '' }),
-    );
+    expect(mockSignUp).not.toHaveBeenCalled();
   });
 
-  it('aceita email em formato invalido', async () => {
+  it('deve recusar email em formato invalido', async () => {
     await preencher({ email: 'nao-e-um-email' });
     await enviar();
 
-    expect(mockSignUp).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'nao-e-um-email' }),
-    );
+    expect(mockSignUp).not.toHaveBeenCalled();
   });
 });
 

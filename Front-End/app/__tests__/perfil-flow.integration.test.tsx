@@ -14,6 +14,9 @@ jest.mock('@/services/api', () => ({
   api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
 }));
 
+// O foco aqui e o contrato com a API; o logout da tela nao faz parte dele.
+jest.mock('@/contexts/authContext', () => ({ useAuth: () => ({ logout: jest.fn() }) }));
+
 const perfilDaApi = {
   id: 1,
   nome: 'Gabriel Silva',
@@ -54,6 +57,7 @@ const montarApp = async (initialUrl = '/perfil') => {
       index: () => <Text>TELA INICIAL</Text>,
       perfil: Perfil,
       'caminhoes/novo': () => <Text>CADASTRO DE CAMINHAO</Text>,
+      'caminhoes/editar': () => <Text>EDICAO DE CAMINHAO</Text>,
     },
     { initialUrl },
   );
@@ -125,7 +129,7 @@ describe('Fluxo do perfil', () => {
     await waitFor(() => expect(screen.getByText('Editar caminhão')).toBeTruthy());
     await fireEvent.press(screen.getByText('Editar caminhão'));
 
-    await waitFor(() => expect(screen.getByText('CADASTRO DE CAMINHAO')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('EDICAO DE CAMINHAO')).toBeTruthy());
   });
 
   it('deve recorrer ao usuario do armazenamento quando a API de perfil falha', async () => {

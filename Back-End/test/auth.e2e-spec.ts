@@ -189,14 +189,13 @@ describe('Fluxo de autenticacao (e2e)', () => {
     });
   });
 
-  describe('validacao de entrada (caracterizacao)', () => {
-    it('aceita senha abaixo do minimo declarado no DTO, pois nao ha ValidationPipe', async () => {
+  describe('validacao de entrada', () => {
+    it('deve recusar senha abaixo do minimo declarado no DTO', async () => {
       const resposta = await request(app.getHttpServer())
         .post('/auth/login')
         .send({ telefone: '62000000000', senha: '1' });
 
-      expect(resposta.status).toBe(401);
-      expect(resposta.status).not.toBe(400);
+      expect(resposta.status).toBe(400);
     });
   });
 
