@@ -1,0 +1,12 @@
+# Abre o menu lateral.
+#
+# O toque vai por coordenada, e fica assim.
+#
+# Quando quebrar, conferir a posicao com `adb shell uiautomator dump` e ajustar aqui.
+appId: com.anonymous.rodabem
+---
+- tapOn:
+    point: "8%,8%"
+- extendedWaitUntil:
+    visible: "Meu Perfil"
+    timeout: 20000

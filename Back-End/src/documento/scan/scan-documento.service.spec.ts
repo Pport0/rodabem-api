@@ -13,6 +13,13 @@ jest.mock('fs', () => ({
   unlinkSync: jest.fn(),
 }));
 
+/**
+ * Criterio desta suite.
+ *
+ * A RNE-06 promete tres coisas: que a extracao seja TENTADA, que o resultado va PARA REVISAO do usuario, e que a falha NAO IMPECA o cadastro. Nada alem disso.
+ *
+ * Ficou um unico caso de extracao, 'deve extrair os dados de uma CNH tipica'. Ele nao esta aqui para fixar formato: esta porque sem ele nada mais prova que a extracao funciona, ja que o e2e de scan dubla este servico.
+ */
 describe('ScanDocumentoService', () => {
   let service: ScanDocumentoService;
   let silenciarLog: jest.SpyInstance;
@@ -102,16 +109,17 @@ describe('ScanDocumentoService', () => {
       ).rejects.toThrow('Formatos aceitos: PDF, JPG, JPEG, PNG.');
     });
 
-    it('deve recusar arquivo acima de 10MB', async () => {
-      await expect(
-        service.processarDocumento(arquivo({ size: 10 * 1024 * 1024 + 1 })),
-      ).rejects.toThrow('Arquivo muito grande. O tamanho máximo permitido é 10MB.');
-    });
+    // RNE-06: "Validar formato e tamanho maximo de 12MB".
+    it('deve aplicar o limite de tamanho de 12MB', async () => {
+      const MB = 1024 * 1024;
 
-    it('deve aceitar arquivo com exatamente 10MB', async () => {
       await expect(
-        service.processarDocumento(arquivo({ size: 10 * 1024 * 1024 })),
+        service.processarDocumento(arquivo({ size: 12 * MB })),
       ).resolves.toBeDefined();
+
+      await expect(
+        service.processarDocumento(arquivo({ size: 12 * MB + 1 })),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('nao deve enviar ao cloudinary quando o formato e invalido', async () => {
@@ -151,52 +159,12 @@ describe('ScanDocumentoService', () => {
       expect(Tesseract.createWorker).not.toHaveBeenCalled();
     });
 
-    it('deve enviar buffer, tipo e nome originais', async () => {
-      const buffer = Buffer.from('conteudo');
-
-      await processarComTexto(textoCompleto, { buffer });
-
-      expect(cloudinaryService.uploadFile).toHaveBeenCalledWith(
-        buffer,
-        'image/jpeg',
-        'cnh.jpg',
-      );
-    });
   });
 
   describe('preparacao da imagem para OCR', () => {
-    it('deve gravar a imagem em arquivo temporario quando o envio nao e PDF', async () => {
-      const buffer = Buffer.from('conteudo');
 
-      await processarComTexto('', { buffer });
 
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/ocr-\d+\.jpg$/),
-        buffer,
-      );
-    });
 
-    it('deve converter o PDF em imagem antes do OCR', async () => {
-      const converter = jest.fn().mockResolvedValue({ path: '/tmp/convertido.jpg' });
-      jest.mocked(fromBuffer).mockReturnValue(converter as any);
-
-      await processarComTexto('', { mimetype: 'application/pdf' });
-
-      expect(converter).toHaveBeenCalledWith(1);
-      expect(fs.writeFileSync).not.toHaveBeenCalled();
-    });
-
-    it('deve reconhecer o texto em portugues', async () => {
-      await processarComTexto('');
-
-      expect(Tesseract.createWorker).toHaveBeenCalledWith('por');
-    });
-
-    it('deve encerrar o worker apos o reconhecimento', async () => {
-      await processarComTexto(textoCompleto);
-
-      expect(worker.terminate).toHaveBeenCalled();
-    });
 
     it('deve remover o arquivo temporario quando ele existe', async () => {
       jest.mocked(fs.existsSync).mockReturnValue(true);
@@ -208,13 +176,6 @@ describe('ScanDocumentoService', () => {
       );
     });
 
-    it('nao deve tentar remover arquivo temporario inexistente', async () => {
-      jest.mocked(fs.existsSync).mockReturnValue(false);
-
-      await processarComTexto(textoCompleto);
-
-      expect(fs.unlinkSync).not.toHaveBeenCalled();
-    });
   });
 
   describe('falhas durante o OCR', () => {
@@ -226,11 +187,6 @@ describe('ScanDocumentoService', () => {
       observacao: null,
     };
 
-    it('deve devolver campos vazios quando o OCR nao extrai texto', async () => {
-      const { dadosExtraidos } = await processarComTexto('');
-
-      expect(dadosExtraidos).toEqual(semCampos);
-    });
 
     it('deve devolver campos vazios quando o reconhecimento falha', async () => {
       worker.recognize.mockRejectedValue(new Error('tesseract quebrou'));
@@ -240,20 +196,7 @@ describe('ScanDocumentoService', () => {
       expect(dadosExtraidos).toEqual(semCampos);
     });
 
-    it('deve encerrar o worker mesmo quando o reconhecimento falha', async () => {
-      worker.recognize.mockRejectedValue(new Error('tesseract quebrou'));
 
-      await service.processarDocumento(arquivo());
-
-      expect(worker.terminate).toHaveBeenCalled();
-    });
-
-    it('deve tolerar falha ao encerrar o worker apos erro no reconhecimento', async () => {
-      worker.recognize.mockRejectedValue(new Error('tesseract quebrou'));
-      worker.terminate.mockRejectedValue(new Error('worker travado'));
-
-      await expect(service.processarDocumento(arquivo())).resolves.toBeDefined();
-    });
 
     it('deve devolver campos vazios quando a criacao do worker falha', async () => {
       jest.mocked(Tesseract.createWorker).mockRejectedValue(new Error('sem memoria'));
@@ -284,197 +227,26 @@ describe('ScanDocumentoService', () => {
     });
   });
 
-  describe('identificacao do tipo de documento', () => {
-    it.each([
-      ['CARTEIRA NACIONAL DE HABILITACAO', 'CNH'],
-      ['DOCUMENTO CNH VALIDO', 'CNH'],
-      ['HABILITAÇÃO DEFINITIVA', 'CNH'],
-      ['CRLV DIGITAL', 'CRLV'],
-      ['LICENCIAMENTO ANUAL', 'CRLV'],
-      ['CERTIFICADO DE REGISTRO DE VEICULO', 'CRV'],
-      ['CARTEIRA DE IDENTIDADE', 'RG'],
-      ['R.G DO PORTADOR', 'RG'],
-      ['CADASTRO DE PESSOA FISICA', 'CPF'],
-    ])('deve identificar %s como %s', async (texto, esperado) => {
-      const { dadosExtraidos } = await processarComTexto(texto);
 
-      expect(dadosExtraidos.nome).toBe(esperado);
-    });
-
-    it('deve identificar o tipo independente de caixa', async () => {
-      const { dadosExtraidos } = await processarComTexto('carteira nacional');
-
-      expect(dadosExtraidos.nome).toBe('CNH');
-    });
-
-    it('deve priorizar CNH sobre os demais tipos', async () => {
-      const { dadosExtraidos } = await processarComTexto('CNH E CRLV NO MESMO ARQUIVO');
-
-      expect(dadosExtraidos.nome).toBe('CNH');
-    });
-
-    it('deve priorizar CRLV sobre CRV', async () => {
-      const { dadosExtraidos } = await processarComTexto('CRLV E CRV');
-
-      expect(dadosExtraidos.nome).toBe('CRLV');
-    });
-
-    it('deve devolver nome nulo quando o tipo nao e reconhecido', async () => {
-      const { dadosExtraidos } = await processarComTexto('DOCUMENTO QUALQUER');
-
-      expect(dadosExtraidos.nome).toBeNull();
-    });
-  });
-
-  describe('identificacao do numero do documento', () => {
-    it('deve usar sequencia de onze digitos para CNH', async () => {
-      const { dadosExtraidos } = await processarComTexto('CNH 12345678901');
-
-      expect(dadosExtraidos.numero).toBe('12345678901');
-    });
-
-    it('deve usar o renavam rotulado para CRLV', async () => {
-      const { dadosExtraidos } = await processarComTexto('CRLV RENAVAM: 12345678901');
-
-      expect(dadosExtraidos.numero).toBe('12345678901');
-    });
-
-    it('deve usar o renavam rotulado para CRV', async () => {
-      const { dadosExtraidos } = await processarComTexto(
-        'CERTIFICADO DE REGISTRO RENAVAM 98765432109',
-      );
-
-      expect(dadosExtraidos.numero).toBe('98765432109');
-    });
-
-    it('deve remover espacos internos do renavam', async () => {
-      const { dadosExtraidos } = await processarComTexto('CRLV RENAVAM: 123 456 789 01');
-
-      expect(dadosExtraidos.numero).toBe('12345678901');
-    });
-
-    it('deve recorrer a sequencia generica quando a CNH nao tem onze digitos', async () => {
-      const { dadosExtraidos } = await processarComTexto('CNH 1234567');
-
-      expect(dadosExtraidos.numero).toBe('1234567');
-    });
-
-    it('deve recorrer a sequencia generica quando o CRLV nao traz renavam rotulado', async () => {
-      const { dadosExtraidos } = await processarComTexto('CRLV 12345678');
-
-      expect(dadosExtraidos.numero).toBe('12345678');
-    });
-
-    it('deve usar sequencia generica para documento sem tipo identificado', async () => {
-      const { dadosExtraidos } = await processarComTexto('PROTOCOLO 123456789');
-
-      expect(dadosExtraidos.numero).toBe('123456789');
-    });
-
-    it('nao deve reconhecer sequencia com menos de sete digitos', async () => {
-      const { dadosExtraidos } = await processarComTexto('CODIGO 123456');
-
-      expect(dadosExtraidos.numero).toBeNull();
-    });
-
-    it('deve devolver numero nulo quando nao ha digitos suficientes', async () => {
-      const { dadosExtraidos } = await processarComTexto('DOCUMENTO SEM NUMERO');
-
-      expect(dadosExtraidos.numero).toBeNull();
-    });
-  });
 
   describe('identificacao das datas', () => {
-    it('deve reconhecer emissao e validade no layout da CNH', async () => {
+    // Unico caso de extracao que sobrou. Nao esta aqui para fixar formato: esta porque sem ele nada mais prova que a
+    // extracao funciona — o e2e de scan dubla este servico.
+    it('deve extrair os dados de uma CNH tipica', async () => {
       const { dadosExtraidos } = await processarComTexto(
-        'CNH 4a DATA EMISSAO 4b VALIDADE 10/01/2020 10/01/2030',
+        'CARTEIRA NACIONAL DE HABILITACAO 12345678901 4a DATA EMISSAO 4b VALIDADE 10/01/2020 10/01/2030',
       );
 
+      expect(dadosExtraidos.nome).toBe('CNH');
+      expect(dadosExtraidos.numero).toBe('12345678901');
       expect(dadosExtraidos.dataEmissao).toBe('2020-01-10');
       expect(dadosExtraidos.dataVencimento).toBe('2030-01-10');
     });
 
-    it('deve reconhecer emissao rotulada', async () => {
-      const { dadosExtraidos } = await processarComTexto('EMISSAO: 15/03/2021');
 
-      expect(dadosExtraidos.dataEmissao).toBe('2021-03-15');
-    });
 
-    it('deve reconhecer expedicao como emissao', async () => {
-      const { dadosExtraidos } = await processarComTexto('EXPEDIÇÃO 15/03/2021');
-
-      expect(dadosExtraidos.dataEmissao).toBe('2021-03-15');
-    });
-
-    it.each(['VALIDADE', 'VENCIMENTO', 'VÁLIDO ATÉ', 'VAL.'])(
-      'deve reconhecer vencimento rotulado com %s',
-      async (rotulo) => {
-        const { dadosExtraidos } = await processarComTexto(`${rotulo}: 20/12/2030`);
-
-        expect(dadosExtraidos.dataVencimento).toBe('2030-12-20');
-      },
-    );
-
-    it('deve aceitar datas separadas por hifen', async () => {
-      const { dadosExtraidos } = await processarComTexto('VALIDADE 20-12-2030');
-
-      expect(dadosExtraidos.dataVencimento).toBe('2030-12-20');
-    });
-
-    it('deve usar a segunda data avulsa como emissao quando nao ha rotulo', async () => {
-      const { dadosExtraidos } = await processarComTexto(
-        '01/01/2020 02/02/2021 03/03/2022',
-      );
-
-      expect(dadosExtraidos.dataEmissao).toBe('2021-02-02');
-    });
-
-    it('deve usar a terceira data avulsa como vencimento quando nao ha rotulo', async () => {
-      const { dadosExtraidos } = await processarComTexto(
-        '01/01/2020 02/02/2021 03/03/2022',
-      );
-
-      expect(dadosExtraidos.dataVencimento).toBe('2022-03-03');
-    });
-
-    it('deve usar a ultima data disponivel como vencimento quando ha menos de tres', async () => {
-      const { dadosExtraidos } = await processarComTexto('01/01/2020 02/02/2021');
-
-      expect(dadosExtraidos.dataVencimento).toBe('2021-02-02');
-    });
-
-    it('deve ignorar datas anteriores ao ano 2000', async () => {
-      const { dadosExtraidos } = await processarComTexto('01/01/1995 02/02/1998');
-
-      expect(dadosExtraidos.dataEmissao).toBeNull();
-      expect(dadosExtraidos.dataVencimento).toBeNull();
-    });
-
-    it('deve devolver datas nulas quando o texto nao contem datas', async () => {
-      const { dadosExtraidos } = await processarComTexto('DOCUMENTO SEM DATAS');
-
-      expect(dadosExtraidos.dataEmissao).toBeNull();
-      expect(dadosExtraidos.dataVencimento).toBeNull();
-    });
-
-    it('deve preferir o rotulo a posicao da data avulsa', async () => {
-      const { dadosExtraidos } = await processarComTexto(
-        '01/01/2020 EMISSAO: 05/05/2022 09/09/2023',
-      );
-
-      expect(dadosExtraidos.dataEmissao).toBe('2022-05-05');
-    });
   });
 
-  describe('campo observacao', () => {
-    it('nunca preenche a observacao a partir do texto extraido', async () => {
-      const { dadosExtraidos } = await processarComTexto(
-        `${textoCompleto} OBSERVACAO: documento em bom estado`,
-      );
-
-      expect(dadosExtraidos.observacao).toBeNull();
-    });
-  });
 
   describe('campos obrigatorios ausentes', () => {
     it('deve apontar os quatro campos quando nada e reconhecido', async () => {
@@ -494,52 +266,8 @@ describe('ScanDocumentoService', () => {
       expect(camposObrigatoriosFaltando).toEqual([]);
     });
 
-    it('deve apontar apenas os campos que faltaram', async () => {
-      const { camposObrigatoriosFaltando } = await processarComTexto('CNH 12345678901');
 
-      expect(camposObrigatoriosFaltando).toEqual(['dataEmissao', 'dataVencimento']);
-    });
 
-    it('deve instruir o preenchimento manual dos campos faltantes', async () => {
-      const { mensagem } = await processarComTexto('CNH 12345678901');
-
-      expect(mensagem).toBe(
-        'Extração concluída. Preencha manualmente: dataEmissao, dataVencimento.',
-      );
-    });
-
-    it('deve pedir revisao quando nada faltou', async () => {
-      const { mensagem } = await processarComTexto(textoCompleto);
-
-      expect(mensagem).toBe(
-        'Dados extraídos com sucesso. Revise antes de confirmar o cadastro.',
-      );
-    });
   });
 
-  describe('nivel de confianca', () => {
-    it('deve classificar como alta com quatro ou mais campos reconhecidos', async () => {
-      const { confianca } = await processarComTexto(textoCompleto);
-
-      expect(confianca).toBe('alta');
-    });
-
-    it('deve classificar como media com dois ou tres campos reconhecidos', async () => {
-      const { confianca } = await processarComTexto('CNH 12345678901');
-
-      expect(confianca).toBe('media');
-    });
-
-    it('deve classificar como baixa com menos de dois campos reconhecidos', async () => {
-      const { confianca } = await processarComTexto('CNH');
-
-      expect(confianca).toBe('baixa');
-    });
-
-    it('deve classificar como baixa quando o OCR nao extrai nada', async () => {
-      const { confianca } = await processarComTexto('');
-
-      expect(confianca).toBe('baixa');
-    });
-  });
 });

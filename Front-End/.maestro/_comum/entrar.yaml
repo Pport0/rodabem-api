@@ -1,0 +1,15 @@
+# Autentica na tela de login. Exige ja estar nela.
+# `hideKeyboard` entre os campos: sem isso o teclado cobre o campo de senha, o toque nao muda o foco, e os dois textos
+# entram no primeiro campo.
+appId: com.anonymous.rodabem
+---
+- extendedWaitUntil:
+    visible: "Insira o seu cpf ou telefone"
+    timeout: 30000
+- tapOn: "Insira o seu cpf ou telefone"
+- inputText: ${CREDENCIAL}
+- hideKeyboard
+- tapOn: "Insira a sua senha"
+- inputText: ${SENHA}
+- hideKeyboard
+- tapOn: "Acessar"

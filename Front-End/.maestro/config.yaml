@@ -1,0 +1,9 @@
+# Apenas os fluxos. `_comum` guarda subfluxos e scripts, que nao sao executaveis por conta propria.
+flows:
+  - "cadastro/*.yaml"
+  - "login/*.yaml"
+  - "home/*.yaml"
+  - "perfil/*.yaml"
+  - "caminhao/*.yaml"
+  - "abastecimento/*.yaml"
+  - "abertura/*.yaml"

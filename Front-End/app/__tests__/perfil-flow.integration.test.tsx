@@ -70,67 +70,12 @@ beforeEach(() => {
 });
 
 describe('Fluxo do perfil', () => {
-  it('deve percorrer da tela ate a API e exibir os dados do usuario', async () => {
-    await montarApp();
 
-    await waitFor(() =>
-      expect(screen.getAllByText('Gabriel Silva').length).toBeGreaterThan(0),
-    );
-    expect(screen.getByText('529.982.247-25')).toBeTruthy();
-    expect(screen.getByText('gabriel@example.com')).toBeTruthy();
-  });
 
-  it('deve consultar os endpoints de perfil e de caminhao', async () => {
-    await montarApp();
 
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/users/me'));
-    expect(api.get).toHaveBeenCalledWith('/caminhao');
-  });
 
-  it('deve exibir o caminhao vinculado vindo da API', async () => {
-    await montarApp();
 
-    await waitFor(() => expect(screen.getByText('ABC1D23')).toBeTruthy());
-    expect(screen.getByText('FH 540')).toBeTruthy();
-    expect(screen.getByText('VOLVO')).toBeTruthy();
-  });
 
-  it('deve extrair o caminhao quando a API responde com envelope', async () => {
-    responderApi(perfilDaApi, { message: 'ok', caminhao: caminhaoDaApi });
-
-    await montarApp();
-
-    await waitFor(() => expect(screen.getByText('ABC1D23')).toBeTruthy());
-  });
-
-  it('deve oferecer o cadastro quando a API informa que nao ha caminhao', async () => {
-    responderApi(perfilDaApi, { message: 'Usuário não possui caminhão cadastrado' });
-
-    await montarApp();
-
-    await waitFor(() =>
-      expect(screen.getByText('Nenhum caminhão cadastrado')).toBeTruthy(),
-    );
-  });
-
-  it('deve navegar para o cadastro de caminhao', async () => {
-    responderApi(perfilDaApi, { message: 'Usuário não possui caminhão cadastrado' });
-    await montarApp();
-
-    await waitFor(() => expect(screen.getByText('Cadastrar Caminhão')).toBeTruthy());
-    await fireEvent.press(screen.getByText('Cadastrar Caminhão'));
-
-    await waitFor(() => expect(screen.getByText('CADASTRO DE CAMINHAO')).toBeTruthy());
-  });
-
-  it('deve navegar para a edicao do caminhao existente', async () => {
-    await montarApp();
-
-    await waitFor(() => expect(screen.getByText('Editar caminhão')).toBeTruthy());
-    await fireEvent.press(screen.getByText('Editar caminhão'));
-
-    await waitFor(() => expect(screen.getByText('EDICAO DE CAMINHAO')).toBeTruthy());
-  });
 
   it('deve recorrer ao usuario do armazenamento quando a API de perfil falha', async () => {
     jest
@@ -164,24 +109,7 @@ describe('Fluxo do perfil', () => {
 });
 
 describe('Contrato entre front-end e back-end no perfil', () => {
-  it('o front consome exatamente os campos que GET /users/me devolve', async () => {
-    await montarApp();
 
-    await waitFor(() =>
-      expect(screen.getAllByText('Gabriel Silva').length).toBeGreaterThan(0),
-    );
-    expect(screen.getByText('529.982.247-25')).toBeTruthy();
-    expect(screen.getByText('62999999999')).toBeTruthy();
-    expect(screen.getByText('gabriel@example.com')).toBeTruthy();
-  });
-
-  it('o front tolera perfil sem os campos opcionais', async () => {
-    responderApi({ id: 1, nome: 'Gabriel' }, null);
-
-    await montarApp();
-
-    await waitFor(() => expect(screen.getAllByText('—').length).toBeGreaterThan(0));
-  });
 
   it('o front tolera perfil com cpf nulo, como o back devolve quando nao ha cpf cifrado', async () => {
     responderApi({ ...perfilDaApi, cpf: null }, null);

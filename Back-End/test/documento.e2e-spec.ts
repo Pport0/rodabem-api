@@ -1,13 +1,43 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { clearDatabase, createTruck, registerAndLogin } from './e2e.utils';
 
-describe('Fluxo de documentos (e2e)', () => {
+/**
+ * Regras: RNE-05 do documento de especificacao.
+ *
+ * O app e montado com o mesmo ValidationPipe do `src/main.ts`. Sem isso o teste
+ * exercita uma aplicacao que valida menos do que a que vai para producao.
+ */
+describe('Documentos (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+
+  /** Deslocamentos bem longe das fronteiras, para o resultado nao depender da hora. */
+  const DIA = 24 * 60 * 60 * 1000;
+  const emDias = (dias: number) =>
+    new Date(Date.now() + dias * DIA).toISOString();
+
+  const documentoValido = (extra: Record<string, unknown> = {}) => ({
+    nome: 'CRLV',
+    numero: '123456789',
+    dataEmissao: emDias(-365),
+    dataVencimento: emDias(365),
+    ...extra,
+  });
+
+  const criar = (token: string, corpo: Record<string, unknown>) =>
+    request(app.getHttpServer())
+      .post('/documentos')
+      .set('Authorization', `Bearer ${token}`)
+      .send(corpo);
+
+  const listar = (token: string) =>
+    request(app.getHttpServer())
+      .get('/documentos')
+      .set('Authorization', `Bearer ${token}`);
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -15,7 +45,18 @@ describe('Fluxo de documentos (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: false,
+        transform: true,
+        stopAtFirstError: true,
+      }),
+    );
     await app.init();
+    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
+    await app.listen(0);
+
     prisma = app.get(PrismaService);
   });
 
@@ -25,108 +66,235 @@ describe('Fluxo de documentos (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
+    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
+    await prisma.$disconnect();
     await app.close();
   });
 
-  it('deve cadastrar documento de caminhao e motorista, bloquear vencimento anterior e negar acesso entre usuarios', async () => {
-    const owner = await registerAndLogin(app, '100003');
-    const intruder = await registerAndLogin(app, '100004');
+  describe('cadastro', () => {
+    it('deve cadastrar documento com os campos informados', async () => {
+      const dono = await registerAndLogin(app, '200001');
 
-    const truckResponse = await createTruck(app, owner.token);
-    const caminhaoId = truckResponse.body.caminhao.id;
+      const resposta = await criar(dono.token, documentoValido());
 
-    const createResponse = await request(app.getHttpServer())
-      .post('/documentos')
-      .set('Authorization', `Bearer ${owner.token}`)
-      .send({
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.documento).toMatchObject({
         nome: 'CRLV',
-        numero: 'DOC-1',
-        dataEmissao: '2026-01-01',
-        dataVencimento: '2026-12-31',
-        caminhaoId,
-      })
-      .expect(201);
+        numero: '123456789',
+      });
+    });
 
-    expect(createResponse.body.documento.nome).toBe('CRLV');
+    it('deve recusar cadastro sem data de emissao ou sem data de vencimento', async () => {
+      const dono = await registerAndLogin(app, '200002');
 
-    const motoristaResponse = await request(app.getHttpServer())
-      .post('/documentos')
-      .set('Authorization', `Bearer ${owner.token}`)
-      .send({
-        nome: 'CNH',
-        numero: 'MOT-9',
-        dataEmissao: '2026-01-01',
-        dataVencimento: '2026-12-31',
-      })
-      .expect(201);
+      const semEmissao = documentoValido();
+      delete (semEmissao as Record<string, unknown>).dataEmissao;
+      const semVencimento = documentoValido();
+      delete (semVencimento as Record<string, unknown>).dataVencimento;
 
-    expect(motoristaResponse.body.documento.caminhaoId).toBeNull();
+      await expect(
+        criar(dono.token, semEmissao).then((r) => r.status),
+      ).resolves.toBe(400);
+      await expect(
+        criar(dono.token, semVencimento).then((r) => r.status),
+      ).resolves.toBe(400);
+    });
 
-    const listResponse = await request(app.getHttpServer())
-      .get('/documentos')
-      .set('Authorization', `Bearer ${owner.token}`)
-      .expect(200);
+    it('deve recusar vencimento anterior a emissao', async () => {
+      const dono = await registerAndLogin(app, '200003');
 
-    expect(listResponse.body).toHaveLength(2);
-    expect(listResponse.body.some((doc) => doc.vinculo === 'CAMINHAO')).toBe(true);
-    expect(listResponse.body.some((doc) => doc.vinculo === 'MOTORISTA')).toBe(true);
+      const resposta = await criar(
+        dono.token,
+        documentoValido({
+          dataEmissao: emDias(10),
+          dataVencimento: emDias(-10),
+        }),
+      );
 
-    await request(app.getHttpServer())
-      .post('/documentos')
-      .set('Authorization', `Bearer ${owner.token}`)
-      .send({
-        nome: 'ANTT',
-        numero: 'DOC-2',
-        dataEmissao: '2026-12-31',
-        dataVencimento: '2026-01-01',
-        caminhaoId,
-      })
-      .expect(400);
+      expect(resposta.status).toBe(400);
+    });
 
-    const documentId = createResponse.body.documento.id;
+    it('deve exigir autenticacao', async () => {
+      const resposta = await request(app.getHttpServer())
+        .post('/documentos')
+        .send(documentoValido());
 
-    await request(app.getHttpServer())
-      .put(`/documentos/${documentId}`)
-      .set('Authorization', `Bearer ${intruder.token}`)
-      .send({ observacao: 'Tentativa indevida' })
-      .expect(403);
+      expect(resposta.status).toBe(401);
+    });
   });
 
-  it('deve atualizar a data de vencimento do proprio documento', async () => {
-    const owner = await registerAndLogin(app, '100013');
+  describe('vinculo', () => {
+    it('deve registrar vinculo de caminhao quando um caminhao e informado', async () => {
+      const dono = await registerAndLogin(app, '200004');
+      const caminhao = await createTruck(app, dono.token);
 
-    const truckResponse = await createTruck(app, owner.token);
-    const caminhaoId = truckResponse.body.caminhao.id;
+      await criar(
+        dono.token,
+        documentoValido({ caminhaoId: caminhao.body.caminhao.id }),
+      );
 
-    const createResponse = await request(app.getHttpServer())
-      .post('/documentos')
-      .set('Authorization', `Bearer ${owner.token}`)
-      .send({
-        nome: 'Seguro',
-        numero: 'DOC-3',
-        dataEmissao: '2026-01-01',
-        dataVencimento: '2026-06-30',
-        caminhaoId,
-      })
-      .expect(201);
+      const lista = await listar(dono.token);
+      expect(lista.body[0].vinculo).toBe('CAMINHAO');
+    });
 
-    const documentId = createResponse.body.documento.id;
+    it('deve registrar vinculo de motorista quando nenhum caminhao e informado', async () => {
+      const dono = await registerAndLogin(app, '200005');
 
-    const updateResponse = await request(app.getHttpServer())
-      .put(`/documentos/${documentId}`)
-      .set('Authorization', `Bearer ${owner.token}`)
-      .send({
-        dataVencimento: '2026-12-31',
-      })
-      .expect(200);
+      await criar(dono.token, documentoValido());
 
-    expect(updateResponse.body.dataVencimento).toContain('2026-12-31');
+      const lista = await listar(dono.token);
+      expect(lista.body[0].vinculo).toBe('MOTORISTA');
+    });
 
-    const listResponse = await request(app.getHttpServer())
-      .get('/documentos')
-      .set('Authorization', `Bearer ${owner.token}`)
-      .expect(200);
+    it('deve recusar vinculo a caminhao de outro usuario', async () => {
+      const dono = await registerAndLogin(app, '200006');
+      const intruso = await registerAndLogin(app, '200007');
+      const caminhao = await createTruck(app, dono.token);
 
-    expect(listResponse.body[0].dataVencimento).toContain('2026-12-31');
+      const resposta = await criar(
+        intruso.token,
+        documentoValido({ caminhaoId: caminhao.body.caminhao.id }),
+      );
+
+      expect(resposta.status).toBe(403);
+    });
+  });
+
+  describe('listagem', () => {
+    it('deve listar apenas os documentos do proprio usuario, separados por tipo de vinculo', async () => {
+      const dono = await registerAndLogin(app, '200008');
+      const outro = await registerAndLogin(app, '200009');
+      const caminhao = await createTruck(app, dono.token);
+
+      await criar(
+        dono.token,
+        documentoValido({
+          nome: 'CRLV',
+          caminhaoId: caminhao.body.caminhao.id,
+        }),
+      );
+      await criar(dono.token, documentoValido({ nome: 'CNH' }));
+      await criar(outro.token, documentoValido({ nome: 'Documento alheio' }));
+
+      const lista = await listar(dono.token);
+
+      expect(lista.body).toHaveLength(2);
+      expect(lista.body.map((d) => d.nome).sort()).toEqual(['CNH', 'CRLV']);
+      expect(
+        lista.body.find((d) => d.nome === 'CRLV').vinculo,
+      ).toBe('CAMINHAO');
+      expect(lista.body.find((d) => d.nome === 'CNH').vinculo).toBe(
+        'MOTORISTA',
+      );
+    });
+
+    it('deve calcular o status e os dias restantes pela data de vencimento', async () => {
+      const dono = await registerAndLogin(app, '200010');
+
+      await criar(dono.token, documentoValido({ nome: 'Valido' }));
+      await criar(
+        dono.token,
+        documentoValido({ nome: 'Vencendo', dataVencimento: emDias(10) }),
+      );
+      await criar(
+        dono.token,
+        documentoValido({ nome: 'Expirado', dataVencimento: emDias(-10) }),
+      );
+
+      const lista = await listar(dono.token);
+      const por = (nome: string) => lista.body.find((d) => d.nome === nome);
+
+      expect(por('Valido').status).toBe('VALIDO');
+      expect(por('Vencendo').status).toBe('VENCENDO');
+      expect(por('Expirado').status).toBe('EXPIRADO');
+      expect(por('Vencendo').diasRestantes).toBe(10);
+      expect(por('Expirado').diasRestantes).toBeLessThan(0);
+    });
+  });
+
+  describe('edicao e exclusao', () => {
+    it('deve permitir editar o proprio documento', async () => {
+      const dono = await registerAndLogin(app, '200011');
+      const criado = await criar(dono.token, documentoValido());
+
+      const resposta = await request(app.getHttpServer())
+        .put(`/documentos/${criado.body.documento.id}`)
+        .set('Authorization', `Bearer ${dono.token}`)
+        .send({ numero: '999' });
+
+      expect(resposta.status).toBe(200);
+
+      const lista = await listar(dono.token);
+      expect(lista.body[0].numero).toBe('999');
+    });
+
+    it('deve impedir editar documento de outro usuario', async () => {
+      const dono = await registerAndLogin(app, '200012');
+      const intruso = await registerAndLogin(app, '200013');
+      const criado = await criar(dono.token, documentoValido());
+
+      const resposta = await request(app.getHttpServer())
+        .put(`/documentos/${criado.body.documento.id}`)
+        .set('Authorization', `Bearer ${intruso.token}`)
+        .send({ numero: '999' });
+
+      expect(resposta.status).toBe(403);
+
+      const lista = await listar(dono.token);
+      expect(lista.body[0].numero).toBe('123456789');
+    });
+
+    it('deve excluir o proprio documento', async () => {
+      const dono = await registerAndLogin(app, '200014');
+      const criado = await criar(dono.token, documentoValido());
+
+      const resposta = await request(app.getHttpServer())
+        .delete(`/documentos/${criado.body.documento.id}`)
+        .set('Authorization', `Bearer ${dono.token}`);
+
+      expect(resposta.status).toBe(200);
+      await expect(listar(dono.token).then((r) => r.body)).resolves.toEqual([]);
+    });
+
+    it('deve impedir excluir documento de outro usuario', async () => {
+      const dono = await registerAndLogin(app, '200015');
+      const intruso = await registerAndLogin(app, '200016');
+      const criado = await criar(dono.token, documentoValido());
+
+      const resposta = await request(app.getHttpServer())
+        .delete(`/documentos/${criado.body.documento.id}`)
+        .set('Authorization', `Bearer ${intruso.token}`);
+
+      expect(resposta.status).toBe(403);
+      await expect(
+        listar(dono.token).then((r) => r.body.length),
+      ).resolves.toBe(1);
+    });
+  });
+
+  describe('alerta de vencimento', () => {
+    it('deve alertar apenas os documentos que vencem dentro da janela configurada', async () => {
+      const dono = await registerAndLogin(app, '200017');
+
+      await criar(
+        dono.token,
+        documentoValido({ nome: 'Dentro', dataVencimento: emDias(10) }),
+      );
+      await criar(
+        dono.token,
+        documentoValido({ nome: 'Longe', dataVencimento: emDias(365) }),
+      );
+      await criar(
+        dono.token,
+        documentoValido({ nome: 'Expirado', dataVencimento: emDias(-10) }),
+      );
+
+      const resposta = await request(app.getHttpServer())
+        .get('/documentos/alertas')
+        .set('Authorization', `Bearer ${dono.token}`);
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.body.alertas.map((a) => a.nome)).toEqual(['Dentro']);
+    });
   });
 });

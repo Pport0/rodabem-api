@@ -81,12 +81,13 @@ describe('CaminhaoController - endpoint de scan', () => {
   });
 
   it('deve propagar a recusa por tamanho excedido vinda do servico', async () => {
+    // O limite em si e regra do servico (RNE-06); aqui so interessa que o controller repassa a recusa em vez de engoli-la.
     scanService.processarDocumento.mockRejectedValue(
-      new BadRequestException('Arquivo muito grande. O tamanho máximo permitido é 10MB.'),
+      new BadRequestException('Arquivo muito grande.'),
     );
 
     await expect(controller.scan(arquivo())).rejects.toThrow(
-      'Arquivo muito grande. O tamanho máximo permitido é 10MB.',
+      'Arquivo muito grande.',
     );
   });
 

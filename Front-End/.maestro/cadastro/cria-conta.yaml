@@ -1,0 +1,32 @@
+# RNE-01: o usuario gerencia a propria conta; o cadastro exige Nome, CPF e Senha, e o CPF precisa ser valido e unico.
+#
+# O que prova a regra nao e a mensagem de sucesso, e sim a conta servir para entrar. Por isso o fluxo cadastra e em seguida autentica.
+appId: com.anonymous.rodabem
+name: cadastro - cria conta que permite autenticar
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: ${output.senha}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000

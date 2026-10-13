@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -29,7 +29,19 @@ describe('Usuarios (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    // Mesmo ValidationPipe do `src/main.ts`.
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: false,
+        transform: true,
+        stopAtFirstError: true,
+      }),
+    );
     await app.init();
+    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
+    await app.listen(0);
+
     prisma = app.get(PrismaService);
   });
 
@@ -39,6 +51,8 @@ describe('Usuarios (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
+    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
+    await prisma.$disconnect();
     await app.close();
   });
 

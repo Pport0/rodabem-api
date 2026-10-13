@@ -1,0 +1,61 @@
+# RNE-03: "Vinculo (1:1): cada usuario pode ter apenas 1 caminhao" e "Cadastro: permitido apenas se o usuario ainda nao tiver caminhao".
+appId: com.anonymous.rodabem
+name: caminhao - recusa um segundo caminhao para a mesma conta
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: ${output.senha}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000
+# O cartao MEU CAMINHAO da home leva ao PERFIL: o caminhao e uma secao dele, e o formulario abre pelo botao "Cadastrar Caminhao".
+- tapOn: "MEU CAMINHÃO"
+- extendedWaitUntil:
+    visible: "Cadastrar Caminhão"
+    timeout: 30000
+- tapOn: "Cadastrar Caminhão"
+- extendedWaitUntil:
+    visible: "ABC1234 ou ABC1D23"
+    timeout: 30000
+- tapOn: "ABC1234 ou ABC1D23"
+- inputText: "RDB1A23"
+- hideKeyboard
+- tapOn: "Ex: Scania R450"
+- inputText: "Scania R450"
+- hideKeyboard
+- tapOn: "00000000000"
+- inputText: "12345678901"
+- hideKeyboard
+- tapOn: "Ex: 6"
+- inputText: "6"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "CADASTRAR CAMINHAO"
+    direction: DOWN
+    visibilityPercentage: 30
+- tapOn: "CADASTRAR CAMINHAO"
+- extendedWaitUntil:
+    visible: "RDB1A23"
+    timeout: 30000
+# Com um caminhao ja cadastrado, a tela nao pode oferecer um novo cadastro.
+- assertNotVisible: "Cadastrar Caminhão"
