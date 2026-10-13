@@ -16,6 +16,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -41,7 +42,7 @@ export class UsersController {
     @Query('nome') nome?: string,
     @Query('status') status?: string,
   ) {
-    return this.usersService.findById(req.user.userId);
+    return this.usersService.findAll({ page, limit, nome, status });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -49,7 +50,7 @@ export class UsersController {
   update(
     @Req() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: Partial<{ nome: string; email: string; telefone: string; avatarUrl: string }>,
+    @Body() dto: UpdateUserDto,
   ) {
     if (req.user.userId !== id) {
       throw new ForbiddenException('Você não tem permissão para editar este usuário.');
