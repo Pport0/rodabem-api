@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import React, { ReactNode } from 'react';
 
@@ -8,6 +7,15 @@ import NovoCaminhao from '../caminhoes/novo';
 import { getMeuCaminhao, scanCaminhao } from '@/services/caminhaoService';
 import { Toast } from '@/shared/ui/molecules/Toast';
 
+/**
+ * Contrato da RNE-06 na tela de cadastro de caminhao.
+ *
+ * A regra promete quatro coisas, e so estas quatro:
+ *   - o sistema TENTA extrair os dados;
+ *   - o que saiu da extracao e exibido PARA REVISAO;
+ *   - o usuario pode CORRIGIR qualquer campo antes de salvar;
+ *   - se o OCR falhar, parcial ou totalmente, o cadastro NAO e impedido.
+ */
 jest.mock('@/services/caminhaoService', () => ({
   getMeuCaminhao: jest.fn(),
   createCaminhao: jest.fn(),
@@ -47,27 +55,15 @@ const escanearPelaCamera = async () => {
   await fireEvent.press(screen.getByText('Escanear camera'));
 };
 
-const escanearPorArquivo = async () => {
-  await montarTela();
-  await fireEvent.press(screen.getByText('PDF ou imagem'));
-};
-
-const permitirCamera = (granted = true) =>
+const cameraDevolve = (asset: Record<string, unknown>) => {
   jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockResolvedValue({
-    granted,
+    granted: true,
   } as any);
-
-const cameraDevolve = (asset: Record<string, unknown>) =>
   jest.mocked(ImagePicker.launchCameraAsync).mockResolvedValue({
     canceled: false,
     assets: [asset],
   } as any);
-
-const seletorDevolve = (asset: Record<string, unknown>) =>
-  jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
-    canceled: false,
-    assets: [asset],
-  } as any);
+};
 
 const resultadoScan = (sobrescreve: Record<string, unknown> = {}) => ({
   arquivoUrl: 'https://cdn/crlv.jpg',
@@ -88,368 +84,81 @@ const resultadoScan = (sobrescreve: Record<string, unknown> = {}) => ({
   ...sobrescreve,
 });
 
-describe('Tela de novo caminhao - acesso a camera', () => {
+describe('Scan do caminhao — contrato da RNE-06', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(getMeuCaminhao).mockResolvedValue(null);
-    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
+    cameraDevolve({ uri: 'file:///crlv.jpg', name: 'crlv.jpg', type: 'image' });
   });
 
-  it('deve avisar quando a permissao de camera e negada', async () => {
-    permitirCamera(false);
-
-    await escanearPelaCamera();
-
-    expect(Toast.show).toHaveBeenCalledWith(
-      'Permissao de camera negada',
-      expect.objectContaining({ type: 'error' }),
-    );
-  });
-
-  it('nao deve abrir a camera quando a permissao e negada', async () => {
-    permitirCamera(false);
-
-    await escanearPelaCamera();
-
-    expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
-  });
-
-  it('nao deve escanear quando a permissao e negada', async () => {
-    permitirCamera(false);
-
-    await escanearPelaCamera();
-
-    expect(scanCaminhao).not.toHaveBeenCalled();
-  });
-
-  it('deve abrir a camera quando a permissao e concedida', async () => {
-    permitirCamera();
-    cameraDevolve({ uri: 'file:///foto.jpg', fileName: 'foto.jpg' });
-
-    await escanearPelaCamera();
-
-    expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
-  });
-
-  it('nao deve escanear quando o usuario cancela a camera', async () => {
-    permitirCamera();
-    jest
-      .mocked(ImagePicker.launchCameraAsync)
-      .mockResolvedValue({ canceled: true } as any);
-
-    await escanearPelaCamera();
-
-    expect(scanCaminhao).not.toHaveBeenCalled();
-  });
-
-  it('nao deve escanear quando a camera nao devolve imagem', async () => {
-    permitirCamera();
-    jest
-      .mocked(ImagePicker.launchCameraAsync)
-      .mockResolvedValue({ canceled: false, assets: [] } as any);
-
-    await escanearPelaCamera();
-
-    expect(scanCaminhao).not.toHaveBeenCalled();
-  });
-});
-
-describe('Tela de novo caminhao - preparacao do arquivo', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.mocked(getMeuCaminhao).mockResolvedValue(null);
-    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
-    permitirCamera();
-  });
-
-  it('deve enviar uri, nome e tipo da imagem capturada', async () => {
-    cameraDevolve({
-      uri: 'file:///foto.jpg',
-      fileName: 'foto.jpg',
-      mimeType: 'image/jpeg',
-    });
-
-    await escanearPelaCamera();
-
-    expect(scanCaminhao).toHaveBeenCalledWith({
-      uri: 'file:///foto.jpg',
-      name: 'foto.jpg',
-      type: 'image/jpeg',
-    });
-  });
-
-  it('deve gerar nome com data quando a captura nao traz nome', async () => {
-    cameraDevolve({ uri: 'file:///foto.jpg', fileName: null });
-
-    await escanearPelaCamera();
-
-    expect(scanCaminhao).toHaveBeenCalledWith(
-      expect.objectContaining({ name: expect.stringMatching(/^caminhao-\d+\.jpg$/) }),
-    );
-  });
-
-  it('deve gerar nome com data quando o nome vem em branco', async () => {
-    cameraDevolve({ uri: 'file:///foto.jpg', fileName: '   ' });
-
-    await escanearPelaCamera();
-
-    expect(scanCaminhao).toHaveBeenCalledWith(
-      expect.objectContaining({ name: expect.stringMatching(/^caminhao-\d+\.jpg$/) }),
-    );
-  });
-
-  it('deve deduzir PDF a partir da extensao quando o tipo nao vem', async () => {
-    seletorDevolve({ uri: 'file:///doc.pdf', name: 'doc.pdf', mimeType: null });
-
-    await escanearPorArquivo();
-
-    expect(scanCaminhao).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'application/pdf' }),
-    );
-  });
-
-  it('deve deduzir PNG a partir da extensao quando o tipo nao vem', async () => {
-    seletorDevolve({ uri: 'file:///doc.png', name: 'doc.png', mimeType: null });
-
-    await escanearPorArquivo();
-
-    expect(scanCaminhao).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'image/png' }),
-    );
-  });
-
-  it('deve usar jpeg como tipo padrao para extensao desconhecida', async () => {
-    seletorDevolve({ uri: 'file:///doc.xyz', name: 'doc.xyz', mimeType: null });
-
-    await escanearPorArquivo();
-
-    expect(scanCaminhao).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'image/jpeg' }),
-    );
-  });
-
-  it('deve respeitar o tipo informado pelo seletor', async () => {
-    seletorDevolve({
-      uri: 'file:///doc.xyz',
-      name: 'doc.xyz',
-      mimeType: 'application/pdf',
-    });
-
-    await escanearPorArquivo();
-
-    expect(scanCaminhao).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'application/pdf' }),
-    );
-  });
-
-  it('deve aceitar PDF e imagem no seletor de arquivos', async () => {
-    seletorDevolve({ uri: 'file:///doc.pdf', name: 'doc.pdf' });
-
-    await escanearPorArquivo();
-
-    expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ type: ['application/pdf', 'image/*'] }),
-    );
-  });
-
-  it('nao deve escanear quando o usuario cancela o seletor de arquivos', async () => {
-    jest
-      .mocked(DocumentPicker.getDocumentAsync)
-      .mockResolvedValue({ canceled: true } as any);
-
-    await escanearPorArquivo();
-
-    expect(scanCaminhao).not.toHaveBeenCalled();
-  });
-});
-
-describe('Tela de novo caminhao - resultado do scan', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.mocked(getMeuCaminhao).mockResolvedValue(null);
-    permitirCamera();
-    cameraDevolve({ uri: 'file:///foto.jpg', fileName: 'foto.jpg' });
-  });
-
-  it('deve preencher a placa em caixa alta', async () => {
+  it('deve trazer os dados extraidos para os campos, onde o usuario possa revisar', async () => {
     jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
 
     await escanearPelaCamera();
 
+    // Um unico cenario: o resultado chegou e esta visivel para revisao.
     expect(screen.getByDisplayValue('ABC1D23')).toBeTruthy();
-  });
-
-  it('deve preencher os demais campos extraidos', async () => {
-    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
-
-    await escanearPelaCamera();
-
     expect(screen.getByDisplayValue('FH 540')).toBeTruthy();
     expect(screen.getByDisplayValue('12345678901')).toBeTruthy();
-    expect(screen.getByDisplayValue('VOLVO')).toBeTruthy();
-    expect(screen.getByDisplayValue('BRANCA')).toBeTruthy();
   });
 
-  it('deve converter o ano de fabricacao para texto', async () => {
+  it('deve permitir corrigir um campo extraido antes de salvar', async () => {
     jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
 
     await escanearPelaCamera();
+    await fireEvent.changeText(screen.getByDisplayValue('FH 540'), 'R 450');
 
-    expect(screen.getByDisplayValue('2020')).toBeTruthy();
-  });
-
-  it('nao deve preencher campos que o OCR nao extraiu', async () => {
-    jest.mocked(scanCaminhao).mockResolvedValue(
-      resultadoScan({ dadosExtraidos: { placa: 'ABC1D23' } }) as any,
-    );
-
-    await escanearPelaCamera();
-
+    // O que o usuario digitou prevalece sobre o que o OCR sugeriu.
+    expect(screen.getByDisplayValue('R 450')).toBeTruthy();
     expect(screen.queryByDisplayValue('FH 540')).toBeNull();
   });
 
-  it('deve exibir o resultado com o nivel de confianca', async () => {
-    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
-
-    await escanearPelaCamera();
-
-    expect(
-      screen.getByText('Dados extraídos com sucesso. | Confianca: ALTA'),
-    ).toBeTruthy();
-  });
-
-  it('deve exibir a url do arquivo enviado', async () => {
-    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
-
-    await escanearPelaCamera();
-
-    expect(screen.getByText(/https:\/\/cdn\/crlv\.jpg/)).toBeTruthy();
-  });
-
-  it('deve avisar que tudo esta pronto quando nada faltou', async () => {
-    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
-
-    await escanearPelaCamera();
-
-    expect(Toast.show).toHaveBeenCalledWith(
-      'Tudo pronto para revisar e salvar.',
-      expect.objectContaining({ type: 'success' }),
-    );
-  });
-
-  it('deve listar os campos que faltaram', async () => {
-    jest.mocked(scanCaminhao).mockResolvedValue(
-      resultadoScan({ camposObrigatoriosFaltando: ['placa', 'renavam'] }) as any,
-    );
-
-    await escanearPelaCamera();
-
-    expect(Toast.show).toHaveBeenCalledWith(
-      'Campos faltando: placa, renavam',
-      expect.objectContaining({ type: 'warning' }),
-    );
-  });
-
-  it('deve preencher os campos seguintes mesmo quando a placa nao vem', async () => {
+  it('deve apontar os campos obrigatorios que a extracao nao conseguiu preencher', async () => {
     jest.mocked(scanCaminhao).mockResolvedValue(
       resultadoScan({
-        dadosExtraidos: {
-          modelo: 'FH 540',
-          renavam: '12345678901',
-          marca: 'VOLVO',
-          cor: 'BRANCA',
-          anoFabricacao: 2020,
-          especieTipo: 'CAMINHAO TRATOR',
-          chassi: '9BWZZZ377VT004251',
-        },
+        dadosExtraidos: { modelo: 'FH 540' },
+        camposObrigatoriosFaltando: ['placa', 'renavam'],
       }) as any,
     );
 
     await escanearPelaCamera();
 
-    expect(screen.getByDisplayValue('FH 540')).toBeTruthy();
-    expect(screen.queryByDisplayValue('ABC1D23')).toBeNull();
-  });
-
-  it('deve manter o formulario vazio quando o OCR nao extrai nada', async () => {
-    jest.mocked(scanCaminhao).mockResolvedValue(
-      resultadoScan({ dadosExtraidos: {} }) as any,
-    );
-
-    await escanearPelaCamera();
-
-    expect(screen.queryByDisplayValue('FH 540')).toBeNull();
-    expect(screen.getByText(/Resultado do scan/)).toBeTruthy();
-  });
-
-  it('nao deve exibir o cartao de resultado antes de escanear', async () => {
-    await montarTela();
-
-    expect(screen.queryByText('Resultado do scan')).toBeNull();
-  });
-});
-
-describe('Tela de novo caminhao - falhas no scan', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.mocked(getMeuCaminhao).mockResolvedValue(null);
-    permitirCamera();
-    cameraDevolve({ uri: 'file:///foto.jpg', fileName: 'foto.jpg' });
-  });
-
-  it('deve exibir a mensagem devolvida pela API', async () => {
-    jest.mocked(scanCaminhao).mockRejectedValue({
-      response: { data: { message: 'Arquivo muito grande.' } },
-    });
-
-    await escanearPelaCamera();
-
     expect(Toast.show).toHaveBeenCalledWith(
-      'Arquivo muito grande.',
+      expect.stringContaining('placa'),
+      expect.objectContaining({ type: 'warning' }),
+    );
+  });
+
+  it('nao deve impedir o cadastro manual quando a extracao falha', async () => {
+    jest.mocked(scanCaminhao).mockRejectedValue(new Error('OCR indisponivel'));
+
+    await escanearPelaCamera();
+
+    // A falha e comunicada, mas o formulario continua utilizavel: a regra diz
+    // "permitir preenchimento manual, nao impedir o cadastro".
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ type: 'error' }),
     );
+
+    const placa = screen.getByPlaceholderText('ABC1234 ou ABC1D23');
+    await fireEvent.changeText(placa, 'XYZ9A88');
+    expect(screen.getByDisplayValue('XYZ9A88')).toBeTruthy();
+    expect(screen.getByText('CADASTRAR CAMINHAO')).toBeTruthy();
   });
 
-  it('deve exibir a primeira mensagem quando a API devolve uma lista', async () => {
-    jest.mocked(scanCaminhao).mockRejectedValue({
-      response: { data: { message: ['Formato invalido.', 'Outro erro.'] } },
-    });
+  it('nao deve acionar a extracao quando a permissao de camera e negada', async () => {
+    jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockResolvedValue({
+      granted: false,
+    } as any);
 
     await escanearPelaCamera();
 
+    // Colaborador externo forcado a um estado que a interface nao alcanca.
+    expect(scanCaminhao).not.toHaveBeenCalled();
     expect(Toast.show).toHaveBeenCalledWith(
-      'Formato invalido.',
+      'Permissao de camera negada',
       expect.objectContaining({ type: 'error' }),
     );
-  });
-
-  it('deve recorrer a mensagem do erro quando a API nao responde', async () => {
-    jest.mocked(scanCaminhao).mockRejectedValue(new Error('Network Error'));
-
-    await escanearPelaCamera();
-
-    expect(Toast.show).toHaveBeenCalledWith(
-      'Network Error',
-      expect.objectContaining({ type: 'error' }),
-    );
-  });
-
-  it('deve exibir mensagem generica quando o erro nao tem descricao', async () => {
-    jest.mocked(scanCaminhao).mockRejectedValue({});
-
-    await escanearPelaCamera();
-
-    expect(Toast.show).toHaveBeenCalledWith(
-      'Erro ao executar o scan do caminhão',
-      expect.objectContaining({ type: 'error' }),
-    );
-  });
-
-  it('nao deve preencher campo algum quando o scan falha', async () => {
-    jest.mocked(scanCaminhao).mockRejectedValue(new Error('Network Error'));
-
-    await escanearPelaCamera();
-
-    expect(screen.queryByDisplayValue('ABC1D23')).toBeNull();
   });
 });

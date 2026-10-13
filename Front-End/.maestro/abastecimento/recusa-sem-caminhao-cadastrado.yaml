@@ -1,0 +1,60 @@
+# RNE-04: "Toda despesa registrada deve estar obrigatoriamente vinculada a um caminhao cadastrado". Sem caminhao, o registro nao pode acontecer.
+appId: com.anonymous.rodabem
+name: abastecimento - recusa registro sem caminhao cadastrado
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: ${output.senha}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000
+- tapOn: "ABASTECIMENTOS"
+- extendedWaitUntil:
+    visible: "HISTORICO DE ABASTECIMENTOS"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "NOVO ABASTECIMENTO"
+    direction: DOWN
+    visibilityPercentage: 30
+- tapOn: "NOVO ABASTECIMENTO"
+- extendedWaitUntil:
+    visible: "Ex: 6.39"
+    timeout: 30000
+- tapOn: "Diesel S10"
+- tapOn: "Ex: 6.39"
+- inputText: "6.39"
+- hideKeyboard
+- tapOn: "Ex: 320"
+- inputText: "100"
+- hideKeyboard
+- tapOn: "Ex: 182350"
+- inputText: "180000"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "CADASTRAR ABASTECIMENTO"
+    direction: DOWN
+    visibilityPercentage: 30
+- tapOn: "CADASTRAR ABASTECIMENTO"
+- extendedWaitUntil:
+    visible: ".*caminh.o.*|Falha.*|Erro.*"
+    timeout: 70000

@@ -1,0 +1,52 @@
+# RNE-03: placa, modelo e renavam sao obrigatorios. Com so um deles o cadastro nao pode ser aceito.
+appId: com.anonymous.rodabem
+name: caminhao - recusa cadastro sem os campos obrigatorios
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: ${output.senha}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000
+# O cartao MEU CAMINHAO da home leva ao PERFIL: o caminhao e uma secao dele, e o formulario abre pelo botao "Cadastrar Caminhao".
+- tapOn: "MEU CAMINHÃO"
+- extendedWaitUntil:
+    visible: "Cadastrar Caminhão"
+    timeout: 30000
+- tapOn: "Cadastrar Caminhão"
+- extendedWaitUntil:
+    visible: "ABC1234 ou ABC1D23"
+    timeout: 30000
+- tapOn: "Ex: Scania R450"
+- inputText: "Modelo sem placa nem renavam"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "CADASTRAR CAMINHAO"
+    direction: DOWN
+    visibilityPercentage: 30
+- tapOn: "CADASTRAR CAMINHAO"
+# A recusa precisa ficar visivel para o usuario, de alguma forma.
+# O Maestro compara a linha inteira: sem `.*` nas pontas, "obrigatorio" nao encontra "Numero de eixos e obrigatorio".
+- extendedWaitUntil:
+    visible: ".*obrigat.ri.*|.*inv.lid.*|Falha.*|Erro.*"
+    timeout: 70000

@@ -1,0 +1,36 @@
+# RNE-02: "Logout: deve invalidar token/sessao e impedir novo acesso sem novo login". O resultado visivel e voltar a tela de abertura.
+appId: com.anonymous.rodabem
+name: perfil - encerra a sessao
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: ${output.senha}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000
+- runFlow: ../_comum/abrir-menu.yaml
+- tapOn: "Sair"
+- extendedWaitUntil:
+    visible: "CRIAR CONTA"
+    timeout: 30000
+- assertNotVisible: "O que você precisa hoje?"

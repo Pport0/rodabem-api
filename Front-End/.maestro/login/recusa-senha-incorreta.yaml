@@ -1,0 +1,33 @@
+# RNE-02: "As credenciais devem ser validadas". Senha errada nao entra.
+appId: com.anonymous.rodabem
+name: login - recusa senha incorreta
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: "senha_errada_999"
+# O aviso concatena a mensagem do erro sem separador (`'Falha ao fazer login' + error.message` em authContext.tsx:45),
+# e o Maestro compara texto por regex de linha inteira — por isso o `.*` no fim.
+- extendedWaitUntil:
+    visible: "Falha ao fazer login.*"
+    timeout: 70000
+- assertNotVisible: "O que você precisa hoje?"

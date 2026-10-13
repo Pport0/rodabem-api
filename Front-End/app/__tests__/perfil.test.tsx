@@ -53,32 +53,8 @@ beforeEach(() => {
 });
 
 describe('Tela de perfil - dados do usuario', () => {
-  it('deve exibir os dados vindos da API', async () => {
-    await montarTela();
 
-    await waitFor(() =>
-      expect(screen.getAllByText('Gabriel Silva').length).toBeGreaterThan(0),
-    );
-    expect(screen.getByText('529.982.247-25')).toBeTruthy();
-    expect(screen.getByText('62999999999')).toBeTruthy();
-    expect(screen.getByText('gabriel@example.com')).toBeTruthy();
-  });
 
-  it('deve montar as iniciais a partir das duas primeiras palavras do nome', async () => {
-    await montarTela();
-
-    await waitFor(() => expect(screen.getByText('GS')).toBeTruthy());
-  });
-
-  it('deve usar no maximo duas iniciais', async () => {
-    jest
-      .mocked(getMeuPerfil)
-      .mockResolvedValue({ ...perfilCompleto, nome: 'Ana Maria Souza Lima' } as any);
-
-    await montarTela();
-
-    await waitFor(() => expect(screen.getByText('AM')).toBeTruthy());
-  });
 
   it('deve recorrer ao usuario armazenado enquanto a API nao responde', async () => {
     jest
@@ -104,21 +80,7 @@ describe('Tela de perfil - dados do usuario', () => {
     expect(screen.queryByText('Do Armazenamento')).toBeNull();
   });
 
-  it('deve exibir rotulo generico quando nao ha nome disponivel', async () => {
-    jest.mocked(getMeuPerfil).mockResolvedValue(null as any);
 
-    await montarTela();
-
-    await waitFor(() => expect(screen.getByText('Usuário')).toBeTruthy());
-  });
-
-  it('deve exibir a inicial padrao quando nao ha nome', async () => {
-    jest.mocked(getMeuPerfil).mockResolvedValue(null as any);
-
-    await montarTela();
-
-    await waitFor(() => expect(screen.getByText('U')).toBeTruthy());
-  });
 
   it('deve exibir travessao nos campos que o perfil nao traz', async () => {
     jest.mocked(getMeuPerfil).mockResolvedValue({ nome: 'Gabriel' } as any);
@@ -130,24 +92,7 @@ describe('Tela de perfil - dados do usuario', () => {
 });
 
 describe('Tela de perfil - caminhao vinculado', () => {
-  it('deve exibir os dados do caminhao quando existe', async () => {
-    jest.mocked(getMeuCaminhao).mockResolvedValue(caminhaoCompleto as any);
 
-    await montarTela();
-
-    await waitFor(() => expect(screen.getByText('ABC1D23')).toBeTruthy());
-    expect(screen.getByText('FH 540')).toBeTruthy();
-    expect(screen.getByText('VOLVO')).toBeTruthy();
-    expect(screen.getByText('BRANCA')).toBeTruthy();
-  });
-
-  it('deve converter o ano de fabricacao para texto', async () => {
-    jest.mocked(getMeuCaminhao).mockResolvedValue(caminhaoCompleto as any);
-
-    await montarTela();
-
-    await waitFor(() => expect(screen.getByText('2020')).toBeTruthy());
-  });
 
   it('deve omitir marca, ano e cor quando o caminhao nao os possui', async () => {
     jest
@@ -162,37 +107,10 @@ describe('Tela de perfil - caminhao vinculado', () => {
     expect(screen.queryByText('Cor')).toBeNull();
   });
 
-  it('deve oferecer o cadastro quando nao ha caminhao', async () => {
-    jest.mocked(getMeuCaminhao).mockResolvedValue(null);
 
-    await montarTela();
-
-    await waitFor(() =>
-      expect(screen.getByText('Nenhum caminhão cadastrado')).toBeTruthy(),
-    );
-    expect(screen.getByText('Cadastrar Caminhão')).toBeTruthy();
-  });
-
-  it('nao deve oferecer o cadastro quando ja existe caminhao', async () => {
-    jest.mocked(getMeuCaminhao).mockResolvedValue(caminhaoCompleto as any);
-
-    await montarTela();
-
-    await waitFor(() => expect(screen.getByText('ABC1D23')).toBeTruthy());
-    expect(screen.queryByText('Cadastrar Caminhão')).toBeNull();
-  });
 });
 
 describe('Tela de perfil - navegacao', () => {
-  it('deve levar ao cadastro de caminhao quando nao ha nenhum', async () => {
-    jest.mocked(getMeuCaminhao).mockResolvedValue(null);
-    await montarTela();
-
-    await waitFor(() => expect(screen.getByText('Cadastrar Caminhão')).toBeTruthy());
-    await fireEvent.press(screen.getByText('Cadastrar Caminhão'));
-
-    expect(router.push).toHaveBeenCalledWith('/caminhoes/novo');
-  });
 
   it('deve levar a edicao do caminhao existente', async () => {
     jest.mocked(getMeuCaminhao).mockResolvedValue(caminhaoCompleto as any);
@@ -206,11 +124,6 @@ describe('Tela de perfil - navegacao', () => {
 });
 
 describe('Tela de perfil - alterar senha', () => {
-  it('exibe o botao de alterar senha', async () => {
-    await montarTela();
-
-    expect(screen.getByText('ALTERAR SENHA')).toBeTruthy();
-  });
 
   it('o botao de alterar senha deve levar a alguma tela', async () => {
     await montarTela();

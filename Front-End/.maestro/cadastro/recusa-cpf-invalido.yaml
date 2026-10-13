@@ -1,0 +1,24 @@
+# RNE-01: "CPF deve ser valido e unico". O digito verificador aqui nao fecha.
+appId: com.anonymous.rodabem
+name: cadastro - recusa cpf com digito verificador invalido
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpfInvalido}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+# O resultado que importa e nao entrar, e a recusa ficar visivel.
+- extendedWaitUntil:
+    visible: "Falha ao criar usuário"
+    timeout: 70000
+- assertNotVisible: "O que você precisa hoje?"

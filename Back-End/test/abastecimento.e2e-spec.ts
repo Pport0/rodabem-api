@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TipoCombustivel } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
@@ -16,7 +16,18 @@ describe('Fluxo de abastecimento (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: false,
+        transform: true,
+        stopAtFirstError: true,
+      }),
+    );
     await app.init();
+    // Põe o servidor para escutar uma vez só. Sem isso o supertest abre e fecha uma porta a cada requisicao.
+    await app.listen(0);
     prisma = app.get(PrismaService);
   });
 
@@ -26,6 +37,8 @@ describe('Fluxo de abastecimento (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
+    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
+    await prisma.$disconnect();
     await app.close();
   });
 
@@ -95,10 +108,6 @@ describe('Fluxo de abastecimento (e2e)', () => {
 
   /**
    * Grava o abastecimento direto no banco com data e hora fixas.
-   *
-   * O endpoint sempre carimba `now()`, e o relatorio devolve resultado
-   * diferente conforme a hora em que a suite roda, entao um teste que dependa
-   * do relogio acusa o defeito em umas horas do dia e nao em outras.
    */
   const abastecerEm = async (
     token: string,
@@ -334,8 +343,8 @@ describe('Fluxo de abastecimento (e2e)', () => {
   });
 
   /**
-   * Regra: a quilometragem de um abastecimento deve ser maior que a do registro
-   * anterior e menor que a do posterior, pela ordem de data.
+   * Regra: a quilometragem de um abastecimento deve ser maior que a do registro anterior e menor que a do posterior,
+   * pela ordem de data.
    */
   describe('PATCH /abastecimentos/:id - quilometragem entre os vizinhos', () => {
     /** Tres abastecimentos em datas crescentes: 1000, 2000 e 3000 km. */

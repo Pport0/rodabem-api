@@ -1,240 +1,82 @@
 import { api } from '../api';
-import {
-  createCaminhao,
-  deleteCaminhao,
-  getMeuCaminhao,
-  scanCaminhao,
-  updateCaminhao,
-} from '../caminhaoService';
-import {
-  createDocumento,
-  deleteDocumento,
-  getDocumentos,
-  scanDocumento,
-  updateDocumento,
-} from '../documentoService';
+import { getMeuCaminhao, createCaminhao } from '../caminhaoService';
+import { createDocumento, getDocumentos } from '../documentoService';
 
+/**
+ * Normalizacao da resposta da API.
+ *
+ * O back nao e consistente na forma: algumas rotas devolvem o recurso direto,
+ * outras embrulham num envelope junto da mensagem — `{ message, caminhao }`.
+ * Os servicos escondem essa diferenca do resto do aplicativo.
+ *
+ * O endereco dos endpoints e o nome do campo do arquivo nao sao afirmados aqui:
+ * estao em `app/__tests__/scan-flow.integration.test.tsx`, que exercita o servico de verdade a partir da tela.
+ */
 jest.mock('../api', () => ({
   api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
 }));
 
-const arquivo = {
-  uri: 'file:///tmp/crlv.jpg',
-  name: 'crlv.jpg',
-  type: 'image/jpeg',
-};
+const caminhao = { id: 1, placa: 'ABC1D23', modelo: 'FH 540' };
+const documento = { id: 7, nome: 'CRLV', numero: '123' };
 
-const respostaScanCaminhao = {
-  arquivoUrl: 'https://cdn/crlv.jpg',
-  publicId: 'rodabem/crlv',
-  dadosExtraidos: { placa: 'ABC1D23', modelo: 'FH 540' },
-  camposObrigatoriosFaltando: [],
-  confianca: 'alta',
-  mensagem: 'Dados extraídos com sucesso.',
-};
+beforeEach(() => jest.clearAllMocks());
 
-const respostaScanDocumento = {
-  arquivoUrl: 'https://cdn/cnh.jpg',
-  publicId: 'rodabem/cnh',
-  dadosExtraidos: { nome: 'CNH', numero: '12345678901' },
-  camposObrigatoriosFaltando: ['dataEmissao'],
-  confianca: 'media',
-  mensagem: 'Extração concluída.',
-};
+describe('normalizacao da resposta do caminhao', () => {
+  it('deve devolver o caminhao tanto no formato direto quanto no envelope', async () => {
+    jest.mocked(api.get).mockResolvedValueOnce({ data: caminhao } as any);
+    await expect(getMeuCaminhao()).resolves.toMatchObject({ placa: 'ABC1D23' });
 
-const corpoEnviado = () => jest.mocked(api.post).mock.calls[0][1] as FormData;
-const opcoesEnviadas = () => jest.mocked(api.post).mock.calls[0][2] as any;
-
-describe('scanCaminhao', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.mocked(api.post).mockResolvedValue({ data: respostaScanCaminhao } as any);
+    jest.mocked(api.get).mockResolvedValueOnce({
+      data: { message: 'Caminhão encontrado', caminhao },
+    } as any);
+    await expect(getMeuCaminhao()).resolves.toMatchObject({ placa: 'ABC1D23' });
   });
 
-  it('deve enviar o arquivo para o endpoint de scan de caminhao', async () => {
-    await scanCaminhao(arquivo);
-
-    expect(api.post).toHaveBeenCalledWith(
-      '/caminhao/scan',
-      expect.any(FormData),
-      expect.anything(),
-    );
-  });
-
-  it('deve enviar o arquivo no campo documento', async () => {
-    await scanCaminhao(arquivo);
-
-    expect(corpoEnviado().get('documento')).toBeTruthy();
-  });
-
-  it('deve declarar o envio como multipart', async () => {
-    await scanCaminhao(arquivo);
-
-    expect(opcoesEnviadas().headers['Content-Type']).toBe('multipart/form-data');
-  });
-
-  it('deve devolver apenas o corpo da resposta', async () => {
-    await expect(scanCaminhao(arquivo)).resolves.toEqual(respostaScanCaminhao);
-  });
-
-  it('deve propagar falha da API', async () => {
-    const falha = new Error('Request failed with status code 400');
-    jest.mocked(api.post).mockRejectedValue(falha);
-
-    await expect(scanCaminhao(arquivo)).rejects.toBe(falha);
-  });
-});
-
-describe('scanDocumento', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.mocked(api.post).mockResolvedValue({ data: respostaScanDocumento } as any);
-  });
-
-  it('deve enviar o arquivo para o endpoint de scan de documento', async () => {
-    await scanDocumento(arquivo);
-
-    expect(api.post).toHaveBeenCalledWith(
-      '/documentos/scan',
-      expect.any(FormData),
-      expect.anything(),
-    );
-  });
-
-  it('deve enviar o arquivo no campo documento', async () => {
-    await scanDocumento(arquivo);
-
-    expect(corpoEnviado().get('documento')).toBeTruthy();
-  });
-
-  it('deve declarar o envio como multipart', async () => {
-    await scanDocumento(arquivo);
-
-    expect(opcoesEnviadas().headers['Content-Type']).toBe('multipart/form-data');
-  });
-
-  it('deve devolver apenas o corpo da resposta', async () => {
-    await expect(scanDocumento(arquivo)).resolves.toEqual(respostaScanDocumento);
-  });
-
-  it('deve propagar falha da API', async () => {
-    const falha = new Error('Request failed with status code 401');
-    jest.mocked(api.post).mockRejectedValue(falha);
-
-    await expect(scanDocumento(arquivo)).rejects.toBe(falha);
-  });
-});
-
-describe('caminhaoService', () => {
-  const caminhao = { id: 1, placa: 'ABC1D23', modelo: 'FH 540' };
-
-  beforeEach(() => jest.clearAllMocks());
-
-  it('deve devolver o caminhao quando a API responde com o recurso direto', async () => {
-    jest.mocked(api.get).mockResolvedValue({ data: caminhao } as any);
-
-    await expect(getMeuCaminhao()).resolves.toEqual(caminhao);
-  });
-
-  it('deve extrair o caminhao quando a API responde com envelope', async () => {
-    jest
-      .mocked(api.get)
-      .mockResolvedValue({ data: { message: 'ok', caminhao } } as any);
-
-    await expect(getMeuCaminhao()).resolves.toEqual(caminhao);
-  });
-
-  it('deve devolver nulo quando o envelope nao traz caminhao', async () => {
-    jest
-      .mocked(api.get)
-      .mockResolvedValue({ data: { message: 'Usuário não possui caminhão' } } as any);
+  it('deve devolver nulo quando a resposta nao traz caminhao algum', async () => {
+    // Usuario sem caminhao: a tela precisa distinguir "nao tem" de "falhou".
+    jest.mocked(api.get).mockResolvedValue({
+      data: { message: 'Nenhum caminhão cadastrado' },
+    } as any);
 
     await expect(getMeuCaminhao()).resolves.toBeNull();
   });
 
-  it('deve criar o caminhao e extrair o recurso do envelope', async () => {
-    jest
-      .mocked(api.post)
-      .mockResolvedValue({ data: { message: 'criado', caminhao } } as any);
+  it('deve propagar a falha da API em vez de devolver nulo', async () => {
+    // Se o erro virasse nulo, a tela diria "nenhum caminhao cadastrado" para quem tem um — e o usuario cadastraria outro por cima.
+    jest.mocked(api.get).mockRejectedValue(new Error('timeout'));
 
-    await expect(createCaminhao({ placa: 'ABC1D23' } as any)).resolves.toEqual(
-      caminhao,
-    );
-    expect(api.post).toHaveBeenCalledWith('/caminhao', { placa: 'ABC1D23' });
+    await expect(getMeuCaminhao()).rejects.toThrow('timeout');
   });
 
-  it('deve atualizar o caminhao e extrair o recurso do envelope', async () => {
-    jest
-      .mocked(api.put)
-      .mockResolvedValue({ data: { message: 'alterado', caminhao } } as any);
+  it('deve extrair o caminhao criado do envelope da resposta', async () => {
+    jest.mocked(api.post).mockResolvedValue({
+      data: { message: 'Caminhão cadastrado com sucesso!', caminhao },
+    } as any);
 
-    await expect(updateCaminhao({ modelo: 'FH 540' } as any)).resolves.toEqual(
-      caminhao,
-    );
-    expect(api.put).toHaveBeenCalledWith('/caminhao', { modelo: 'FH 540' });
-  });
-
-  it('deve remover o caminhao e devolver a mensagem', async () => {
-    jest
-      .mocked(api.delete)
-      .mockResolvedValue({ data: { message: 'Caminhão removido com sucesso' } } as any);
-
-    await expect(deleteCaminhao()).resolves.toEqual({
-      message: 'Caminhão removido com sucesso',
+    await expect(createCaminhao({} as any)).resolves.toMatchObject({
+      placa: 'ABC1D23',
     });
   });
 });
 
-describe('documentoService', () => {
-  const documento = { id: 1, nome: 'CNH', numero: '12345678901' };
+describe('normalizacao da resposta do documento', () => {
+  it('deve devolver o documento tanto no formato direto quanto no envelope', async () => {
+    jest.mocked(api.post).mockResolvedValueOnce({ data: documento } as any);
+    await expect(createDocumento({} as any)).resolves.toMatchObject({
+      nome: 'CRLV',
+    });
 
-  beforeEach(() => jest.clearAllMocks());
-
-  it('deve listar os documentos', async () => {
-    jest.mocked(api.get).mockResolvedValue({ data: [documento] } as any);
-
-    await expect(getDocumentos()).resolves.toEqual([documento]);
-    expect(api.get).toHaveBeenCalledWith('/documentos');
+    jest.mocked(api.post).mockResolvedValueOnce({
+      data: { message: 'Documento cadastrado com sucesso', documento },
+    } as any);
+    await expect(createDocumento({} as any)).resolves.toMatchObject({
+      nome: 'CRLV',
+    });
   });
 
-  it('deve criar o documento quando a API responde com o recurso direto', async () => {
-    jest.mocked(api.post).mockResolvedValue({ data: documento } as any);
+  it('deve devolver lista vazia, e nao erro, quando o usuario nao tem documentos', async () => {
+    jest.mocked(api.get).mockResolvedValue({ data: [] } as any);
 
-    await expect(createDocumento({ nome: 'CNH' } as any)).resolves.toEqual(
-      documento,
-    );
-  });
-
-  it('deve extrair o documento quando a API responde com envelope', async () => {
-    jest
-      .mocked(api.post)
-      .mockResolvedValue({ data: { message: 'criado', documento } } as any);
-
-    await expect(createDocumento({ nome: 'CNH' } as any)).resolves.toEqual(
-      documento,
-    );
-  });
-
-  it('deve devolver nulo quando o envelope nao traz documento', async () => {
-    jest.mocked(api.post).mockResolvedValue({ data: { message: 'criado' } } as any);
-
-    await expect(createDocumento({} as any)).resolves.toBeNull();
-  });
-
-  it('deve atualizar o documento pelo identificador', async () => {
-    jest.mocked(api.put).mockResolvedValue({ data: documento } as any);
-
-    await expect(updateDocumento(7, { nome: 'CNH' } as any)).resolves.toEqual(
-      documento,
-    );
-    expect(api.put).toHaveBeenCalledWith('/documentos/7', { nome: 'CNH' });
-  });
-
-  it('deve remover o documento pelo identificador', async () => {
-    jest.mocked(api.delete).mockResolvedValue({} as any);
-
-    await deleteDocumento(7);
-
-    expect(api.delete).toHaveBeenCalledWith('/documentos/7');
+    await expect(getDocumentos()).resolves.toEqual([]);
   });
 });

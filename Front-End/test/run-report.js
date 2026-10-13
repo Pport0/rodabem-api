@@ -31,14 +31,25 @@ function temJest() {
   }
 }
 
-function temDetox() {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(RAIZ, 'package.json'), 'utf8'));
-    const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
-    return Boolean(deps.detox);
-  } catch {
-    return false;
-  }
+/**
+ * Conta os fluxos de E2E de aplicativo.
+ *
+ * O Maestro nao aparece em `package.json`: e binario instalado fora do projeto.
+ */
+function contarFluxosMaestro() {
+  const achados = [];
+  const anda = (dir) => {
+    let entradas;
+    try { entradas = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entradas) {
+      if (e.name === '_comum') continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) anda(p);
+      else if (/\.ya?ml$/.test(e.name) && e.name !== 'config.yaml') achados.push(p);
+    }
+  };
+  anda(path.join(RAIZ, '.maestro'));
+  return achados.length;
 }
 
 function acharArquivosDeTeste() {
@@ -132,7 +143,7 @@ function medirCodigo() {
 }
 
 // ---------- execucao via jest, quando existir ----------
-function rodarJest() {
+function rodarJest(fluxosMaestro) {
   const os = require('os');
   const saidaJson = path.join(os.tmpdir(), `rodabem-front-${Date.now()}.json`);
 
@@ -182,7 +193,13 @@ function rodarJest() {
   console.log(
     pad(` [${marca}] Unitarios`, `${dados.numTotalTestSuites} suites, ${dados.numPassedTests} testes`),
   );
-  console.log(pad(' [--] E2E (Detox)', `${cor.amarelo}nao configurado${cor.reset}`));
+  // Os fluxos do Maestro NAO rodam aqui: exigem emulador e build de release.
+  console.log(pad(' [--] E2E Maestro', fluxosMaestro > 0
+    ? `${cor.cinza}${fluxosMaestro} fluxos, nao executados aqui${cor.reset}`
+    : `${cor.amarelo}nenhum fluxo encontrado${cor.reset}`));
+  if (fluxosMaestro > 0) {
+    console.log(`${cor.cinza}   para rodar: ver .maestro/README.md${cor.reset}`);
+  }
 
   console.log(`\n${cor.neg}RESULTADO${cor.reset}`);
   console.log(
@@ -227,7 +244,7 @@ function main() {
   console.log(linha('='));
 
   const jest = temJest();
-  const detox = temDetox();
+  const fluxos = contarFluxosMaestro();
   const suites = acharArquivosDeTeste();
 
   console.log(`\n${cor.neg}AMBIENTE${cor.reset}`);
@@ -235,24 +252,26 @@ function main() {
   console.log(pad(' Jest', jest
     ? `${cor.verde}configurado${cor.reset}`
     : `${cor.vermelho}nao configurado${cor.reset}`));
-  console.log(pad(' Detox (E2E)', detox
-    ? `${cor.verde}configurado${cor.reset}`
-    : `${cor.vermelho}nao configurado${cor.reset}`));
+  console.log(pad(' Maestro (E2E app)', fluxos > 0
+    ? `${cor.verde}${fluxos} fluxos${cor.reset}`
+    : `${cor.vermelho}nenhum fluxo${cor.reset}`));
 
   // Caminho futuro: havendo Jest e suites, delega a execucao real.
   if (jest && suites.length > 0) {
     console.log(`\n${cor.cinza} Jest detectado - executando a suite...${cor.reset}\n`);
-    rodarJest();
+    rodarJest(fluxos);
     return;
   }
 
   console.log(`\n${cor.neg}SUITES${cor.reset}`);
-  console.log(pad(' [--] Unitarios', `${cor.amarelo}nenhuma suite encontrada${cor.reset}`));
-  console.log(pad(' [--] E2E (Detox)', `${cor.amarelo}nao configurado${cor.reset}`));
+  console.log(pad(' [--] Unitarios', `${cor.amarelo}${suites.length} arquivos, nao executados${cor.reset}`));
+  console.log(pad(' [--] E2E Maestro', fluxos > 0
+    ? `${cor.cinza}${fluxos} fluxos, nao executados aqui${cor.reset}`
+    : `${cor.amarelo}nenhum fluxo encontrado${cor.reset}`));
 
   console.log(`\n${cor.neg}RESULTADO${cor.reset}`);
-  console.log(pad(' Suites', '0 total, 0 aprovadas, 0 com falha'));
-  console.log(pad(' Testes', '0 aprovados, 0 falharam, 0 pendentes'));
+  console.log(pad(' Suites', `${cor.amarelo}nao executadas${cor.reset}`));
+  console.log(pad(' Testes', `${cor.amarelo}nao executados${cor.reset}`));
 
   const m = medirCodigo();
   console.log(`\n${cor.neg}COBERTURA${cor.reset} ${cor.cinza}(app/**, src/**)${cor.reset}`);
@@ -276,8 +295,11 @@ function main() {
     console.log(`\n${cor.cinza} Total: ${t.arq} arquivos, ${t.s} instrucoes nao cobertas.${cor.reset}`);
   }
 
+  // Este caminho so roda quando o Jest nao foi detectado.
   console.log('\n' + linha('='));
-  console.log(`${cor.amarelo}${cor.neg} NENHUM TESTE AUTOMATIZADO CONFIGURADO${cor.reset}`);
+  console.log(`${cor.amarelo}${cor.neg} JEST NAO DETECTADO - SUITE NAO EXECUTADA${cor.reset}`);
+  console.log(`${cor.cinza} ${suites.length} arquivos de teste encontrados em app/ e src/.${cor.reset}`);
+  console.log(`${cor.cinza} Os numeros de cobertura acima sao o tamanho do codigo, nao medicao.${cor.reset}`);
   console.log(`${cor.cinza} Para habilitar: jest + jest-expo + @testing-library/react-native${cor.reset}`);
   console.log(linha('=') + '\n');
 

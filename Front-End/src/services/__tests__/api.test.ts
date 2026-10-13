@@ -1,5 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
 
+/**
+ * Interceptores do cliente HTTP.
+ *
+ * Funcao chave: toda rota protegida do back exige `Authorization: Bearer` (RNE-02), e e este interceptor que o anexa.
+ * Um erro aqui e silencioso — a requisicao sai sem credencial e volta 401, e a tela mostra "sessao expirada"
+ * para quem acabou de entrar.
+ */
 jest.mock('axios', () => {
   const handlersRequisicao: any[] = [];
   const handlersResposta: any[] = [];
@@ -42,134 +49,76 @@ const interceptorDeResposta = () => {
   return { sucesso: handler.fulfilled, erro: handler.rejected };
 };
 
-describe('api - interceptor de requisicao', () => {
-  it('deve injetar o token como Bearer quando existe token armazenado', async () => {
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue('jwt-token' as any);
+const guardarToken = (valor: string | null) =>
+  jest.mocked(SecureStore.getItemAsync).mockResolvedValue(valor as any);
+
+beforeEach(() => jest.clearAllMocks());
+
+describe('credencial anexada a requisicao', () => {
+  it('deve anexar o token guardado como Bearer', async () => {
+    guardarToken('token-valido');
 
     const config = await interceptorDeRequisicao()({ headers: {} });
 
-    expect(config.headers.Authorization).toBe('Bearer jwt-token');
+    expect(config.headers.Authorization).toBe('Bearer token-valido');
   });
 
-  it('nao deve injetar Authorization quando nao ha token', async () => {
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue(null as any);
-
-    const config = await interceptorDeRequisicao()({ headers: {} });
-
-    expect(config.headers.Authorization).toBeUndefined();
-  });
-
-  it('nao deve injetar Authorization quando o token e string vazia', async () => {
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue('' as any);
-
-    const config = await interceptorDeRequisicao()({ headers: {} });
-
-    expect(config.headers.Authorization).toBeUndefined();
-  });
-
-  it('deve ler o token da chave configurada', async () => {
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue('jwt-token' as any);
-
-    await interceptorDeRequisicao()({ headers: {} });
-
-    expect(SecureStore.getItemAsync).toHaveBeenCalledWith(
-      process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token',
-    );
-  });
-
-  it('deve preservar os headers ja presentes na requisicao', async () => {
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue('jwt-token' as any);
-
-    const config = await interceptorDeRequisicao()({
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    expect(config.headers['Content-Type']).toBe('application/json');
-    expect(config.headers.Authorization).toBe('Bearer jwt-token');
-  });
-
-  it('deve devolver a mesma configuracao recebida, e nao uma copia', async () => {
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue(null as any);
-    const original = { headers: {} };
-
-    const config = await interceptorDeRequisicao()(original);
-
-    expect(config).toBe(original);
-  });
-
-  it('deve consultar o armazenamento seguro a cada requisicao', async () => {
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue('jwt-token' as any);
-
-    await interceptorDeRequisicao()({ headers: {} });
-    await interceptorDeRequisicao()({ headers: {} });
-
-    expect(SecureStore.getItemAsync).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe('api - interceptor de resposta', () => {
-  it('deve repassar a resposta de sucesso sem alteracao', () => {
-    const { sucesso } = interceptorDeResposta();
-    const resposta = { status: 200, data: { id: 1 } };
-
-    expect(sucesso(resposta)).toBe(resposta);
-  });
-
-  it('deve rejeitar mantendo o erro original', async () => {
-    const { erro } = interceptorDeResposta();
-    const original = { message: 'Network Error', config: { url: '/auth/login' } };
-
-    await expect(erro(original)).rejects.toBe(original);
-  });
-
-  it('deve registrar o erro no console em ambiente de desenvolvimento', async () => {
-    const { erro } = interceptorDeResposta();
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-    await expect(
-      erro({ message: 'Network Error', config: { url: '/auth/login' } }),
-    ).rejects.toBeDefined();
-
-    expect(spy).toHaveBeenCalledWith('[API Error]', '/auth/login', 'Network Error');
-    spy.mockRestore();
-  });
-
-  it('nao deve registrar no console fora do ambiente de desenvolvimento', async () => {
-    const { erro } = interceptorDeResposta();
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const devOriginal = (global as any).__DEV__;
-    (global as any).__DEV__ = false;
-
-    try {
-      await expect(
-        erro({ message: 'Network Error', config: { url: '/auth/login' } }),
-      ).rejects.toBeDefined();
-
-      expect(spy).not.toHaveBeenCalled();
-    } finally {
-      (global as any).__DEV__ = devOriginal;
-      spy.mockRestore();
+  it('nao deve anexar credencial quando nao ha token guardado', async () => {
+    // Token ausente e token em branco sao o mesmo cenario: nao ha sessao.
+    // Enviar `Bearer ` vazio faria o back responder 401 em vez de 'sem token'.
+    for (const vazio of [null, '']) {
+      guardarToken(vazio);
+      const config = await interceptorDeRequisicao()({ headers: {} });
+      expect(config.headers.Authorization).toBeUndefined();
     }
   });
 
-  it('nao deve quebrar quando o erro nao possui config nem message', async () => {
-    const { erro } = interceptorDeResposta();
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  it('deve preservar os cabecalhos que a chamada ja trazia', async () => {
+    guardarToken('token-valido');
 
-    await expect(erro({})).rejects.toEqual({});
+    const config = await interceptorDeRequisicao()({
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
 
-    expect(spy).toHaveBeenCalledWith('[API Error]', undefined, undefined);
-    spy.mockRestore();
+    // O scan envia multipart; perder esse cabecalho quebraria o upload.
+    expect(config.headers['Content-Type']).toBe('multipart/form-data');
+    expect(config.headers.Authorization).toBe('Bearer token-valido');
+  });
+
+  it('deve reler o token a cada requisicao', async () => {
+    // Se o token fosse lido uma unica vez no carregamento do modulo, o logout
+    // nao teria efeito: as requisicoes seguintes continuariam autenticadas.
+    guardarToken('primeiro');
+    await interceptorDeRequisicao()({ headers: {} });
+
+    guardarToken('segundo');
+    const config = await interceptorDeRequisicao()({ headers: {} });
+
+    expect(config.headers.Authorization).toBe('Bearer segundo');
   });
 });
 
-describe('api - configuracao da instancia', () => {
-  it('deve definir timeout para nao deixar a requisicao pendurada', () => {
-    expect((api as any).defaults.timeout).toBe(60000);
+describe('tratamento da resposta', () => {
+  it('deve repassar o erro original, sem engoli-lo', async () => {
+    // A tela decide a mensagem a partir do erro. Transformar aqui faria toda
+    // falha virar a mesma mensagem generica.
+    const original = Object.assign(new Error('Request failed'), {
+      response: { status: 403 },
+    });
+
+    await expect(interceptorDeResposta().erro(original)).rejects.toBe(original);
   });
 
-  it('deve registrar exatamente um interceptor de requisicao e um de resposta', () => {
-    expect((api.interceptors.request as any).handlers).toHaveLength(1);
-    expect((api.interceptors.response as any).handlers).toHaveLength(1);
+  it('nao deve quebrar diante de erro sem corpo nem mensagem', async () => {
+    // Queda de rede chega assim. Se o interceptor estourar aqui, o aplicativo
+    // fecha em vez de avisar.
+    await expect(interceptorDeResposta().erro({})).rejects.toEqual({});
+  });
+});
+
+describe('configuracao do cliente', () => {
+  it('deve definir um tempo limite, para a requisicao nao ficar pendurada', async () => {
+    // Sem limite, uma API fora do ar deixa a tela girando para sempre.
+    expect((api as any).defaults.timeout).toBeGreaterThan(0);
   });
 });

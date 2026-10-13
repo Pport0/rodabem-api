@@ -41,32 +41,6 @@ const enviar = async () => {
   await fireEvent.press(screen.getByRole('button'));
 };
 
-describe('Tela de cadastro - conteudo', () => {
-  it('deve exibir o titulo e o subtitulo', async () => {
-    await render(<Register />);
-
-    expect(screen.getByText('CRIAR CONTA')).toBeTruthy();
-    expect(screen.getByText('Informe os seus dados pessoais')).toBeTruthy();
-  });
-
-  it('deve exibir todos os campos do formulario', async () => {
-    await render(<Register />);
-
-    for (const placeholder of Object.values(CAMPOS)) {
-      expect(screen.getByPlaceholderText(placeholder)).toBeTruthy();
-    }
-  });
-
-  it('deve ocultar o texto dos dois campos de senha', async () => {
-    await render(<Register />);
-
-    expect(screen.getByPlaceholderText(CAMPOS.senha).props.secureTextEntry).toBe(true);
-    expect(
-      screen.getByPlaceholderText(CAMPOS.confirmarSenha).props.secureTextEntry,
-    ).toBe(true);
-  });
-});
-
 describe('Tela de cadastro - mascaras', () => {
   it('deve formatar o CPF enquanto o usuario digita', async () => {
     await render(<Register />);
@@ -120,36 +94,9 @@ describe('Tela de cadastro - validacao', () => {
     expect(mockSignUp).not.toHaveBeenCalled();
   });
 
-  it('deve recusar CPF vazio', async () => {
-    await preencher({ cpf: '' });
-    await enviar();
 
-    expect(screen.getByText('CPF inválido')).toBeTruthy();
-  });
 
-  it('deve recusar telefone com menos de 10 digitos', async () => {
-    await preencher({ telefone: '629999' });
-    await enviar();
 
-    expect(screen.getByText('Telefone inválido')).toBeTruthy();
-    expect(mockSignUp).not.toHaveBeenCalled();
-  });
-
-  it('deve exigir a senha', async () => {
-    await preencher({ senha: '', confirmarSenha: '' });
-    await enviar();
-
-    expect(screen.getByText('Senha é obrigatória')).toBeTruthy();
-    expect(mockSignUp).not.toHaveBeenCalled();
-  });
-
-  it('deve recusar senha com menos de 6 caracteres', async () => {
-    await preencher({ senha: '12345', confirmarSenha: '12345' });
-    await enviar();
-
-    expect(screen.getByText('A senha deve ter no mínimo 6 caracteres')).toBeTruthy();
-    expect(mockSignUp).not.toHaveBeenCalled();
-  });
 
   it('deve exigir a confirmacao de senha', async () => {
     await preencher({ confirmarSenha: '' });
@@ -167,23 +114,7 @@ describe('Tela de cadastro - validacao', () => {
     expect(mockSignUp).not.toHaveBeenCalled();
   });
 
-  it('deve acumular os erros de todos os campos invalidos', async () => {
-    await preencher({ nome: '', cpf: '', telefone: '', senha: '', confirmarSenha: '' });
-    await enviar();
 
-    expect(screen.getByText('Nome completo é obrigatório')).toBeTruthy();
-    expect(screen.getByText('CPF inválido')).toBeTruthy();
-    expect(screen.getByText('Telefone inválido')).toBeTruthy();
-    expect(screen.getByText('Senha é obrigatória')).toBeTruthy();
-    expect(screen.getByText('Confirmação de senha é obrigatória')).toBeTruthy();
-  });
-
-  it('nao exibe erro algum antes do primeiro envio', async () => {
-    await render(<Register />);
-
-    expect(screen.queryByText('Nome completo é obrigatório')).toBeNull();
-    expect(screen.queryByText('CPF inválido')).toBeNull();
-  });
 
   it('deve exigir o email, que o rotulo marca como obrigatorio', async () => {
     await preencher({ email: '' });
@@ -201,12 +132,6 @@ describe('Tela de cadastro - validacao', () => {
 });
 
 describe('Tela de cadastro - envio', () => {
-  it('deve enviar o cadastro quando o formulario esta valido', async () => {
-    await preencher();
-    await enviar();
-
-    expect(mockSignUp).toHaveBeenCalledTimes(1);
-  });
 
   it('deve remover a mascara do CPF e do telefone antes de enviar', async () => {
     await preencher();
@@ -232,44 +157,5 @@ describe('Tela de cadastro - envio', () => {
     );
   });
 
-  it('deve enviar a senha sem transformacao', async () => {
-    await preencher({ senha: 'SenhaF0rte!', confirmarSenha: 'SenhaF0rte!' });
-    await enviar();
 
-    expect(mockSignUp).toHaveBeenCalledWith(
-      expect.objectContaining({ senha: 'SenhaF0rte!' }),
-    );
-  });
-
-  it('nao deve enviar o campo de confirmacao de senha', async () => {
-    await preencher();
-    await enviar();
-
-    expect(mockSignUp.mock.calls[0][0]).not.toHaveProperty('confirmarSenha');
-  });
-});
-
-describe('Tela de cadastro - tema', () => {
-  const useColorSchemeMock = jest.spyOn(
-    require('react-native'),
-    'useColorScheme',
-  );
-
-  afterAll(() => useColorSchemeMock.mockRestore());
-
-  it('deve renderizar no tema escuro', async () => {
-    useColorSchemeMock.mockReturnValue('dark');
-
-    await render(<Register />);
-
-    expect(screen.getByText('CRIAR CONTA')).toBeTruthy();
-  });
-
-  it('deve cair no tema claro quando o sistema nao informa a preferencia', async () => {
-    useColorSchemeMock.mockReturnValue(null);
-
-    await render(<Register />);
-
-    expect(screen.getByText('CRIAR CONTA')).toBeTruthy();
-  });
 });

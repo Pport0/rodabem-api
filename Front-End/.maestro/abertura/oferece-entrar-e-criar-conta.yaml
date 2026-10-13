@@ -1,0 +1,7 @@
+# Primeira tela do aplicativo: quem ainda nao tem sessao precisa enxergar os dois caminhos possiveis.
+appId: com.anonymous.rodabem
+name: abertura - oferece entrar e criar conta
+---
+- runFlow: ../_comum/abrir.yaml
+- assertVisible: "ENTRAR"
+- assertVisible: "CRIAR CONTA"

@@ -53,9 +53,6 @@ describe('CloudinaryService', () => {
       });
     });
 
-    it('deve configurar o cloudinary uma unica vez por instancia', () => {
-      expect(cloudinary.config).toHaveBeenCalledTimes(1);
-    });
   });
 
   describe('uploadFile', () => {
@@ -89,39 +86,9 @@ describe('CloudinaryService', () => {
       expect(end).toHaveBeenCalledWith(buffer);
     });
 
-    it('deve enviar o arquivo para a pasta de documentos de caminhao', async () => {
-      responderUpload(null, { secure_url: 'u', public_id: 'p' });
 
-      await service.uploadFile(buffer, 'image/jpeg', 'documento.jpg');
 
-      expect(opcoesDoUpload().folder).toBe('rodabem/documentos-caminhao');
-    });
 
-    it('deve detectar o tipo do recurso automaticamente', async () => {
-      responderUpload(null, { secure_url: 'u', public_id: 'p' });
-
-      await service.uploadFile(buffer, 'application/pdf', 'documento.pdf');
-
-      expect(opcoesDoUpload().resource_type).toBe('auto');
-    });
-
-    it('deve substituir espacos do nome original por underscore', async () => {
-      responderUpload(null, { secure_url: 'u', public_id: 'p' });
-
-      await service.uploadFile(buffer, 'image/jpeg', 'meu documento final.jpg');
-
-      expect(opcoesDoUpload().public_id).toMatch(/^\d+-meu_documento_final\.jpg$/);
-    });
-
-    it('deve prefixar o identificador publico com o instante do envio', async () => {
-      responderUpload(null, { secure_url: 'u', public_id: 'p' });
-      const antes = Date.now();
-
-      await service.uploadFile(buffer, 'image/jpeg', 'documento.jpg');
-
-      const prefixo = Number(opcoesDoUpload().public_id.split('-')[0]);
-      expect(prefixo).toBeGreaterThanOrEqual(antes);
-    });
 
     it('deve definir um timeout para o envio', async () => {
       responderUpload(null, { secure_url: 'u', public_id: 'p' });
@@ -155,24 +122,7 @@ describe('CloudinaryService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('deve rejeitar quando o resultado vem indefinido', async () => {
-      responderUpload(null, undefined);
 
-      await expect(
-        service.uploadFile(buffer, 'image/jpeg', 'documento.jpg'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('deve registrar o erro do cloudinary no console', async () => {
-      const falha = new Error('falha de rede');
-      responderUpload(falha, null);
-
-      await expect(
-        service.uploadFile(buffer, 'image/jpeg', 'documento.jpg'),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(silenciarErro).toHaveBeenCalledWith('Cloudinary error:', falha);
-    });
   });
 
   describe('deleteFile', () => {

@@ -1,13 +1,24 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { clearDatabase, createTruck, registerAndLogin } from './e2e.utils';
 
-describe('Fluxo de caminhao (e2e)', () => {
+/**
+ * Regras: RNE-09 (exclusao com vinculos) e o cadastro de caminhao do RF-09.
+ *
+ * O app e montado com o mesmo ValidationPipe do `src/main.ts`. Sem isso o
+ * cenario de campos obrigatorios nao exercita a validacao que roda em producao.
+ */
+describe('Caminhao (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+
+  const meuCaminhao = (token: string) =>
+    request(app.getHttpServer())
+      .get('/caminhao')
+      .set('Authorization', `Bearer ${token}`);
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -15,7 +26,18 @@ describe('Fluxo de caminhao (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: false,
+        transform: true,
+        stopAtFirstError: true,
+      }),
+    );
     await app.init();
+    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
+    await app.listen(0);
+
     prisma = app.get(PrismaService);
   });
 
@@ -25,54 +47,136 @@ describe('Fluxo de caminhao (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
+    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
+    await prisma.$disconnect();
     await app.close();
   });
 
-  it('deve cadastrar e consultar o caminhao do usuario, bloqueando segundo cadastro', async () => {
-    const { token } = await registerAndLogin(app, '100002');
+  describe('cadastro', () => {
+    it('deve cadastrar o caminhao do usuario autenticado', async () => {
+      const dono = await registerAndLogin(app, '300001');
 
-    await createTruck(app, token).expect(201);
+      const resposta = await createTruck(app, dono.token, {
+        placa: 'XYZ9A88',
+        modelo: 'Actros 2651',
+        renavam: '98765432109',
+        numeroEixos: 6,
+      });
 
-    const getResponse = await request(app.getHttpServer())
-      .get('/caminhao')
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
+      expect(resposta.status).toBe(201);
 
-    expect(getResponse.body.placa).toBe('ABC1D23');
+      const consulta = await meuCaminhao(dono.token);
+      expect(consulta.body).toMatchObject({
+        placa: 'XYZ9A88',
+        modelo: 'Actros 2651',
+      });
+    });
 
-    await createTruck(app, token).expect(400);
+    it('deve recusar cadastro sem os campos obrigatorios', async () => {
+      const dono = await registerAndLogin(app, '300002');
+
+      const resposta = await request(app.getHttpServer())
+        .post('/caminhao')
+        .set('Authorization', `Bearer ${dono.token}`)
+        .send({ modelo: 'Sem placa nem renavam' });
+
+      expect(resposta.status).toBe(400);
+    });
+
+    it('deve recusar um segundo caminhao para o mesmo usuario', async () => {
+      const dono = await registerAndLogin(app, '300003');
+      await createTruck(app, dono.token);
+
+      const segundo = await createTruck(app, dono.token, {
+        placa: 'QQQ1B11',
+        renavam: '11122233344',
+      });
+
+      expect(segundo.status).toBe(400);
+    });
+
+    it('deve exigir autenticacao', async () => {
+      const resposta = await request(app.getHttpServer())
+        .post('/caminhao')
+        .send({ placa: 'ABC1D23', modelo: 'FH', renavam: '123' });
+
+      expect(resposta.status).toBe(401);
+    });
   });
 
-  it('deve permitir editar o caminhao do usuario autenticado', async () => {
-    const { token } = await registerAndLogin(app, '100012');
+  describe('consulta', () => {
+    it('nao deve devolver o caminhao de outro usuario', async () => {
+      const dono = await registerAndLogin(app, '300004');
+      const outro = await registerAndLogin(app, '300005');
+      await createTruck(app, dono.token, { placa: 'DON1O11' });
 
-    await createTruck(app, token, {
-      placa: 'XYZ9K88',
-      modelo: 'FH 460',
-      renavam: '99887766554',
-      numeroEixos: 6,
-    }).expect(201);
+      const consulta = await meuCaminhao(outro.token);
 
-    const updateResponse = await request(app.getHttpServer())
-      .put('/caminhao')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        modelo: 'Actros 2651',
-        cor: 'Branco',
-        numeroEixos: 7,
-      })
-      .expect(200);
+      expect(consulta.body?.placa).toBeUndefined();
+    });
+  });
 
-    expect(updateResponse.body.caminhao.modelo).toBe('Actros 2651');
-    expect(updateResponse.body.caminhao.cor).toBe('Branco');
-    expect(updateResponse.body.caminhao.numeroEixos).toBe(7);
+  describe('edicao', () => {
+    it('deve alterar apenas o caminhao do proprio usuario', async () => {
+      const dono = await registerAndLogin(app, '300006');
+      const outro = await registerAndLogin(app, '300007');
+      await createTruck(app, dono.token, { placa: 'DON2O22' });
+      await createTruck(app, outro.token, { placa: 'OUT2R22' });
 
-    const getResponse = await request(app.getHttpServer())
-      .get('/caminhao')
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
+      await request(app.getHttpServer())
+        .put('/caminhao')
+        .set('Authorization', `Bearer ${dono.token}`)
+        .send({ modelo: 'Modelo alterado' });
 
-    expect(getResponse.body.modelo).toBe('Actros 2651');
-    expect(getResponse.body.numeroEixos).toBe(7);
+      await expect(
+        meuCaminhao(dono.token).then((r) => r.body.modelo),
+      ).resolves.toBe('Modelo alterado');
+      await expect(
+        meuCaminhao(outro.token).then((r) => r.body.modelo),
+      ).resolves.toBe('FH 540');
+    });
+  });
+
+  describe('exclusao', () => {
+    it('deve excluir o caminhao sem vinculos', async () => {
+      const dono = await registerAndLogin(app, '300008');
+      await createTruck(app, dono.token);
+
+      const resposta = await request(app.getHttpServer())
+        .delete('/caminhao')
+        .set('Authorization', `Bearer ${dono.token}`);
+
+      expect(resposta.status).toBe(200);
+      await expect(
+        meuCaminhao(dono.token).then((r) => r.body?.placa),
+      ).resolves.toBeUndefined();
+    });
+
+    it('deve recusar exclusao de caminhao com abastecimento vinculado', async () => {
+      const dono = await registerAndLogin(app, '300009');
+      await createTruck(app, dono.token);
+
+      const abastecimento = await request(app.getHttpServer())
+        .post('/abastecimentos')
+        .set('Authorization', `Bearer ${dono.token}`)
+        .send({
+          totalLitros: 100,
+          precoPorLitro: 6,
+          tipoCombustivel: 'DIESEL_S10',
+          quilometragem: 1000,
+        });
+
+      // Pre-condicao do cenario: sem o vinculo, a exclusao abaixo nao prova nada.
+      expect(abastecimento.status).toBe(201);
+
+      const resposta = await request(app.getHttpServer())
+        .delete('/caminhao')
+        .set('Authorization', `Bearer ${dono.token}`);
+
+      expect(resposta.status).toBe(400);
+      await expect(
+        meuCaminhao(dono.token).then((r) => r.body?.placa),
+      ).resolves.toBe('ABC1D23');
+    });
   });
 });

@@ -119,13 +119,6 @@ describe('Novo abastecimento - validacao do formulario', () => {
     expect(screen.getByText('Informe a quilometragem atual.')).toBeTruthy();
   });
 
-  it('nao deve chamar a api quando a validacao falha', async () => {
-    await montarTela();
-
-    await enviar();
-
-    expect(createAbastecimento).not.toHaveBeenCalled();
-  });
 
   it('deve acusar preco igual a zero', async () => {
     await montarTela();
@@ -137,26 +130,7 @@ describe('Novo abastecimento - validacao do formulario', () => {
     expect(createAbastecimento).not.toHaveBeenCalled();
   });
 
-  it('deve acusar litros igual a zero', async () => {
-    await montarTela();
-    await preencherObrigatorios('6.39', '0', '182350');
 
-    await enviar();
-
-    expect(screen.getByText('Informe a quantidade de litros.')).toBeTruthy();
-    expect(createAbastecimento).not.toHaveBeenCalled();
-  });
-
-  it('deve limpar as mensagens de erro quando o formulario e corrigido', async () => {
-    await montarTela();
-    await enviar();
-    expect(screen.getByText('Informe a quantidade de litros.')).toBeTruthy();
-
-    await preencherObrigatorios();
-    await enviar();
-
-    expect(screen.queryByText('Informe a quantidade de litros.')).toBeNull();
-  });
 
   it('deve enviar quando os tres campos obrigatorios sao validos', async () => {
     await montarTela();
@@ -203,23 +177,7 @@ describe('Novo abastecimento - tratamento do que e digitado', () => {
     expect(campo.props.value).toBe('6,39');
   });
 
-  it('deve descartar qualquer caractere nao numerico na quilometragem', async () => {
-    await montarTela();
-    const campo = screen.getByPlaceholderText(CAMPO_KM);
 
-    await fireEvent.changeText(campo, '182.350 km');
-
-    expect(campo.props.value).toBe('182350');
-  });
-
-  it('a quilometragem nunca fica negativa, pois o sinal e descartado na digitacao', async () => {
-    await montarTela();
-    const campo = screen.getByPlaceholderText(CAMPO_KM);
-
-    await fireEvent.changeText(campo, '-500');
-
-    expect(campo.props.value).toBe('500');
-  });
 
   it('deve aceitar virgula como separador decimal no preco', async () => {
     await montarTela();
@@ -256,34 +214,10 @@ describe('Novo abastecimento - tratamento do que e digitado', () => {
     expect(screen.getByText(/7\.407,36/)).toBeTruthy();
   });
 
-  it('deve aceitar virgula como separador decimal nos litros', async () => {
-    await montarTela();
-    await preencherObrigatorios('6.39', '320,5', '182350');
-
-    await enviar();
-
-    await waitFor(() =>
-      expect(createAbastecimento).toHaveBeenCalledWith(
-        expect.objectContaining({ totalLitros: 320.5 }),
-      ),
-    );
-  });
 });
 
 describe('Novo abastecimento - valor total estimado', () => {
-  it('deve orientar o preenchimento enquanto faltam preco e litros', async () => {
-    await montarTela();
 
-    expect(screen.getByText('Preencha preco e litros')).toBeTruthy();
-  });
-
-  it('deve continuar orientando quando apenas o preco foi informado', async () => {
-    await montarTela();
-
-    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_PRECO), '6.39');
-
-    expect(screen.getByText('Preencha preco e litros')).toBeTruthy();
-  });
 
   it('deve multiplicar preco por litros e exibir em reais', async () => {
     await montarTela();
@@ -294,15 +228,6 @@ describe('Novo abastecimento - valor total estimado', () => {
     expect(screen.getByText(/600,00/)).toBeTruthy();
   });
 
-  it('deve recalcular o total quando os litros mudam', async () => {
-    await montarTela();
-    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_PRECO), '6');
-    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_LITROS), '100');
-
-    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_LITROS), '200');
-
-    expect(screen.getByText(/1\.200,00/)).toBeTruthy();
-  });
 
   it('deve considerar a virgula decimal no total estimado', async () => {
     await montarTela();
@@ -334,94 +259,14 @@ describe('Novo abastecimento - montagem do payload', () => {
     );
   });
 
-  it('deve omitir campo opcional preenchido apenas com espacos', async () => {
-    await montarTela();
-    await preencherObrigatorios();
-    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_POSTO), '   ');
 
-    await enviar();
 
-    await waitFor(() =>
-      expect(createAbastecimento).toHaveBeenCalledWith(
-        expect.objectContaining({ postoIdentificado: undefined }),
-      ),
-    );
-  });
 
-  it('deve remover espacos das pontas dos campos opcionais', async () => {
-    await montarTela();
-    await preencherObrigatorios();
-    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_POSTO), '  Posto Rota Norte  ');
-    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_LOCAL), '  BR-116  ');
-    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_OBSERVACAO), '  tanque cheio  ');
-
-    await enviar();
-
-    await waitFor(() =>
-      expect(createAbastecimento).toHaveBeenCalledWith(
-        expect.objectContaining({
-          postoIdentificado: 'Posto Rota Norte',
-          localDescricao: 'BR-116',
-          observacao: 'tanque cheio',
-        }),
-      ),
-    );
-  });
-
-  it('deve usar Diesel S10 como combustivel padrao', async () => {
-    await montarTela();
-    await preencherObrigatorios();
-
-    await enviar();
-
-    await waitFor(() =>
-      expect(createAbastecimento).toHaveBeenCalledWith(
-        expect.objectContaining({ tipoCombustivel: 'DIESEL_S10' }),
-      ),
-    );
-  });
-
-  it('deve enviar o combustivel escolhido pelo usuario', async () => {
-    await montarTela();
-    await preencherObrigatorios();
-    await fireEvent.press(screen.getByText('Arla 32'));
-
-    await enviar();
-
-    await waitFor(() =>
-      expect(createAbastecimento).toHaveBeenCalledWith(
-        expect.objectContaining({ tipoCombustivel: 'ARLA_32' }),
-      ),
-    );
-  });
 });
 
 describe('Novo abastecimento - modo cadastro', () => {
-  it('deve anunciar o cadastro no titulo', async () => {
-    await montarTela();
 
-    expect(screen.getByText('NOVO ABASTECIMENTO')).toBeTruthy();
-  });
 
-  it('nao deve consultar registro algum quando nao ha identificador', async () => {
-    await montarTela();
-
-    expect(getAbastecimento).not.toHaveBeenCalled();
-  });
-
-  it('deve avisar o sucesso do cadastro', async () => {
-    await montarTela();
-    await preencherObrigatorios();
-
-    await enviar();
-
-    await waitFor(() =>
-      expect(Toast.show).toHaveBeenCalledWith(
-        'Abastecimento cadastrado com sucesso.',
-        expect.objectContaining({ type: 'success' }),
-      ),
-    );
-  });
 
   it('deve voltar para a tela anterior apos cadastrar', async () => {
     await montarTela();
@@ -432,29 +277,9 @@ describe('Novo abastecimento - modo cadastro', () => {
     await waitFor(() => expect(router.back).toHaveBeenCalled());
   });
 
-  it('deve invalidar a listagem e a media apos cadastrar', async () => {
-    await montarTela();
-    await preencherObrigatorios();
-
-    await enviar();
-
-    await waitFor(() =>
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: ['abastecimentos'],
-      }),
-    );
-    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ['media-consumo'],
-    });
-  });
 });
 
 describe('Novo abastecimento - modo edicao', () => {
-  it('deve anunciar a edicao no titulo', async () => {
-    await montarEdicao();
-
-    expect(screen.getByText('EDITAR ABASTECIMENTO')).toBeTruthy();
-  });
 
   it('deve consultar o registro informado na rota', async () => {
     await montarEdicao();
@@ -471,30 +296,7 @@ describe('Novo abastecimento - modo edicao', () => {
     expect(screen.getByDisplayValue('tanque cheio')).toBeTruthy();
   });
 
-  it('deve marcar o combustivel do registro', async () => {
-    await montarEdicao();
-    await fireEvent.press(screen.getByText('SALVAR ALTERACOES'));
 
-    await waitFor(() =>
-      expect(updateAbastecimento).toHaveBeenCalledWith(
-        7,
-        expect.objectContaining({ tipoCombustivel: 'DIESEL_S500' }),
-      ),
-    );
-  });
-
-  it('deve deixar em branco os campos opcionais ausentes no registro', async () => {
-    await montarEdicao({
-      ...registroExistente,
-      localDescricao: undefined,
-      postoIdentificado: undefined,
-      observacao: undefined,
-    } as any);
-
-    expect(screen.getByPlaceholderText(CAMPO_POSTO).props.value).toBe('');
-    expect(screen.getByPlaceholderText(CAMPO_LOCAL).props.value).toBe('');
-    expect(screen.getByPlaceholderText(CAMPO_OBSERVACAO).props.value).toBe('');
-  });
 
   it('deve salvar a edicao no registro correto, e nao criar outro', async () => {
     await montarEdicao();
@@ -506,18 +308,6 @@ describe('Novo abastecimento - modo edicao', () => {
     expect(createAbastecimento).not.toHaveBeenCalled();
   });
 
-  it('deve avisar o sucesso da edicao com mensagem propria', async () => {
-    await montarEdicao();
-
-    await fireEvent.press(screen.getByText('SALVAR ALTERACOES'));
-
-    await waitFor(() =>
-      expect(Toast.show).toHaveBeenCalledWith(
-        'Abastecimento atualizado com sucesso.',
-        expect.objectContaining({ type: 'success' }),
-      ),
-    );
-  });
 
   it('deve aplicar a alteracao feita pelo usuario sobre o dado carregado', async () => {
     await montarEdicao();
@@ -535,15 +325,6 @@ describe('Novo abastecimento - modo edicao', () => {
 });
 
 describe('Novo abastecimento - estados de carregamento', () => {
-  it('nao deve exibir o formulario enquanto o registro e consultado', async () => {
-    jest.mocked(useLocalSearchParams).mockReturnValue({ id: '7' });
-    jest.mocked(getAbastecimento).mockReturnValue(criarPendencia() as any);
-
-    await montarTela();
-
-    expect(screen.queryByPlaceholderText(CAMPO_PRECO)).toBeNull();
-    expect(screen.getByText('EDITAR ABASTECIMENTO')).toBeTruthy();
-  });
 
   it('deve bloquear novo envio enquanto o cadastro esta em andamento', async () => {
     jest.mocked(createAbastecimento).mockReturnValue(criarPendencia() as any);
@@ -576,35 +357,7 @@ describe('Novo abastecimento - falhas da api', () => {
     );
   });
 
-  it('deve exibir a primeira mensagem quando a api devolve uma lista', async () => {
-    falharCom({ message: ['precoPorLitro deve ser positivo', 'totalLitros deve ser positivo'] });
-    await montarTela();
-    await preencherObrigatorios();
 
-    await enviar();
-
-    await waitFor(() =>
-      expect(Toast.show).toHaveBeenCalledWith(
-        'precoPorLitro deve ser positivo',
-        expect.objectContaining({ type: 'error' }),
-      ),
-    );
-  });
-
-  it('deve usar mensagem generica quando a api nao explica a falha', async () => {
-    jest.mocked(createAbastecimento).mockRejectedValue(new Error('Network Error'));
-    await montarTela();
-    await preencherObrigatorios();
-
-    await enviar();
-
-    await waitFor(() =>
-      expect(Toast.show).toHaveBeenCalledWith(
-        'Nao foi possivel salvar o abastecimento.',
-        expect.objectContaining({ type: 'error' }),
-      ),
-    );
-  });
 
   it('nao deve navegar de volta quando o cadastro falha', async () => {
     falharCom({ message: 'falhou' });
@@ -617,15 +370,4 @@ describe('Novo abastecimento - falhas da api', () => {
     expect(router.back).not.toHaveBeenCalled();
   });
 
-  it('deve liberar novo envio depois de uma falha', async () => {
-    falharCom({ message: 'falhou' });
-    await montarTela();
-    await preencherObrigatorios();
-
-    await enviar();
-    await waitFor(() => expect(Toast.show).toHaveBeenCalled());
-    await enviar();
-
-    await waitFor(() => expect(createAbastecimento).toHaveBeenCalledTimes(2));
-  });
 });

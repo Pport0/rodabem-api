@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -25,7 +25,19 @@ describe('Autenticacao - seguranca (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    // Mesmo ValidationPipe do `src/main.ts`.
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: false,
+        transform: true,
+        stopAtFirstError: true,
+      }),
+    );
     await app.init();
+    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
+    await app.listen(0);
+
     prisma = app.get(PrismaService);
   });
 
@@ -35,6 +47,8 @@ describe('Autenticacao - seguranca (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
+    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
+    await prisma.$disconnect();
     await app.close();
   });
 
@@ -122,8 +136,7 @@ describe('Autenticacao - seguranca (e2e)', () => {
     });
   });
 
-  // nao e um sleep arbitrario: alinha o inicio do teste a borda do segundo
-  // para que os dois logins seguintes caiam no mesmo `iat`.
+  // nao e um sleep arbitrario: alinha o inicio do teste a borda do segundo para que os dois logins seguintes caiam no mesmo `iat`.
   const aguardarInicioDeSegundo = () =>
     new Promise((resolve) => setTimeout(resolve, 1000 - (Date.now() % 1000)));
 
@@ -140,8 +153,7 @@ describe('Autenticacao - seguranca (e2e)', () => {
     it('o logout deve encerrar apenas a sessao utilizada', async () => {
       const { user } = await registerAndLogin(app, '500022');
 
-      // o `iat` do JWT tem resolucao de segundos: as duas sessoes precisam
-      // nascer dentro do mesmo segundo para o defeito ficar observavel.
+      // o `iat` do JWT tem resolucao de segundos: as duas sessoes precisam nascer dentro do mesmo segundo para o defeito ficar observavel.
       await aguardarInicioDeSegundo();
       const [sessaoA, sessaoB] = await Promise.all([
         request(app.getHttpServer())
