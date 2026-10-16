@@ -16,7 +16,7 @@ export function buildValidCpf(seed: string): string {
   let base = `${seed}`.replace(/\D/g, '').padStart(9, '0').slice(-9);
 
   if (/^(\d)\1{8}$/.test(base)) {
-    base = base.slice(0, 8) + ((Number(base[8]) + 1) % 10);
+    base = `${(Number(base[0]) + 1) % 10}${base.slice(1)}`;
   }
 
   const digito = (parcial: string, pesoInicial: number) => {

@@ -1,13 +1,3 @@
-/**
- * Semeadura de volume para os testes de carga.
- *
- * As credenciais seguem um esquema deterministico, para o script do k6 montar qualquer uma delas sem ler o banco:
- *
- *   email    carga<i>@carga.local
- *   telefone 62 + <i> com nove digitos
- *   cpf      derivado de <i>, sempre valido
- *   senha    senha123
- */
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { createHash, encrypt } from '../../src/common/utils/crypto.util';
@@ -17,12 +7,15 @@ const prisma = new PrismaClient();
 export const SENHA_CARGA = 'senha123';
 const MARCA = '@carga.local';
 
-/** Mesmo algoritmo de `test/e2e.utils.ts`, para gerar CPF que passa na validacao. */
 export function cpfValidoDe(indice: number): string {
+  if (indice >= 100_000_000) {
+    throw new Error(`indice fora da faixa suportada: ${indice}`);
+  }
+
   let base = `${indice}`.padStart(9, '0').slice(-9);
 
   if (/^(\d)\1{8}$/.test(base)) {
-    base = base.slice(0, 8) + ((Number(base[8]) + 1) % 10);
+    base = `${(Number(base[0]) + 1) % 10}${base.slice(1)}`;
   }
 
   const digito = (parcial: string, pesoInicial: number) => {
@@ -68,8 +61,6 @@ async function semear(quantidade: number) {
     return;
   }
 
-  // Uma unica cifragem de senha, reaproveitada: bcrypt custa ~100ms por chamada e semear milhares de usuarios um a
-  // um levaria dezenas de minutos. Todos os usuarios de carga compartilham a mesma senha de proposito.
   const senhaHash = await bcrypt.hash(SENHA_CARGA, 10);
 
   const LOTE = 500;
