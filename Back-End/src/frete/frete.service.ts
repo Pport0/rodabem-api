@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,7 +15,7 @@ export class FreteService {
     private readonly prisma: PrismaService,
     private readonly ors: OrsService,
     private readonly abastecimentoService: AbastecimentoService,
-  ) {}
+  ) { }
 
   async simular(userId: number, dto: SimularFreteDto) {
 
@@ -56,18 +57,18 @@ export class FreteService {
       consumoMedioKmL = mediaResult.mediaConsumo;
     }
 
-    
+
     const distanciaIda = rota.distanciaKm;
 
     const pedagioBase = dto.pedagiosManual ?? 0;
     const pedagiosTotal = dto.retornoVazio ? pedagioBase * 2 : pedagioBase;
 
-    
+
     const tabelaAntt = await this.prisma.tabelaAntt.findFirst({
       where: {
         numeroEixos: caminhao.numeroEixos,
         tipoCarga: dto.tipoCarga,
-        // FIX #41-5: filtrar também por altoDesempenho
+
         altoDesempenho: dto.altoDesempenho ?? false,
         distanciaMin: { lte: distanciaIda },
         distanciaMax: { gte: distanciaIda },
@@ -80,9 +81,9 @@ export class FreteService {
       );
     }
 
- 
-    const ccd = tabelaAntt.valorPorKm;  
-    const cc  = tabelaAntt.cc ?? 0;      
+
+    const ccd = tabelaAntt.valorPorKm;
+    const cc = tabelaAntt.cc ?? 0;
 
     const pisoIda = distanciaIda * ccd + cc;
     const pisoRetorno = dto.retornoVazio
@@ -102,7 +103,7 @@ export class FreteService {
       (litrosNecessarios * dto.precoCombustivel).toFixed(2),
     );
 
-  
+
     const custoOperacional = custoCombustivel + pedagiosTotal;
     const valorLiquidoEstimado = parseFloat(
       (valorMinimoAntt - custoOperacional).toFixed(2),
@@ -164,8 +165,12 @@ export class FreteService {
       where: { id },
     });
 
-    if (!simulacao || simulacao.userId !== userId) {
+    if (!simulacao) {
       throw new NotFoundException('Simulação não encontrada.');
+    }
+
+    if (simulacao.userId !== userId) {
+      throw new ForbiddenException('Você não tem permissão para acessar esta simulação.');
     }
 
     return simulacao;
