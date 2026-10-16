@@ -6,14 +6,19 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CaminhaoModule } from './caminhao/caminhao.module';
 import { DocumentoModule } from './documento/documento.module';
 import { AbastecimentoModule } from './abastecimento/abastecimento.module';
-import {FreteModule} from './frete/frete.module'
-
+import { FreteModule } from './frete/frete.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,  
+      limit: 10,   
+    }]),
     PrismaModule,
     UsersModule,
     AuthModule,
@@ -21,7 +26,12 @@ import {FreteModule} from './frete/frete.module'
     DocumentoModule,
     AbastecimentoModule,
     FreteModule,
-    
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}
