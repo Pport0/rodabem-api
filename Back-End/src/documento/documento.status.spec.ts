@@ -3,18 +3,6 @@ import { Test } from '@nestjs/testing';
 import { DocumentoService } from './documento.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-/**
- * Regra: RNE-05, status automatico.
- *
- *   VALIDO   : vencimento > hoje + X
- *   VENCENDO : hoje <= vencimento <= hoje + X
- *   EXPIRADO : vencimento < hoje
- *   X configuravel, padrao 30 dias.
- *
- * Unitario em vez de e2e: o que importa sao as fronteiras exatas. Pelo e2e, cada fronteira exigiria cadastrar um
- * documento com data calculada ao segundo, caro e fragil para o que e aritmetica de datas. O relogio fica fixo para a
- * fronteira nao depender da hora em que a suite roda.
- */
 describe('DocumentoService — status pelo vencimento', () => {
   const AGORA = new Date('2026-06-15T12:00:00.000Z');
   const DIA = 24 * 60 * 60 * 1000;

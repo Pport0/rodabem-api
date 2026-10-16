@@ -13,15 +13,6 @@ jest.mock('fs', () => ({
   unlinkSync: jest.fn(),
 }));
 
-/**
- * Criterio desta suite.
- *
- * A RNE-06 promete tres coisas: que a extracao seja TENTADA, que o resultado va PARA REVISAO do usuario, e que a falha NAO IMPECA o cadastro. Nada alem disso.
- *
- * Por isso um unico caso de extracao, 'deve extrair os dados de um CRLV tipico'. Ele nao esta aqui para fixar formato: esta porque sem ele nada mais prova que a extracao funciona. O e2e de scan dubla este servico, entao a cobertura real da extracao mora aqui.
- *
- * O resto sao validacoes que a RNE-06 promete de fato — formato e tamanho do arquivo — e o contrato de falha.
- */
 describe('ScanService', () => {
   let service: ScanService;
   let silenciarLog: jest.SpyInstance;
@@ -112,7 +103,6 @@ describe('ScanService', () => {
       ).rejects.toThrow('Formatos aceitos: PDF, JPG, JPEG, PNG.');
     });
 
-    // RNE-06: "Validar formato e tamanho maximo de 12MB".
     it('deve aplicar o limite de tamanho de 12MB', async () => {
       const MB = 1024 * 1024;
 
@@ -144,10 +134,6 @@ describe('ScanService', () => {
 
   describe('preparacao da imagem para OCR', () => {
 
-
-
-
-
     it('deve remover o arquivo temporario quando ele existe', async () => {
       jest.mocked(fs.existsSync).mockReturnValue(true);
 
@@ -173,7 +159,6 @@ describe('ScanService', () => {
       anoFabricacao: null,
     };
 
-
     it('deve devolver campos vazios quando o reconhecimento falha', async () => {
       worker.recognize.mockRejectedValue(new Error('tesseract quebrou'));
 
@@ -181,8 +166,6 @@ describe('ScanService', () => {
 
       expect(resultado.dadosExtraidos).toEqual(semCampos);
     });
-
-
 
     it('deve devolver campos vazios quando a criacao do worker falha', async () => {
       jest
@@ -251,15 +234,7 @@ describe('ScanService', () => {
       expect(dadosExtraidos.placa).toBe('ABC1D23');
     });
 
-
-
-
   });
-
-
-
-
-
 
   describe('campos obrigatorios ausentes', () => {
     it('deve apontar placa, modelo e renavam quando nada e reconhecido', async () => {
@@ -273,9 +248,29 @@ describe('ScanService', () => {
 
       expect(camposObrigatoriosFaltando).toEqual([]);
     });
+  });
 
+  describe('confianca do reconhecimento', () => {
 
+    it('deve reportar confianca alta quando reconhece o documento inteiro', async () => {
+      const { confianca } = await processarComTexto(textoCompleto);
 
+      expect(confianca).toBe('alta');
+    });
+
+    it('deve reportar confianca media quando reconhece parte dos campos', async () => {
+      const { confianca } = await processarComTexto(
+        'PLACA ABC1D23 CHASSI 9BWZZZ377VT004251 COR BRANCA',
+      );
+
+      expect(confianca).toBe('media');
+    });
+
+    it('deve reportar confianca baixa quando quase nada e reconhecido', async () => {
+      const { confianca } = await processarComTexto('DOCUMENTO ILEGIVEL');
+
+      expect(confianca).toBe('baixa');
+    });
   });
 
 });

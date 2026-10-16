@@ -1,9 +1,5 @@
 import { isValidCPF } from './cpf.validator';
 
-/**
- * Regra: RNE-01 exige CPF valido no cadastro. A validade segue o algoritmo de digito verificador da Receita Federal,
- * e sequencias de digito repetido sao recusadas mesmo quando o digito verificador fecha.
- */
 describe('isValidCPF', () => {
   describe('deve aceitar CPF com digito verificador correto', () => {
     it.each([
@@ -29,13 +25,13 @@ describe('isValidCPF', () => {
       ['11144477736'],
       ['12345678900'],
       ['98765432101'],
+      ['52998224735'],
     ])('%s', (cpf) => {
       expect(isValidCPF(cpf)).toBe(false);
     });
   });
 
   describe('deve recusar sequencia de digito repetido', () => {
-    // 11111111111 fecha o digito verificador, mas nao e um CPF emitido.
     it.each([
       ['00000000000'],
       ['11111111111'],

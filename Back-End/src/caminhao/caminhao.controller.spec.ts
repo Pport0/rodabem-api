@@ -81,7 +81,6 @@ describe('CaminhaoController - endpoint de scan', () => {
   });
 
   it('deve propagar a recusa por tamanho excedido vinda do servico', async () => {
-    // O limite em si e regra do servico (RNE-06); aqui so interessa que o controller repassa a recusa em vez de engoli-la.
     scanService.processarDocumento.mockRejectedValue(
       new BadRequestException('Arquivo muito grande.'),
     );
@@ -91,7 +90,6 @@ describe('CaminhaoController - endpoint de scan', () => {
     );
   });
 
-  
   it('o endpoint de scan exige autenticacao', async () => {
     const guards = Reflect.getMetadata('__guards__', CaminhaoController.prototype.scan);
     expect(guards).toEqual([JwtAuthGuard]);

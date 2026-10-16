@@ -16,7 +16,6 @@ describe('AuthModule', () => {
     tokenBlackList: { create: jest.fn(), findFirst: jest.fn() },
   };
 
-  
   const SEGREDO_DE_PROCESSO = 'segredo-de-processo';
   let envOriginal: string | undefined;
 
@@ -129,12 +128,17 @@ describe('AuthModule', () => {
     });
 
     it('deve aplicar o padrao de 7 dias quando JWT_EXPIRES_IN nao e informado', async () => {
+      const salvo = process.env.JWT_EXPIRES_IN;
+      delete process.env.JWT_EXPIRES_IN;
+
       const mod = await compilarCom({ JWT_SECRET: 'segredo-de-teste', JWT_EXPIRES_IN: undefined });
       const jwt = mod.get(JwtService);
 
       const { iat, exp } = jwt.decode(jwt.sign({ sub: 1 })) as any;
 
       expect(exp - iat).toBe(7 * 24 * 60 * 60);
+
+      if (salvo !== undefined) process.env.JWT_EXPIRES_IN = salvo;
       await mod.close();
     });
   });
