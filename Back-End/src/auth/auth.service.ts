@@ -1,10 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
-import { decrypt } from '../common/utils/crypto.util';
+import { createHash } from '../common/utils/crypto.util';
 
 @Injectable()
 export class AuthService {
@@ -13,8 +14,6 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-
-
   async login(data: LoginDto) {
     const { cpf, telefone, senha } = data;
 
@@ -22,7 +21,6 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    // 🔎 Buscar usuário
     let user;
 
     if (telefone) {
@@ -32,11 +30,9 @@ export class AuthService {
     }
 
     if (!user && cpf) {
-      const users = await this.prisma.user.findMany();
-
-      user = users.find((u) => {
-        const decryptedCpf = decrypt(u.cpfEncrypted);
-        return decryptedCpf === cpf;
+      const cpfHash = createHash(cpf);
+      user = await this.prisma.user.findUnique({
+        where: { cpfHash },
       });
     }
 
@@ -54,10 +50,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-   
     const payload = {
       sub: user.id,
       email: user.email,
+      jti: randomUUID(),
     };
 
     const token = await this.jwtService.signAsync(payload);
@@ -73,14 +69,22 @@ export class AuthService {
   }
 
   async logout(token: string) {
-  await this.prisma.tokenBlackList.create({
-    data: {
-      token,
-    },
-  });
+    await this.prisma.tokenBlackList.create({
+      data: { token },
+    });
 
-  return {
-    message: 'Logout realizado com sucesso',
-  };
-}
+    
+    const setesDiasAtras = new Date();
+    setesDiasAtras.setDate(setesDiasAtras.getDate() - 7);
+
+    await this.prisma.tokenBlackList.deleteMany({
+      where: {
+        createdAt: { lt: setesDiasAtras },
+      },
+    });
+
+    return {
+      message: 'Logout realizado com sucesso',
+    };
+  }
 }
