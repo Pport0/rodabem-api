@@ -152,6 +152,8 @@ model TabelaAntt {
   distanciaMin Int
   distanciaMax Int
   valorPorKm  Float
+  cc           Float     @default(0)
+  altoDesempenho Boolean @default(false)
   atualizadoEm DateTime
 
   @@map("tabela_antt")

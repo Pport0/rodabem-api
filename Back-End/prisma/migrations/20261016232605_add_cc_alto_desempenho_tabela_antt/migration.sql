@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "tabela_antt" ADD COLUMN     "altoDesempenho" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "cc" DOUBLE PRECISION NOT NULL DEFAULT 0;

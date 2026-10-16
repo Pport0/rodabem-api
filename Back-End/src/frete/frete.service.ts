@@ -17,7 +17,7 @@ export class FreteService {
   ) {}
 
   async simular(userId: number, dto: SimularFreteDto) {
-    
+
     const caminhao = await this.prisma.caminhao.findUnique({
       where: { userId },
     });
@@ -34,13 +34,12 @@ export class FreteService {
       );
     }
 
-    
     const rota = await this.ors.calcularRota(
-  dto.origem,
-  dto.destino,
-  dto.paradasIntermediarias,
-);
-    
+      dto.origem,
+      dto.destino,
+      dto.paradasIntermediarias,
+    );
+
     let consumoMedioKmL: number;
 
     if (dto.consumoMedioKmLOverride && dto.consumoMedioKmLOverride > 0) {
@@ -58,30 +57,20 @@ export class FreteService {
     }
 
     
-    const distanciaTotal = dto.retornoVazio
-      ? rota.distanciaKm * 2
-      : rota.distanciaKm;
+    const distanciaIda = rota.distanciaKm;
 
     const pedagioBase = dto.pedagiosManual ?? 0;
-    const pedagiosTotal = dto.retornoVazio
-    ? pedagioBase * 2
-    : pedagioBase;
-
-    
-    const litrosNecessarios = parseFloat(
-      (distanciaTotal / consumoMedioKmL).toFixed(2),
-    );
-    const custoCombustivel = parseFloat(
-      (litrosNecessarios * dto.precoCombustivel).toFixed(2),
-    );
+    const pedagiosTotal = dto.retornoVazio ? pedagioBase * 2 : pedagioBase;
 
     
     const tabelaAntt = await this.prisma.tabelaAntt.findFirst({
       where: {
         numeroEixos: caminhao.numeroEixos,
         tipoCarga: dto.tipoCarga,
-        distanciaMin: { lte: distanciaTotal },
-        distanciaMax: { gte: distanciaTotal },
+        // FIX #41-5: filtrar também por altoDesempenho
+        altoDesempenho: dto.altoDesempenho ?? false,
+        distanciaMin: { lte: distanciaIda },
+        distanciaMax: { gte: distanciaIda },
       },
     });
 
@@ -91,19 +80,36 @@ export class FreteService {
       );
     }
 
-    const valorMinimoAntt = parseFloat(
-      (tabelaAntt.valorPorKm * distanciaTotal).toFixed(2),
+ 
+    const ccd = tabelaAntt.valorPorKm;  
+    const cc  = tabelaAntt.cc ?? 0;      
+
+    const pisoIda = distanciaIda * ccd + cc;
+    const pisoRetorno = dto.retornoVazio
+      ? distanciaIda * ccd * 0.92
+      : 0;
+
+    const valorMinimoAntt = parseFloat((pisoIda + pisoRetorno).toFixed(2));
+
+    const distanciaTotal = dto.retornoVazio
+      ? distanciaIda * 2
+      : distanciaIda;
+
+    const litrosNecessarios = parseFloat(
+      (distanciaTotal / consumoMedioKmL).toFixed(2),
+    );
+    const custoCombustivel = parseFloat(
+      (litrosNecessarios * dto.precoCombustivel).toFixed(2),
     );
 
-    
-    const custoTotal = custoCombustivel + pedagiosTotal;
+  
+    const custoOperacional = custoCombustivel + pedagiosTotal;
     const valorLiquidoEstimado = parseFloat(
-      (valorMinimoAntt - custoTotal).toFixed(2),
+      (valorMinimoAntt - custoOperacional).toFixed(2),
     );
 
     const abaixoMinimoAntt = valorLiquidoEstimado < 0;
 
-    
     const simulacao = await this.prisma.simulacaoFrete.create({
       data: {
         origem: dto.origem,
@@ -146,7 +152,6 @@ export class FreteService {
     };
   }
 
-  
   async historico(userId: number) {
     return this.prisma.simulacaoFrete.findMany({
       where: { userId },
@@ -154,7 +159,6 @@ export class FreteService {
     });
   }
 
-  
   async findOne(userId: number, id: number) {
     const simulacao = await this.prisma.simulacaoFrete.findUnique({
       where: { id },
