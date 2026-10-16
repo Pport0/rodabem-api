@@ -1,7 +1,3 @@
-/**
- * Carga: comportamento das leituras autenticadas sob volume crescente.
- *
- */
 import http from 'k6/http';
 import { check, group } from 'k6';
 import { Trend } from 'k6/metrics';
@@ -22,7 +18,6 @@ export const options = {
     'http_req_duration{rota:perfil}': ['p(95)<300'],
     'http_req_duration{rota:abastecimentos}': ['p(95)<500'],
     'http_req_duration{rota:documentos}': ['p(95)<500'],
-    // GET /users declara paginacao. Se ela funcionar, o tempo nao depende do tamanho da tabela e a resposta nao cresce.
     'http_req_duration{rota:usuarios}': ['p(95)<500'],
     bytes_lista_usuarios: ['p(95)<100000'],
   },
