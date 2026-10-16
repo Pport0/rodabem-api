@@ -143,8 +143,8 @@ export class AbastecimentoService {
       throw new BadRequestException('dataInicio e dataFim são obrigatórios.');
     }
 
-   const inicio = new Date(dataInicio + 'T00:00:00.000Z');
-   const fim = new Date(dataFim + 'T23:59:59.999Z');
+    const inicio = new Date(dataInicio + 'T00:00:00.000Z');
+    const fim = new Date(dataFim + 'T23:59:59.999Z');
 
     if (inicio > fim) {
       throw new BadRequestException('dataInicio não pode ser maior que dataFim.');
@@ -199,18 +199,39 @@ export class AbastecimentoService {
     quilometragem: number,
     ignorarId?: number,
   ) {
-    const ultimo = await this.prisma.abastecimento.findFirst({
+    
+    const anterior = await this.prisma.abastecimento.findFirst({
       where: {
         caminhaoId,
+        quilometragem: { lt: quilometragem },
         ...(ignorarId !== undefined && { id: { not: ignorarId } }),
       },
       orderBy: { quilometragem: 'desc' },
       select: { quilometragem: true },
     });
 
-    if (ultimo && quilometragem <= ultimo.quilometragem) {
+    
+    const posterior = await this.prisma.abastecimento.findFirst({
+      where: {
+        caminhaoId,
+        quilometragem: { gte: quilometragem },
+        ...(ignorarId !== undefined && { id: { not: ignorarId } }),
+      },
+      orderBy: { quilometragem: 'asc' },
+      select: { quilometragem: true },
+    });
+
+    
+    if (anterior && quilometragem <= anterior.quilometragem) {
       throw new BadRequestException(
-        `A quilometragem informada (${quilometragem} km) não pode ser menor que a última registrada (${ultimo.quilometragem} km).`,
+        `A quilometragem informada (${quilometragem} km) deve ser maior que o registro anterior (${anterior.quilometragem} km).`,
+      );
+    }
+
+    
+    if (posterior && quilometragem >= posterior.quilometragem) {
+      throw new BadRequestException(
+        `A quilometragem informada (${quilometragem} km) deve ser menor que o registro posterior (${posterior.quilometragem} km).`,
       );
     }
   }
