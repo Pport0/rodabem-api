@@ -2,9 +2,11 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { CloudinaryService } from '../caminhao/scan/cloudinary.service';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 
@@ -12,10 +14,12 @@ import { UpdateDocumentoDto } from './dto/update-documento.dto';
 export class DocumentoService {
 
   private readonly diasAlerta: number;
+  private readonly logger = new Logger(DocumentoService.name);
 
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private cloudinaryService: CloudinaryService,
   ) {
     this.diasAlerta = this.configService.get<number>('DIAS_ALERTA_VENCIMENTO') ?? 30;
   }
@@ -29,6 +33,7 @@ export class DocumentoService {
       caminhaoId,
       observacao,
       arquivoUrl,
+      publicId,
     } = data;
 
     if (!nome || !numero || !dataEmissao || !dataVencimento) {
@@ -59,6 +64,7 @@ export class DocumentoService {
         dataVencimento: new Date(dataVencimento),
         observacao,
         arquivoUrl,
+        publicId: publicId ?? null,
         caminhaoId: caminhaoId ?? null,
         userId,
       },
@@ -127,6 +133,16 @@ export class DocumentoService {
       throw new ForbiddenException('Acesso nao permitido');
     }
 
+    if (doc.publicId) {
+      try {
+        await this.cloudinaryService.deleteFile(doc.publicId);
+      } catch (err) {
+        this.logger.warn(
+          `Nao foi possivel remover arquivo do Cloudinary (publicId: ${doc.publicId}): ${err?.message}`,
+        );
+      }
+    }
+
     await this.prisma.documento.delete({
       where: { id },
     });
@@ -137,44 +153,44 @@ export class DocumentoService {
   }
 
   async alertasVencimento(userId: number) {
-  const diasAlerta = this.diasAlerta;
-  const hoje = new Date();
-  const limite = new Date(hoje.getTime() + diasAlerta * 24 * 60 * 60 * 1000);
+    const diasAlerta = this.diasAlerta;
+    const hoje = new Date();
+    const limite = new Date(hoje.getTime() + diasAlerta * 24 * 60 * 60 * 1000);
 
-  const documentos = await this.prisma.documento.findMany({
-    where: {
-      userId,
-      dataVencimento: {
-        lte: limite,
-        gte: hoje, 
+    const documentos = await this.prisma.documento.findMany({
+      where: {
+        userId,
+        dataVencimento: {
+          lte: limite,
+          gte: hoje,
+        },
       },
-    },
-    orderBy: { dataVencimento: 'asc' },
-    select: {
-      id: true,
-      nome: true,
-      numero: true,
-      dataVencimento: true,
-      caminhaoId: true,
-    },
-  });
+      orderBy: { dataVencimento: 'asc' },
+      select: {
+        id: true,
+        nome: true,
+        numero: true,
+        dataVencimento: true,
+        caminhaoId: true,
+      },
+    });
 
-  if (documentos.length === 0) {
+    if (documentos.length === 0) {
+      return {
+        alertas: [],
+        mensagem: 'Nenhum documento a vencer.',
+      };
+    }
+
     return {
-      alertas: [],
-      mensagem: 'Nenhum documento a vencer.',
+      alertas: documentos.map((doc) => ({
+        ...doc,
+        vinculo: doc.caminhaoId ? 'CAMINHAO' : 'MOTORISTA',
+        diasRestantes: this.getDiasRestantes(doc.dataVencimento),
+      })),
+      mensagem: `${documentos.length} documento(s) vencendo nos próximos ${diasAlerta} dias.`,
     };
   }
-
-  return {
-    alertas: documentos.map((doc) => ({
-      ...doc,
-      vinculo: doc.caminhaoId ? 'CAMINHAO' : 'MOTORISTA',
-      diasRestantes: this.getDiasRestantes(doc.dataVencimento),
-    })),
-    mensagem: `${documentos.length} documento(s) vencendo nos próximos ${diasAlerta} dias.`,
-  };
-}
 
   private getStatus(dataVencimento: Date) {
     const hoje = new Date();

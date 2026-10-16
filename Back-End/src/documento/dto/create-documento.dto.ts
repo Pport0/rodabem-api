@@ -26,6 +26,10 @@ export class CreateDocumentoDto {
   arquivoUrl?: string;
 
   @IsOptional()
+  @IsString()
+  publicId?: string;
+
+  @IsOptional()
   @IsInt()
   caminhaoId?: number;
 }

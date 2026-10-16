@@ -85,6 +85,7 @@ model Documento {
   observacao String?
 
   arquivoUrl String?
+  publicId   String? 
 
   userId Int
   user   User @relation(fields: [userId], references: [id])
