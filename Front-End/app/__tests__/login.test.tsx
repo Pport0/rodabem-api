@@ -25,6 +25,13 @@ const preencherEEnviar = async (identificador: string, senha: string) => {
 
 describe('Tela de login - conteudo', () => {
 
+  it('deve oferecer o caminho para quem esqueceu a senha', async () => {
+    await render(<Login />);
+
+    await fireEvent.press(screen.getByText('Esqueci minha senha'));
+
+    expect(jest.mocked(router.navigate)).toHaveBeenCalledWith('/forgotPassword');
+  });
 
   it('deve ocultar o texto digitado no campo de senha', async () => {
     await render(<Login />);
@@ -37,7 +44,6 @@ describe('Tela de login - conteudo', () => {
 });
 
 describe('Tela de login - envio', () => {
-
 
   it('deve autenticar apenas uma vez por toque no botao', async () => {
     await preencherEEnviar('62999999999', '123456');

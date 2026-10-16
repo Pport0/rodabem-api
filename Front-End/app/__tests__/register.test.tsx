@@ -94,9 +94,36 @@ describe('Tela de cadastro - validacao', () => {
     expect(mockSignUp).not.toHaveBeenCalled();
   });
 
+  it('nao deve exigir telefone, que a RNE-01 define como opcional', async () => {
+    await preencher({ telefone: '' });
+    await enviar();
 
+    expect(mockSignUp).toHaveBeenCalled();
+  });
 
+  it('deve recusar telefone incompleto quando o usuario escolhe informar um', async () => {
+    await preencher({ telefone: '6299' });
+    await enviar();
 
+    expect(screen.getByText('Telefone inválido')).toBeTruthy();
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
+  it('deve exigir a senha', async () => {
+    await preencher({ senha: '', confirmarSenha: '' });
+    await enviar();
+
+    expect(screen.getByText('Senha é obrigatória')).toBeTruthy();
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
+  it('deve recusar senha com menos de seis caracteres', async () => {
+    await preencher({ senha: '12345', confirmarSenha: '12345' });
+    await enviar();
+
+    expect(screen.getByText('A senha deve ter no mínimo 6 caracteres')).toBeTruthy();
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
 
   it('deve exigir a confirmacao de senha', async () => {
     await preencher({ confirmarSenha: '' });
@@ -114,8 +141,6 @@ describe('Tela de cadastro - validacao', () => {
     expect(mockSignUp).not.toHaveBeenCalled();
   });
 
-
-
   it('deve exigir o email, que o rotulo marca como obrigatorio', async () => {
     await preencher({ email: '' });
     await enviar();
@@ -128,6 +153,15 @@ describe('Tela de cadastro - validacao', () => {
     await enviar();
 
     expect(mockSignUp).not.toHaveBeenCalled();
+  });
+});
+
+describe('Tela de cadastro - rotulos', () => {
+  it('deve marcar com asterisco somente os campos obrigatorios', async () => {
+    await render(<Register />);
+
+    expect(screen.getByText('TELEFONE')).toBeTruthy();
+    expect(screen.queryByText('TELEFONE*')).toBeNull();
   });
 });
 
@@ -156,6 +190,5 @@ describe('Tela de cadastro - envio', () => {
       }),
     );
   });
-
 
 });
