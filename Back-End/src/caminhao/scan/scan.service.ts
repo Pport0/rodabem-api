@@ -9,7 +9,7 @@ import { fromBuffer } from 'pdf2pic';
 import { fileTypeFromBuffer } from 'file-type';
 
 const FORMATOS_ACEITOS = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-const TAMANHO_MAXIMO = 10 * 1024 * 1024;
+const TAMANHO_MAXIMO = 12 * 1024 * 1024
 
 @Injectable()
 export class ScanService {
@@ -35,7 +35,7 @@ export class ScanService {
 
     if (file.size > TAMANHO_MAXIMO) {
       throw new BadRequestException(
-        'Arquivo muito grande. O tamanho máximo permitido é 10MB.',
+       'Arquivo muito grande. O tamanho máximo permitido é 12MB.',
       );
     }
 
