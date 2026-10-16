@@ -1,5 +1,3 @@
-# RNE-01: o usuario gerencia a propria conta. Com e-mail definido como meio de recuperacao,"Esqueci minha senha" precisa
-# oferecer um caminho de recuperacao — nao uma tela vazia.
 appId: com.anonymous.rodabem
 name: login - oferece recuperacao de senha
 ---
@@ -9,7 +7,6 @@ name: login - oferece recuperacao de senha
     visible: "Esqueci minha senha"
     timeout: 30000
 - tapOn: "Esqueci minha senha"
-# A tela precisa pedir algo do usuario para que a recuperacao exista.
 - extendedWaitUntil:
     visible: ".*[Ee]-?mail.*"
     timeout: 20000

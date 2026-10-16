@@ -1,4 +1,3 @@
-# A tela inicial e o unico ponto de partida do usuario autenticado. Cada atalho precisa estar visivel e levar ao modulo correspondente.
 appId: com.anonymous.rodabem
 name: home - atalhos levam aos modulos
 ---

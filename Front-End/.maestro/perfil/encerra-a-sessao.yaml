@@ -1,4 +1,3 @@
-# RNE-02: "Logout: deve invalidar token/sessao e impedir novo acesso sem novo login". O resultado visivel e voltar a tela de abertura.
 appId: com.anonymous.rodabem
 name: perfil - encerra a sessao
 ---
