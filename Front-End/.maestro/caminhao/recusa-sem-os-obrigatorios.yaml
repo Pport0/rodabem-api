@@ -1,4 +1,3 @@
-# RNE-03: placa, modelo e renavam sao obrigatorios. Com so um deles o cadastro nao pode ser aceito.
 appId: com.anonymous.rodabem
 name: caminhao - recusa cadastro sem os campos obrigatorios
 ---
@@ -28,7 +27,6 @@ name: caminhao - recusa cadastro sem os campos obrigatorios
 - extendedWaitUntil:
     visible: "O que você precisa hoje?"
     timeout: 30000
-# O cartao MEU CAMINHAO da home leva ao PERFIL: o caminhao e uma secao dele, e o formulario abre pelo botao "Cadastrar Caminhao".
 - tapOn: "MEU CAMINHÃO"
 - extendedWaitUntil:
     visible: "Cadastrar Caminhão"
@@ -39,14 +37,12 @@ name: caminhao - recusa cadastro sem os campos obrigatorios
     timeout: 30000
 - tapOn: "Ex: Scania R450"
 - inputText: "Modelo sem placa nem renavam"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - scrollUntilVisible:
     element: "CADASTRAR CAMINHAO"
     direction: DOWN
     visibilityPercentage: 30
 - tapOn: "CADASTRAR CAMINHAO"
-# A recusa precisa ficar visivel para o usuario, de alguma forma.
-# O Maestro compara a linha inteira: sem `.*` nas pontas, "obrigatorio" nao encontra "Numero de eixos e obrigatorio".
 - extendedWaitUntil:
     visible: ".*obrigat.ri.*|.*inv.lid.*|Falha.*|Erro.*"
     timeout: 70000

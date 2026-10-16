@@ -1,6 +1,3 @@
-# Autentica na tela de login. Exige ja estar nela.
-# `hideKeyboard` entre os campos: sem isso o teclado cobre o campo de senha, o toque nao muda o foco, e os dois textos
-# entram no primeiro campo.
 appId: com.anonymous.rodabem
 ---
 - extendedWaitUntil:
@@ -8,8 +5,8 @@ appId: com.anonymous.rodabem
     timeout: 30000
 - tapOn: "Insira o seu cpf ou telefone"
 - inputText: ${CREDENCIAL}
-- hideKeyboard
+- runFlow: fechar-teclado.yaml
 - tapOn: "Insira a sua senha"
 - inputText: ${SENHA}
-- hideKeyboard
+- runFlow: fechar-teclado.yaml
 - tapOn: "Acessar"

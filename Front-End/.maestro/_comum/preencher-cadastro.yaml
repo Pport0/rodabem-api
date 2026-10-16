@@ -1,50 +1,23 @@
-# Preenche o formulario de criacao de conta.
-#
-# Recebe tudo por `env`, e precisa ser chamado DIRETO pelo fluxo de topo: no Maestro a passagem de variavel vale um
-# unico nivel. Com um invólucro no meio, `${NOME}` chega vazio e o campo fica em branco.
-#
-# `hideKeyboard` depois de cada campo, porque o teclado virtual cobre o tercao inferior e esconde o campo seguinte.
-# Duas armadilhas aprendidas aqui:
-#
-#   1. No Android o `hideKeyboard` do Maestro e uma tecla VOLTAR. Se o teclado nao estiver aberto, ele tira o app da
-#      tela e o campo seguinte "some" — o sintoma engana, parece elemento inexistente.
-#   2. Por isso o AVD desta bancada roda com `hw.keyboard=no`. Com teclado de hardware ligado, o teclado virtual aparecia
-#      so em alguns campos, e o `hideKeyboard` navegava para tras nos outros.
 appId: com.anonymous.rodabem
 ---
-# Esperar pelo placeholder do PRIMEIRO campo garante que os campos de entrada ja existem — os rotulos aparecem antes deles.
-# O titulo "CRIAR CONTA" nao serve de sinal, porque esse mesmo texto e o rotulo do botao na abertura.
-#
-# O Maestro compara texto por regex de linha inteira, entao rotulo terminado em asterisco ("CONFIRME SUA SENHA*")
-# exigiria escape. Placeholder nao tem esse problema.
 - extendedWaitUntil:
     visible: "Digite aqui o seu nome completo"
     timeout: 30000
 - tapOn: "Digite aqui o seu nome completo"
 - inputText: ${NOME}
-- hideKeyboard
+- runFlow: fechar-teclado.yaml
 - tapOn: "000.000.000-00"
 - inputText: ${CPF}
-- hideKeyboard
+- runFlow: fechar-teclado.yaml
 - tapOn: "(00) 00000-0000"
 - inputText: ${TELEFONE}
-- hideKeyboard
-# O formulario e mais alto que a tela: cada campo abaixo da dobra precisa ser trazido antes do toque.
-- scrollUntilVisible:
-    element: "Digite aqui o seu email"
-    direction: DOWN
+- runFlow: fechar-teclado.yaml
 - tapOn: "Digite aqui o seu email"
 - inputText: ${EMAIL}
-- hideKeyboard
-- scrollUntilVisible:
-    element: "Digite uma senha"
-    direction: DOWN
+- runFlow: fechar-teclado.yaml
 - tapOn: "Digite uma senha"
 - inputText: ${SENHA}
-- hideKeyboard
-- scrollUntilVisible:
-    element: "Confirme a sua senha"
-    direction: DOWN
+- runFlow: fechar-teclado.yaml
 - tapOn: "Confirme a sua senha"
 - inputText: ${SENHA}
-- hideKeyboard
+- runFlow: fechar-teclado.yaml

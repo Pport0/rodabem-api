@@ -1,4 +1,3 @@
-# RNE-02: "As credenciais devem ser validadas". Senha errada nao entra.
 appId: com.anonymous.rodabem
 name: login - recusa senha incorreta
 ---
@@ -25,8 +24,6 @@ name: login - recusa senha incorreta
     env:
       CREDENCIAL: ${output.telefone}
       SENHA: "senha_errada_999"
-# O aviso concatena a mensagem do erro sem separador (`'Falha ao fazer login' + error.message` em authContext.tsx:45),
-# e o Maestro compara texto por regex de linha inteira — por isso o `.*` no fim.
 - extendedWaitUntil:
     visible: "Falha ao fazer login.*"
     timeout: 70000

@@ -1,4 +1,3 @@
-# RNE-03: "Vinculo (1:1): cada usuario pode ter apenas 1 caminhao" e "Cadastro: permitido apenas se o usuario ainda nao tiver caminhao".
 appId: com.anonymous.rodabem
 name: caminhao - recusa um segundo caminhao para a mesma conta
 ---
@@ -28,7 +27,6 @@ name: caminhao - recusa um segundo caminhao para a mesma conta
 - extendedWaitUntil:
     visible: "O que você precisa hoje?"
     timeout: 30000
-# O cartao MEU CAMINHAO da home leva ao PERFIL: o caminhao e uma secao dele, e o formulario abre pelo botao "Cadastrar Caminhao".
 - tapOn: "MEU CAMINHÃO"
 - extendedWaitUntil:
     visible: "Cadastrar Caminhão"
@@ -39,16 +37,16 @@ name: caminhao - recusa um segundo caminhao para a mesma conta
     timeout: 30000
 - tapOn: "ABC1234 ou ABC1D23"
 - inputText: "RDB1A23"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - tapOn: "Ex: Scania R450"
 - inputText: "Scania R450"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - tapOn: "00000000000"
 - inputText: "12345678901"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - tapOn: "Ex: 6"
 - inputText: "6"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - scrollUntilVisible:
     element: "CADASTRAR CAMINHAO"
     direction: DOWN
@@ -57,5 +55,4 @@ name: caminhao - recusa um segundo caminhao para a mesma conta
 - extendedWaitUntil:
     visible: "RDB1A23"
     timeout: 30000
-# Com um caminhao ja cadastrado, a tela nao pode oferecer um novo cadastro.
 - assertNotVisible: "Cadastrar Caminhão"

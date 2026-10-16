@@ -1,0 +1,37 @@
+appId: com.anonymous.rodabem
+---
+- tapOn: "MEU CAMINHÃO"
+- extendedWaitUntil:
+    visible: "Cadastrar Caminhão"
+    timeout: 30000
+- tapOn: "Cadastrar Caminhão"
+- extendedWaitUntil:
+    visible: "ABC1234 ou ABC1D23"
+    timeout: 30000
+- tapOn: "ABC1234 ou ABC1D23"
+- inputText: "RDB1A23"
+- runFlow: fechar-teclado.yaml
+- tapOn: "Ex: Scania R450"
+- inputText: "Scania R450"
+- runFlow: fechar-teclado.yaml
+- tapOn: "00000000000"
+- inputText: "12345678901"
+- runFlow: fechar-teclado.yaml
+- scrollUntilVisible:
+    element: "Ex: 6"
+    direction: DOWN
+- tapOn: "Ex: 6"
+- inputText: "6"
+- runFlow: fechar-teclado.yaml
+- scrollUntilVisible:
+    element: "CADASTRAR CAMINHAO"
+    direction: DOWN
+    visibilityPercentage: 30
+- tapOn: "CADASTRAR CAMINHAO"
+- extendedWaitUntil:
+    visible: "RDB1A23"
+    timeout: 30000
+- back
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000

@@ -1,10 +1,3 @@
-# Abertura padrao de todo fluxo.
-#
-# Na build de desenvolvimento o aviso do LogBox ("Open debugger to view # warnings") fica no rodape, mas sua
-# AREA DE TOQUE sobe cerca de 16% acima da base e engole qualquer botao ali.
-#
-# A release so alcanca a API local porque `android/app/src/release/ AndroidManifest.xml` concede `usesCleartextTraffic`.
-# Sem isso, com targetSdk 36, o Android bloqueia HTTP e todo fluxo falha por motivo que nao e defeito.
 appId: com.anonymous.rodabem
 ---
 - launchApp:
