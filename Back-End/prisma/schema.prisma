@@ -24,7 +24,7 @@ model User {
   cpfEncrypted String
   cpfHash      String @unique
 
-  telefone  String?
+  telefone  String? @unique
   avatarUrl String?
 
   status Boolean @default(true)

@@ -7,7 +7,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { encrypt, createHash, decrypt } from '../common/utils/crypto.util'; // 👈 adicionar decrypt
+import { encrypt, createHash, decrypt } from '../common/utils/crypto.util';
 
 function isValidCPF(cpf: string): boolean {
   const cleaned = cpf.replace(/\D/g, '');
@@ -46,6 +46,14 @@ export class UsersService {
     const emailExisting = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (emailExisting) throw new ConflictException('E-mail já cadastrado');
 
+    
+    if (dto.telefone) {
+      const telefoneExisting = await this.prisma.user.findUnique({
+        where: { telefone: dto.telefone },
+      });
+      if (telefoneExisting) throw new ConflictException('Telefone já cadastrado');
+    }
+
     const senhaHash = await bcrypt.hash(dto.senha, 10);
     const cpfEncrypted = encrypt(dto.cpf);
 
@@ -75,7 +83,7 @@ export class UsersService {
         avatarUrl: true,
         status: true,
         createdAt: true,
-        cpfEncrypted: true, 
+        cpfEncrypted: true,
       },
     });
 
