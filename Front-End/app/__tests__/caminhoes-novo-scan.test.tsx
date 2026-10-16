@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import React, { ReactNode } from 'react';
 
@@ -7,15 +8,6 @@ import NovoCaminhao from '../caminhoes/novo';
 import { getMeuCaminhao, scanCaminhao } from '@/services/caminhaoService';
 import { Toast } from '@/shared/ui/molecules/Toast';
 
-/**
- * Contrato da RNE-06 na tela de cadastro de caminhao.
- *
- * A regra promete quatro coisas, e so estas quatro:
- *   - o sistema TENTA extrair os dados;
- *   - o que saiu da extracao e exibido PARA REVISAO;
- *   - o usuario pode CORRIGIR qualquer campo antes de salvar;
- *   - se o OCR falhar, parcial ou totalmente, o cadastro NAO e impedido.
- */
 jest.mock('@/services/caminhaoService', () => ({
   getMeuCaminhao: jest.fn(),
   createCaminhao: jest.fn(),
@@ -40,7 +32,7 @@ jest.mock('expo-document-picker', () => ({
 
 const montarTela = async () => {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false, gcTime: 0 } },
   });
 
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -82,6 +74,93 @@ const resultadoScan = (sobrescreve: Record<string, unknown> = {}) => ({
   confianca: 'alta',
   mensagem: 'Dados extraídos com sucesso.',
   ...sobrescreve,
+});
+
+describe('Scan do caminhao — origem do arquivo', () => {
+  // A tela oferece duas origens: a camera e o botao "PDF ou imagem", que abre o seletor de
+  // documentos. O terceiro ramo do `pickFileAndScan`, `source === "library"`, nao tem botao
+  // que o acione em nenhum lugar do arquivo — e codigo inalcancavel, nao lacuna de teste.
+  it('deve escanear o arquivo escolhido no seletor de documentos', async () => {
+    jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///crlv.pdf', name: 'crlv.pdf', mimeType: 'application/pdf' }],
+    } as any);
+    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
+
+    await montarTela();
+    await fireEvent.press(screen.getByText('PDF ou imagem'));
+
+    await waitFor(() => expect(scanCaminhao).toHaveBeenCalled());
+
+    expect(jest.mocked(scanCaminhao).mock.calls[0][0]).toMatchObject({
+      uri: 'file:///crlv.pdf',
+      name: 'crlv.pdf',
+      type: 'application/pdf',
+    });
+  });
+
+  it('nao deve escanear quando o usuario fecha o seletor sem escolher', async () => {
+    jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
+      canceled: true,
+    } as any);
+
+    await montarTela();
+    await fireEvent.press(screen.getByText('PDF ou imagem'));
+
+    expect(scanCaminhao).not.toHaveBeenCalled();
+  });
+
+  it('nao deve escanear quando o usuario fecha a camera sem tirar a foto', async () => {
+    // Desistir da foto e o caminho mais comum depois de abrir a camera por engano. Seguir para
+    // o scan mandaria um arquivo inexistente e devolveria erro de OCR sem causa aparente.
+    jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockResolvedValue({
+      granted: true,
+    } as any);
+    jest.mocked(ImagePicker.launchCameraAsync).mockResolvedValue({
+      canceled: true,
+    } as any);
+
+    await escanearPelaCamera();
+
+    expect(scanCaminhao).not.toHaveBeenCalled();
+  });
+
+  // O back recusa o arquivo pelo `Content-Type`. Nem todo seletor informa o tipo — o de
+  // documentos do Android devolve `mimeType` vazio para arquivo vindo de certos provedores —
+  // e sem deducao pela extensao o upload sai com o tipo errado e o scan falha no envio.
+  it.each([
+    ['pdf', 'crlv.pdf', 'application/pdf'],
+    ['png', 'crlv.png', 'image/png'],
+    ['sem extensao conhecida', 'crlv', 'image/jpeg'],
+  ])('deve deduzir o tipo do arquivo %s quando o seletor nao o informa', async (_, nome, tipo) => {
+    jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: `file:///${nome}`, name: nome, mimeType: null }],
+    } as any);
+    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
+
+    await montarTela();
+    await fireEvent.press(screen.getByText('PDF ou imagem'));
+
+    await waitFor(() => expect(scanCaminhao).toHaveBeenCalled());
+    expect(jest.mocked(scanCaminhao).mock.calls[0][0]).toMatchObject({ type: tipo });
+  });
+
+  it('deve nomear o arquivo quando o seletor nao informa nome', async () => {
+    // Acontece com arquivo vindo de provedor de nuvem. Enviar `name` vazio faz o `multipart`
+    // sair sem nome de arquivo, e o back responde 400 sem explicar o motivo.
+    jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///tmp/abc', name: '   ', mimeType: 'application/pdf' }],
+    } as any);
+    jest.mocked(scanCaminhao).mockResolvedValue(resultadoScan() as any);
+
+    await montarTela();
+    await fireEvent.press(screen.getByText('PDF ou imagem'));
+
+    await waitFor(() => expect(scanCaminhao).toHaveBeenCalled());
+    expect(jest.mocked(scanCaminhao).mock.calls[0][0].name.trim()).not.toBe('');
+  });
 });
 
 describe('Scan do caminhao — contrato da RNE-06', () => {
@@ -145,6 +224,56 @@ describe('Scan do caminhao — contrato da RNE-06', () => {
     await fireEvent.changeText(placa, 'XYZ9A88');
     expect(screen.getByDisplayValue('XYZ9A88')).toBeTruthy();
     expect(screen.getByText('CADASTRAR CAMINHAO')).toBeTruthy();
+  });
+
+  // O scan falha de tres jeitos distintos, e so o terceiro e culpa do arquivo: o back recusa
+  // com mensagem propria (arquivo grande demais, formato nao aceito), a rede cai antes de
+  // chegar la, ou o erro vem sem nada legivel. Repetir "erro ao escanear" nos tres mandaria o
+  // motorista tirar a foto de novo quando o problema e a conexao.
+  it.each([
+    [
+      'mensagem do back',
+      { response: { data: { message: 'Arquivo maior que 12MB.' } } },
+      'Arquivo maior que 12MB.',
+    ],
+    [
+      'lista de mensagens do back',
+      { response: { data: { message: ['Formato nao aceito.'] } } },
+      'Formato nao aceito.',
+    ],
+    ['erro sem nada legivel', {}, 'Erro ao executar o scan do caminhão'],
+  ])('deve dizer por que a extracao falhou quando o erro vem como %s', async (_, erro, naTela) => {
+    jest.mocked(scanCaminhao).mockRejectedValue(erro as never);
+
+    await escanearPelaCamera();
+
+    expect(Toast.show).toHaveBeenCalledWith(naTela, expect.objectContaining({ type: 'error' }));
+  });
+
+  it('deve informar o quanto a extracao merece confianca', async () => {
+    // A RNE-06 manda exibir o resultado PARA REVISAO. Sem o nivel de confianca o motorista nao
+    // sabe se confere tudo ou so passa o olho — e e justamente a revisao que impede que uma
+    // placa lida errado vire dado errado.
+    jest.mocked(scanCaminhao).mockResolvedValue(
+      resultadoScan({ confianca: 'baixa', mensagem: 'Imagem de baixa qualidade.' }) as any,
+    );
+
+    await escanearPelaCamera();
+
+    expect(screen.getByText(/Imagem de baixa qualidade\./)).toBeTruthy();
+    expect(screen.getByText(/BAIXA/)).toBeTruthy();
+  });
+
+  it('deve exibir so a mensagem quando a extracao nao informa confianca', async () => {
+    // O back pode responder sem o campo. Concatenar "| Confianca: UNDEFINED" seria pior do que
+    // nao dizer nada.
+    jest.mocked(scanCaminhao).mockResolvedValue(
+      resultadoScan({ confianca: null, mensagem: 'Dados extraídos.' }) as any,
+    );
+
+    await escanearPelaCamera();
+
+    expect(screen.getByText('Dados extraídos.')).toBeTruthy();
   });
 
   it('nao deve acionar a extracao quando a permissao de camera e negada', async () => {

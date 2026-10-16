@@ -56,7 +56,7 @@ const criarPendencia = () =>
 
 const montarTela = async () => {
   const cliente = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false, gcTime: 0 } },
   });
 
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -181,6 +181,28 @@ describe('Listagem de abastecimentos - dados do cartao', () => {
     expect(screen.getByText('Posto: Posto Rota Norte')).toBeTruthy();
     expect(screen.getByText('Local: BR-116, km 245')).toBeTruthy();
     expect(screen.getByText('Obs: tanque cheio')).toBeTruthy();
+  });
+});
+
+describe('Listagem de abastecimentos - tipo de combustivel', () => {
+  it('deve nomear por extenso cada combustivel que o back reconhece', async () => {
+    // O back guarda `DIESEL_S500`; mostrar o codigo cru na tela faria o motorista conferir se
+    // abasteceu o combustivel certo lendo nome de constante.
+    await montarComRegistros([
+      { ...abastecimento, id: 11, tipoCombustivel: 'DIESEL_S500' as const },
+    ]);
+
+    expect(screen.getByText('Diesel S500')).toBeTruthy();
+  });
+
+  it('deve exibir como veio o combustivel que ainda nao conhece', async () => {
+    // Quando o back ganhar um tipo novo — GNV, biodiesel — a listagem antiga continua sendo
+    // aberta. Deixar o campo em branco esconderia o dado; mostrar o codigo pelo menos informa.
+    await montarComRegistros([
+      { ...abastecimento, id: 12, tipoCombustivel: 'GNV' as never },
+    ]);
+
+    expect(screen.getByText('GNV')).toBeTruthy();
   });
 });
 

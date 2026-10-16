@@ -56,7 +56,7 @@ const registroExistente = {
 
 const montarTela = async () => {
   const cliente = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false, gcTime: 0 } },
   });
 
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -88,10 +88,6 @@ const preencherObrigatorios = async (
 const enviar = async (rotulo = 'CADASTRAR ABASTECIMENTO') =>
   fireEvent.press(screen.getByText(rotulo));
 
-/**
- * Promessa que so termina quando o teste manda, para observar estados
- * intermediarios sem deixar operacao pendurada apos o teste.
- */
 const pendencias: ((valor: unknown) => void)[] = [];
 const criarPendencia = () =>
   new Promise((resolve) => {
@@ -264,6 +260,23 @@ describe('Novo abastecimento - montagem do payload', () => {
 
 });
 
+describe('Novo abastecimento - tipo de combustivel', () => {
+  it('deve enviar o combustivel escolhido, e nao o padrao da tela', async () => {
+    // O padrao e Diesel S10. Quem abastece Arla toca no outro botao, e se a escolha nao chegar
+    // ao back o calculo de consumo passa a misturar dois liquidos diferentes.
+    await montarTela();
+    await preencherObrigatorios();
+    await fireEvent.press(screen.getByText('Arla 32'));
+
+    await enviar();
+
+    await waitFor(() => expect(createAbastecimento).toHaveBeenCalled());
+    expect(jest.mocked(createAbastecimento).mock.calls[0][0]).toMatchObject({
+      tipoCombustivel: 'ARLA_32',
+    });
+  });
+});
+
 describe('Novo abastecimento - modo cadastro', () => {
 
 
@@ -294,6 +307,21 @@ describe('Novo abastecimento - modo edicao', () => {
     expect(screen.getByDisplayValue('320')).toBeTruthy();
     expect(screen.getByDisplayValue('Posto Rota Norte')).toBeTruthy();
     expect(screen.getByDisplayValue('tanque cheio')).toBeTruthy();
+  });
+
+  it('nao deve escrever "null" nos opcionais que o registro nao tem', async () => {
+    // Posto, local e observacao sao opcionais e voltam `null` do back. Jogar o valor direto no
+    // campo escreveria a palavra "null" no formulario, e ela seria salva na primeira edicao.
+    await montarEdicao({
+      ...registroExistente,
+      localDescricao: null as never,
+      postoIdentificado: null as never,
+      observacao: null as never,
+    });
+
+    expect(screen.getByPlaceholderText(CAMPO_POSTO).props.value).toBe('');
+    expect(screen.getByPlaceholderText(CAMPO_LOCAL).props.value).toBe('');
+    expect(screen.getByPlaceholderText(CAMPO_OBSERVACAO).props.value).toBe('');
   });
 
 
@@ -342,8 +370,23 @@ describe('Novo abastecimento - falhas da api', () => {
   const falharCom = (data: unknown) =>
     jest.mocked(createAbastecimento).mockRejectedValue({ response: { data } });
 
-  it('deve exibir a mensagem devolvida pela api', async () => {
-    falharCom({ message: 'Você precisa cadastrar um caminhão antes.' });
+  // As tres formas abaixo sao as que o back produz de verdade: o `ValidationPipe` devolve LISTA
+  // de mensagens, as excecoes do service devolvem TEXTO, e queda de rede nao devolve corpo
+  // nenhum. "Cadastre um caminhao" e coisa que o motorista resolve; rede caida nao.
+  it.each([
+    [
+      'texto',
+      { message: 'Você precisa cadastrar um caminhão antes.' },
+      'Você precisa cadastrar um caminhão antes.',
+    ],
+    [
+      'lista',
+      { message: ['Você precisa cadastrar um caminhão antes.'] },
+      'Você precisa cadastrar um caminhão antes.',
+    ],
+    ['nada', undefined, 'Nao foi possivel salvar o abastecimento.'],
+  ])('deve explicar a recusa quando a api responde com %s', async (_, data, naTela) => {
+    falharCom(data);
     await montarTela();
     await preencherObrigatorios();
 
@@ -351,7 +394,7 @@ describe('Novo abastecimento - falhas da api', () => {
 
     await waitFor(() =>
       expect(Toast.show).toHaveBeenCalledWith(
-        'Você precisa cadastrar um caminhão antes.',
+        naTela,
         expect.objectContaining({ type: 'error' }),
       ),
     );
