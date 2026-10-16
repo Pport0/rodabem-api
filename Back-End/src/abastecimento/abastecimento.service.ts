@@ -138,15 +138,13 @@ export class AbastecimentoService {
     return { message: 'Abastecimento excluído com sucesso.' };
   }
 
-  // Item 15 — relatório por período
   async relatorio(userId: number, dataInicio: string, dataFim: string) {
     if (!dataInicio || !dataFim) {
       throw new BadRequestException('dataInicio e dataFim são obrigatórios.');
     }
 
-    const inicio = new Date(dataInicio);
-    const fim = new Date(dataFim);
-    fim.setHours(23, 59, 59, 999); // inclui o dia final completo
+   const inicio = new Date(dataInicio + 'T00:00:00.000Z');
+   const fim = new Date(dataFim + 'T23:59:59.999Z');
 
     if (inicio > fim) {
       throw new BadRequestException('dataInicio não pode ser maior que dataFim.');
