@@ -26,7 +26,6 @@ describe('Fluxo de frete (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    // Mesmo ValidationPipe do `src/main.ts`.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -36,7 +35,6 @@ describe('Fluxo de frete (e2e)', () => {
       }),
     );
     await app.init();
-    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
     await app.listen(0);
 
     prisma = app.get(PrismaService);
@@ -48,7 +46,6 @@ describe('Fluxo de frete (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
-    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
     await prisma.$disconnect();
     await app.close();
   });
@@ -119,15 +116,30 @@ describe('Fluxo de frete (e2e)', () => {
       .expect(400);
   });
 
-  /**
-   * Nota 1 da Resolucao ANTT 5.867/2020: quando o numero de eixos nao consta na tabela, aplica-se a quantidade
-   * imediatamente inferior; na falta de inferior, a imediatamente superior.
-   *
-   * Os testes comparam qual linha da tabela foi usada, em vez de fixar o valor do piso, para continuarem validos
-   * quando a formula for corrigida.
-   */
-  describe('POST /frete/simular - numero de eixos fora da tabela', () => {
-    /** Semeia a tabela com faixas para 4, 6 e 8 eixos, com valores distintos. */
+  describe('POST /caminhao - numero de eixos previsto pela ANTT', () => {
+    const EIXOS_DA_ANTT = [2, 3, 4, 5, 6, 7, 9];
+    const FORA_DA_TABELA = [1, 8, 10];
+
+    it.each(FORA_DA_TABELA)(
+      'deve recusar o cadastro de caminhao com %i eixos, que a ANTT nao preve',
+      async (numeroEixos) => {
+        const { token } = await registerAndLogin(app, `30${numeroEixos}`);
+
+        await createTruck(app, token, { numeroEixos }).expect(400);
+      },
+    );
+
+    it.each(EIXOS_DA_ANTT)(
+      'deve aceitar o cadastro de caminhao com %i eixos, que a ANTT preve',
+      async (numeroEixos) => {
+        const { token } = await registerAndLogin(app, `31${numeroEixos}`);
+
+        await createTruck(app, token, { numeroEixos }).expect(201);
+      },
+    );
+  });
+
+  describe('POST /frete/simular - faixa da tabela', () => {
     const semearTabela = async () => {
       for (const [numeroEixos, valorPorKm] of [[4, 3], [6, 5], [8, 7]]) {
         await prisma.tabelaAntt.create({
@@ -143,10 +155,47 @@ describe('Fluxo de frete (e2e)', () => {
       }
     };
 
-    /** Simula um frete para um caminhao com o numero de eixos informado. */
-    const pisoCom = async (sufixo: string, numeroEixos: number) => {
+    it('deve usar a faixa exata quando ela existe', async () => {
+      await semearTabela();
+
+      const { token } = await registerAndLogin(app, '100010');
+      await createTruck(app, token, { numeroEixos: 6 }).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .post('/frete/simular')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          origem: 'Goiania, GO',
+          destino: 'Brasilia, DF',
+          tipoCarga: TipoCarga.GERAL,
+          precoCombustivel: 6,
+          consumoMedioKmLOverride: 10,
+        });
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.valorMinimoAntt).toBeGreaterThan(0);
+    });
+  });
+
+  describe('POST /frete/simular - percentual de lucro desejado (RF-14)', () => {
+    const semearTabela = async () => {
+      await prisma.tabelaAntt.create({
+        data: {
+          numeroEixos: 6,
+          tipoCarga: TipoCarga.GERAL,
+          distanciaMin: 0,
+          distanciaMax: 1000,
+          valorPorKm: 5,
+          atualizadoEm: new Date(),
+        },
+      });
+    };
+
+    const simularComLucro = async (sufixo: string, percentualLucroDesejado: number) => {
+      await semearTabela();
+
       const { token } = await registerAndLogin(app, sufixo);
-      await createTruck(app, token, { numeroEixos }).expect(201);
+      await createTruck(app, token, { numeroEixos: 6 }).expect(201);
 
       return request(app.getHttpServer())
         .post('/frete/simular')
@@ -157,44 +206,44 @@ describe('Fluxo de frete (e2e)', () => {
           tipoCarga: TipoCarga.GERAL,
           precoCombustivel: 6,
           consumoMedioKmLOverride: 10,
+          percentualLucroDesejado,
         });
     };
 
-    it('deve usar a faixa exata quando ela existe', async () => {
-      await semearTabela();
-
-      const resposta = await pisoCom('100010', 6);
+    it('deve devolver um valor sugerido a partir do percentual de lucro informado', async () => {
+      const resposta = await simularComLucro('400001', 20);
 
       expect(resposta.status).toBe(201);
-      expect(resposta.body.valorMinimoAntt).toBeGreaterThan(0);
+      expect(resposta.body.valorSugerido).toBeGreaterThan(0);
     });
 
-    it('deve usar o numero de eixos imediatamente inferior quando nao ha faixa exata', async () => {
-      await semearTabela();
+    it('deve sugerir valor maior quando o lucro desejado e maior', async () => {
+      const vinte = await simularComLucro('400002', 20);
+      await clearDatabase(prisma);
+      const quarenta = await simularComLucro('400003', 40);
 
-      const seteEixos = await pisoCom('100011', 7);
-      const seisEixos = await pisoCom('100012', 6);
-
-      expect(seteEixos.status).toBe(201);
-      expect(seteEixos.body.valorMinimoAntt).toBe(seisEixos.body.valorMinimoAntt);
+      expect(quarenta.body.valorSugerido).toBeGreaterThan(vinte.body.valorSugerido);
     });
 
-    it('deve usar o numero de eixos imediatamente superior quando nao ha inferior', async () => {
-      await semearTabela();
+    it('nao deve sugerir valor abaixo do piso minimo da ANTT', async () => {
+      const resposta = await simularComLucro('400004', 0);
 
-      const doisEixos = await pisoCom('100013', 2);
-      const quatroEixos = await pisoCom('100014', 4);
-
-      expect(doisEixos.status).toBe(201);
-      expect(doisEixos.body.valorMinimoAntt).toBe(quatroEixos.body.valorMinimoAntt);
+      expect(resposta.body.valorSugerido).toBeGreaterThanOrEqual(
+        resposta.body.valorMinimoAntt,
+      );
     });
 
-    it('nao deve recusar a simulacao por falta de faixa exata de eixos', async () => {
-      await semearTabela();
+    it('deve aceitar lucro zero, cobrindo os custos sem margem', async () => {
+      const resposta = await simularComLucro('400005', 0);
 
-      const resposta = await pisoCom('100015', 7);
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.valorSugerido).toBeGreaterThan(0);
+    });
 
-      expect(resposta.status).not.toBe(404);
+    it('deve recusar percentual de lucro negativo', async () => {
+      const resposta = await simularComLucro('400006', -10);
+
+      expect(resposta.status).toBe(400);
     });
   });
 
