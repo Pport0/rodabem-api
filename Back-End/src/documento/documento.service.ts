@@ -136,10 +136,11 @@ export class DocumentoService {
     if (doc.publicId) {
       try {
         await this.cloudinaryService.deleteFile(doc.publicId);
-      } catch (err) {
+      } catch (err: unknown) {
         this.logger.warn(
-          `Nao foi possivel remover arquivo do Cloudinary (publicId: ${doc.publicId}): ${err?.message}`,
+          'Nao foi possivel remover arquivo do Cloudinary (publicId: ' + doc.publicId + '): ' + (err instanceof Error ? err.message : 'erro desconhecido'),
         );
+
       }
     }
 
