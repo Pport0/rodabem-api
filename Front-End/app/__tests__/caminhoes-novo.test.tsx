@@ -156,8 +156,6 @@ describe('Caminhao - modo cadastro', () => {
 
 describe('Caminhao - campos opcionais', () => {
   it('deve enviar como numero o ano e o numero de eixos', async () => {
-    // Os dois saem do formulario como texto. Enviar "2020" em vez de 2020 faz o
-    // `ValidationPipe` do back recusar o cadastro inteiro com "must be an integer".
     await montarTela(null);
     await waitFor(() => expect(screen.getByText('CADASTRAR CAMINHAO')).toBeTruthy());
 
@@ -177,8 +175,6 @@ describe('Caminhao - campos opcionais', () => {
   });
 
   it('nao deve deixar o ano passar de quatro digitos', async () => {
-    // Digito a mais num campo numerico e erro de digitacao, nao intencao. O back aceitaria
-    // 20201 como ano e o caminhao apareceria com idade negativa nos relatorios.
     await montarTela(null);
     await waitFor(() => expect(screen.getByText('CADASTRAR CAMINHAO')).toBeTruthy());
 
@@ -188,8 +184,6 @@ describe('Caminhao - campos opcionais', () => {
   });
 
   it('nao deve enviar os opcionais deixados em branco', async () => {
-    // Mandar `""` gravaria string vazia no banco, que depois aparece como campo preenchido e
-    // em branco na tela de perfil, em vez do travessao de "nao informado".
     await montarTela(null);
     await waitFor(() => expect(screen.getByText('CADASTRAR CAMINHAO')).toBeTruthy());
 
@@ -249,8 +243,6 @@ describe('Caminhao - modo edicao', () => {
     });
   });
 
-  // As tres formas sao as que o back produz: LISTA vinda do `ValidationPipe`, TEXTO vindo das
-  // excecoes do service, e nada quando a rede cai.
   it.each([
     [
       'texto',
@@ -307,5 +299,19 @@ describe('Caminhao - validacao do formulario', () => {
     expect(screen.getByText('Modelo e obrigatorio')).toBeTruthy();
     expect(screen.getByText('RENAVAM invalido')).toBeTruthy();
     expect(screen.getByText('Numero de eixos e obrigatorio')).toBeTruthy();
+  });
+
+  it('deve distinguir eixos em branco de eixos fora da faixa', async () => {
+    await montarTela(null);
+    await waitFor(() => expect(screen.getByText('CADASTRAR CAMINHAO')).toBeTruthy());
+
+    await preencherObrigatorios();
+    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_EIXOS), '1');
+    await enviar();
+
+    await waitFor(() =>
+      expect(screen.getByText('Informe um numero de eixos valido')).toBeTruthy(),
+    );
+    expect(screen.queryByText('Numero de eixos e obrigatorio')).toBeNull();
   });
 });

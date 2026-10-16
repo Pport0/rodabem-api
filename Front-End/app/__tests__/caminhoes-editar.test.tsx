@@ -64,7 +64,6 @@ const montarTela = async (caminhao: unknown = caminhaoExistente) => {
   return render(<EditarCaminhao />, { wrapper });
 };
 
-/** Monta a tela e espera o formulario receber os dados do caminhao. */
 const montarComDados = async () => {
   await montarTela();
   await waitFor(() => expect(screen.getByDisplayValue('ABC1D23')).toBeTruthy());
@@ -99,8 +98,6 @@ describe('Edicao de caminhao - carregamento', () => {
   });
 
   it('nao deve exibir "null" quando o caminhao vem com campos vazios', async () => {
-    // Os `?? ''` do efeito existem para isso: sem eles o React imprime "null" dentro do campo,
-    // e o usuario nao percebe que precisa preencher.
     await montarTela({
       ...caminhaoExistente,
       placa: null,
@@ -118,8 +115,6 @@ describe('Edicao de caminhao - carregamento', () => {
   });
 
   it('deve deixar vazios os campos opcionais que o caminhao nao tem', async () => {
-    // RNE-03: marca, cor e ano sao opcionais. Vindos nulos, os campos ficam em branco em vez
-    // de exibir "null" ou "undefined".
     await montarTela({
       ...caminhaoExistente,
       marca: null,
@@ -160,6 +155,18 @@ describe('Edicao de caminhao - validacao', () => {
     await waitFor(() =>
       expect(screen.getByText('Placa invalida (ex: ABC1234 ou ABC1D23)')).toBeTruthy(),
     );
+  });
+
+  it('deve distinguir eixos em branco de eixos fora da faixa', async () => {
+    await montarComDados();
+
+    await fireEvent.changeText(screen.getByPlaceholderText(CAMPO_EIXOS), '1');
+    await salvar();
+
+    await waitFor(() =>
+      expect(screen.getByText('Informe um numero de eixos valido')).toBeTruthy(),
+    );
+    expect(screen.queryByText('Numero de eixos e obrigatorio')).toBeNull();
   });
 });
 
@@ -228,7 +235,6 @@ describe('Edicao de caminhao - envio', () => {
 });
 
 describe('Edicao de caminhao - exclusao', () => {
-  /** Dispara o botao de excluir e devolve os botoes do alerta de confirmacao. */
   const pedirExclusao = async () => {
     const alerta = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
@@ -268,8 +274,6 @@ describe('Edicao de caminhao - exclusao', () => {
   });
 
   it('deve sinalizar que a exclusao esta em andamento', async () => {
-    // Promessa que so resolve quando o teste manda, para observar o estado intermediario sem
-    // deixar operacao pendurada depois que o teste termina.
     let liberar: (valor: unknown) => void = () => {};
     jest
       .mocked(deleteCaminhao)
@@ -287,8 +291,6 @@ describe('Edicao de caminhao - exclusao', () => {
   });
 
   it('deve exibir o motivo quando a exclusao e recusada', async () => {
-    // O back bloqueia a exclusao de caminhao com documentos, abastecimentos ou simulacoes
-    // vinculados. O motivo precisa chegar ao usuario, senao o botao parece nao funcionar.
     jest.mocked(deleteCaminhao).mockRejectedValue({
       response: { data: { message: 'Caminhao possui abastecimentos vinculados.' } },
     } as never);

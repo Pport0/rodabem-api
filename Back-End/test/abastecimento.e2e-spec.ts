@@ -200,6 +200,28 @@ describe('Fluxo de abastecimento (e2e)', () => {
     it('deve exigir autenticacao', async () => {
       await request(app.getHttpServer()).post('/abastecimentos').send({}).expect(401);
     });
+
+    it.each([
+      ['latitude', 'nao e um numero', '700011'],
+      ['longitude', 'nao e um numero', '700012'],
+      ['imagemUrl', 42, '700013'],
+    ])('deve recusar %s com tipo errado', async (campo, valor, sufixo) => {
+      const token = await comCaminhao(sufixo as string);
+
+      await abastecer(token, { [campo as string]: valor }).expect(400);
+    });
+
+    it('deve aceitar a localizacao e a imagem quando vem no tipo certo', async () => {
+      const token = await comCaminhao('700020');
+
+      const resposta = await abastecer(token, {
+        latitude: -16.6746,
+        longitude: -49.3036,
+        imagemUrl: 'https://exemplo.test/nota.jpg',
+      }).expect(201);
+
+      expect(resposta.body.id).toBeDefined();
+    });
   });
 
   describe('GET /abastecimentos', () => {
