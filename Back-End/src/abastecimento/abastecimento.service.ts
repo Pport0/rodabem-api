@@ -208,7 +208,7 @@ export class AbastecimentoService {
       select: { quilometragem: true },
     });
 
-    if (ultimo && quilometragem < ultimo.quilometragem) {
+    if (ultimo && quilometragem <= ultimo.quilometragem) {
       throw new BadRequestException(
         `A quilometragem informada (${quilometragem} km) não pode ser menor que a última registrada (${ultimo.quilometragem} km).`,
       );
