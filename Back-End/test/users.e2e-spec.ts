@@ -29,7 +29,6 @@ describe('Usuarios (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    // Mesmo ValidationPipe do `src/main.ts`.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -39,7 +38,6 @@ describe('Usuarios (e2e)', () => {
       }),
     );
     await app.init();
-    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
     await app.listen(0);
 
     prisma = app.get(PrismaService);
@@ -51,7 +49,6 @@ describe('Usuarios (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
-    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
     await prisma.$disconnect();
     await app.close();
   });
@@ -82,10 +79,15 @@ describe('Usuarios (e2e)', () => {
       expect(resposta.body).not.toHaveProperty('cpfHash');
     });
 
-    it('deve recusar cpf invalido', async () => {
+    it.each([
+      ['quantidade de digitos diferente de onze', '123456789012'],
+      ['sequencia de digito repetido', '11111111111'],
+      ['primeiro digito verificador errado', '52998224735'],
+      ['segundo digito verificador errado', '52998224724'],
+    ])('deve recusar cpf com %s', async (_, cpf) => {
       const resposta = await request(app.getHttpServer())
         .post('/users')
-        .send({ ...buildUserPayload('300003'), cpf: '11111111111' })
+        .send({ ...buildUserPayload(`3100${cpf.slice(-2)}`), cpf })
         .expect(400);
 
       expect(resposta.body.message).toBe('CPF inválido.');

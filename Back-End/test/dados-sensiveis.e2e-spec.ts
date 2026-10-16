@@ -5,14 +5,6 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { buildUserPayload, clearDatabase, registerAndLogin } from './e2e.utils';
 
-/**
- * Regra: RNE-01 — senha e CPF nunca armazenados em texto puro.
- *
- * Estes testes substituem seis unitarios que inspecionavam o `data` e o
- * `select` enviados ao Prisma. A regra e a mesma, mas aqui ela e verificada
- * onde importa: na linha gravada. Assim o teste sobrevive a qualquer
- * reimplementacao do repositorio.
- */
 describe('Dados sensiveis em repouso (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -23,7 +15,6 @@ describe('Dados sensiveis em repouso (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    // Mesmo ValidationPipe do `src/main.ts`.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -33,7 +24,6 @@ describe('Dados sensiveis em repouso (e2e)', () => {
       }),
     );
     await app.init();
-    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
     await app.listen(0);
 
     prisma = app.get(PrismaService);
@@ -45,7 +35,6 @@ describe('Dados sensiveis em repouso (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
-    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
     await prisma.$disconnect();
     await app.close();
   });
@@ -130,7 +119,6 @@ describe('Dados sensiveis em repouso (e2e)', () => {
 
     await request(app.getHttpServer()).post('/users').send(payload).expect(201);
 
-    // Desativacao nao tem rota publica; o estado e o que importa para a regra.
     await prisma.user.update({
       where: { email: payload.email },
       data: { status: false },

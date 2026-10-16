@@ -5,12 +5,6 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { clearDatabase, createTruck, registerAndLogin } from './e2e.utils';
 
-/**
- * Regras: RNE-09 (exclusao com vinculos) e o cadastro de caminhao do RF-09.
- *
- * O app e montado com o mesmo ValidationPipe do `src/main.ts`. Sem isso o
- * cenario de campos obrigatorios nao exercita a validacao que roda em producao.
- */
 describe('Caminhao (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -35,7 +29,6 @@ describe('Caminhao (e2e)', () => {
       }),
     );
     await app.init();
-    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
     await app.listen(0);
 
     prisma = app.get(PrismaService);
@@ -47,7 +40,6 @@ describe('Caminhao (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
-    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
     await prisma.$disconnect();
     await app.close();
   });
@@ -166,7 +158,6 @@ describe('Caminhao (e2e)', () => {
           quilometragem: 1000,
         });
 
-      // Pre-condicao do cenario: sem o vinculo, a exclusao abaixo nao prova nada.
       expect(abastecimento.status).toBe(201);
 
       const resposta = await request(app.getHttpServer())
