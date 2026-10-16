@@ -2,16 +2,6 @@ import { api } from '../api';
 import { getMeuCaminhao, createCaminhao } from '../caminhaoService';
 import { createDocumento, getDocumentos } from '../documentoService';
 
-/**
- * Normalizacao da resposta da API.
- *
- * O back nao e consistente na forma: algumas rotas devolvem o recurso direto,
- * outras embrulham num envelope junto da mensagem — `{ message, caminhao }`.
- * Os servicos escondem essa diferenca do resto do aplicativo.
- *
- * O endereco dos endpoints e o nome do campo do arquivo nao sao afirmados aqui:
- * estao em `app/__tests__/scan-flow.integration.test.tsx`, que exercita o servico de verdade a partir da tela.
- */
 jest.mock('../api', () => ({
   api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
 }));
@@ -33,7 +23,6 @@ describe('normalizacao da resposta do caminhao', () => {
   });
 
   it('deve devolver nulo quando a resposta nao traz caminhao algum', async () => {
-    // Usuario sem caminhao: a tela precisa distinguir "nao tem" de "falhou".
     jest.mocked(api.get).mockResolvedValue({
       data: { message: 'Nenhum caminhão cadastrado' },
     } as any);
@@ -42,7 +31,6 @@ describe('normalizacao da resposta do caminhao', () => {
   });
 
   it('deve propagar a falha da API em vez de devolver nulo', async () => {
-    // Se o erro virasse nulo, a tela diria "nenhum caminhao cadastrado" para quem tem um — e o usuario cadastraria outro por cima.
     jest.mocked(api.get).mockRejectedValue(new Error('timeout'));
 
     await expect(getMeuCaminhao()).rejects.toThrow('timeout');

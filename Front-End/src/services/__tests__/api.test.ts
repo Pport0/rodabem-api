@@ -1,12 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
 
-/**
- * Interceptores do cliente HTTP.
- *
- * Funcao chave: toda rota protegida do back exige `Authorization: Bearer` (RNE-02), e e este interceptor que o anexa.
- * Um erro aqui e silencioso — a requisicao sai sem credencial e volta 401, e a tela mostra "sessao expirada"
- * para quem acabou de entrar.
- */
 jest.mock('axios', () => {
   const handlersRequisicao: any[] = [];
   const handlersResposta: any[] = [];
@@ -64,8 +57,6 @@ describe('credencial anexada a requisicao', () => {
   });
 
   it('nao deve anexar credencial quando nao ha token guardado', async () => {
-    // Token ausente e token em branco sao o mesmo cenario: nao ha sessao.
-    // Enviar `Bearer ` vazio faria o back responder 401 em vez de 'sem token'.
     for (const vazio of [null, '']) {
       guardarToken(vazio);
       const config = await interceptorDeRequisicao()({ headers: {} });
@@ -80,14 +71,11 @@ describe('credencial anexada a requisicao', () => {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
-    // O scan envia multipart; perder esse cabecalho quebraria o upload.
     expect(config.headers['Content-Type']).toBe('multipart/form-data');
     expect(config.headers.Authorization).toBe('Bearer token-valido');
   });
 
   it('deve reler o token a cada requisicao', async () => {
-    // Se o token fosse lido uma unica vez no carregamento do modulo, o logout
-    // nao teria efeito: as requisicoes seguintes continuariam autenticadas.
     guardarToken('primeiro');
     await interceptorDeRequisicao()({ headers: {} });
 
@@ -99,9 +87,30 @@ describe('credencial anexada a requisicao', () => {
 });
 
 describe('tratamento da resposta', () => {
+  it('deve entregar a resposta bem-sucedida sem alterar nada', async () => {
+    const resposta = { status: 200, data: { id: 1, nome: 'Gabriel' } };
+
+    await expect(interceptorDeResposta().sucesso(resposta)).toBe(resposta);
+  });
+
+  it('nao deve escrever no console fora do modo de desenvolvimento', async () => {
+    const console_error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const dev = (global as any).__DEV__;
+    (global as any).__DEV__ = false;
+
+    try {
+      await expect(
+        interceptorDeResposta().erro({ config: { url: '/users' }, message: 'falhou' }),
+      ).rejects.toBeTruthy();
+
+      expect(console_error).not.toHaveBeenCalled();
+    } finally {
+      (global as any).__DEV__ = dev;
+      console_error.mockRestore();
+    }
+  });
+
   it('deve repassar o erro original, sem engoli-lo', async () => {
-    // A tela decide a mensagem a partir do erro. Transformar aqui faria toda
-    // falha virar a mesma mensagem generica.
     const original = Object.assign(new Error('Request failed'), {
       response: { status: 403 },
     });
@@ -110,15 +119,12 @@ describe('tratamento da resposta', () => {
   });
 
   it('nao deve quebrar diante de erro sem corpo nem mensagem', async () => {
-    // Queda de rede chega assim. Se o interceptor estourar aqui, o aplicativo
-    // fecha em vez de avisar.
     await expect(interceptorDeResposta().erro({})).rejects.toEqual({});
   });
 });
 
 describe('configuracao do cliente', () => {
   it('deve definir um tempo limite, para a requisicao nao ficar pendurada', async () => {
-    // Sem limite, uma API fora do ar deixa a tela girando para sempre.
     expect((api as any).defaults.timeout).toBeGreaterThan(0);
   });
 });
