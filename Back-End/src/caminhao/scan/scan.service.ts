@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { fromBuffer } from 'pdf2pic';
+import { fileTypeFromBuffer } from 'file-type';
 
 const FORMATOS_ACEITOS = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
 const TAMANHO_MAXIMO = 10 * 1024 * 1024;
@@ -17,8 +18,16 @@ export class ScanService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
-  async processarDocumento(file: Express.Multer.File) {
-    if (!FORMATOS_ACEITOS.includes(file.mimetype)) {
+   async processarDocumento(file: any) {
+   
+    if (!file.buffer || file.buffer.length === 0) {
+      throw new BadRequestException('Arquivo vazio não é permitido.');
+    }
+
+    const tipoReal = await fileTypeFromBuffer(file.buffer);
+    const mimetypeReal = tipoReal?.mime ?? null;
+
+    if (!mimetypeReal || !FORMATOS_ACEITOS.includes(mimetypeReal)) {
       throw new BadRequestException(
         'Envie o documento em um formato compatível. Formatos aceitos: PDF, JPG, JPEG, PNG.',
       );
@@ -30,13 +39,11 @@ export class ScanService {
       );
     }
 
-   
-    const dadosExtraidos = await this.extrairDadosComOCR(file.buffer, file.mimetype);
+    const dadosExtraidos = await this.extrairDadosComOCR(file.buffer, mimetypeReal);
 
-   
     const { url, publicId } = await this.cloudinaryService.uploadFile(
       file.buffer,
-      file.mimetype,
+      mimetypeReal,
       file.originalname,
     );
 
@@ -99,8 +106,8 @@ export class ScanService {
 
       console.log('Texto extraído pelo OCR (caminhão):\n', text);
 
-      return this.interpretarTextoCaminhao(text);
-    } catch (error) {
+  return this.interpretarTextoCaminhao(text);
+    } catch (error: any) { 
       console.error('Tesseract error (caminhão):', error?.message);
       if (worker) await worker.terminate().catch(() => {});
       return this.camposVazios();

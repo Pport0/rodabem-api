@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { fromBuffer } from 'pdf2pic';
+import { fileTypeFromBuffer } from 'file-type';
 
 const FORMATOS_ACEITOS = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
 const TAMANHO_MAXIMO = 10 * 1024 * 1024;
@@ -15,10 +16,18 @@ export class ScanDocumentoService {
   constructor(
     private configService: ConfigService,
     private cloudinaryService: CloudinaryService,
-  ) { }
+  ) {}
 
-  async processarDocumento(file: Express.Multer.File) {
-    if (!FORMATOS_ACEITOS.includes(file.mimetype)) {
+  async processarDocumento(file: any) {
+    
+    if (!file.buffer || file.buffer.length === 0) {
+      throw new BadRequestException('Arquivo vazio não é permitido.');
+    }
+
+    const tipoReal = await fileTypeFromBuffer(file.buffer);
+    const mimetypeReal = tipoReal?.mime ?? null;
+
+    if (!mimetypeReal || !FORMATOS_ACEITOS.includes(mimetypeReal)) {
       throw new BadRequestException(
         'Envie o documento em um formato compatível. Formatos aceitos: PDF, JPG, JPEG, PNG.',
       );
@@ -32,11 +41,11 @@ export class ScanDocumentoService {
 
     const { url, publicId } = await this.cloudinaryService.uploadFile(
       file.buffer,
-      file.mimetype,
+      mimetypeReal,
       file.originalname,
     );
 
-    const dadosExtraidos = await this.extrairDadosComOCR(file.buffer, file.mimetype);
+    const dadosExtraidos = await this.extrairDadosComOCR(file.buffer, mimetypeReal);
 
     const camposObrigatoriosFaltando: string[] = [];
     if (!dadosExtraidos.nome) camposObrigatoriosFaltando.push('nome');
@@ -98,15 +107,15 @@ export class ScanDocumentoService {
 
       console.log('Texto extraído pelo OCR:\n', text);
 
-      return this.interpretarTexto(text);
-    } catch (error) {
+  return this.interpretarTexto(text);
+    } catch (error: any) { 
       console.error('Tesseract error:', error?.message);
-      if (worker) await worker.terminate().catch(() => { });
+      if (worker) await worker.terminate().catch(() => {});
       return this.camposVazios();
     } finally {
       if (fs.existsSync(`${tempPath}.jpg`)) fs.unlinkSync(`${tempPath}.jpg`);
     }
-  }
+  }s
 
   private interpretarTexto(texto: string) {
     const nome = this.detectarNomeDocumento(texto);
@@ -148,7 +157,6 @@ export class ScanDocumentoService {
   }
 
   private detectarDatas(texto: string): { emissao: string | null; vencimento: string | null } {
-
     const cnhMatch = texto.match(
       /4a\s*DATA\s*EMISS[ÃA]O[\s\S]{0,50}?4b\s*VALIDADE[\s\S]{0,30}?(\d{2})[\/\-](\d{2})[\/\-](\d{4})[\s\S]{0,10}?(\d{2})[\/\-](\d{2})[\/\-](\d{4})/i,
     );
@@ -168,7 +176,6 @@ export class ScanDocumentoService {
     const emissaoMatch = texto.match(
       /(?:emiss[aã]o|expedição)[:\s]*(\d{2})[\/\-](\d{2})[\/\-](\d{4})/i,
     );
-
 
     const regexData = /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/g;
     const todasDatas: string[] = [];
