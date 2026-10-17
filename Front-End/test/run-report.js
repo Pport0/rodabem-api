@@ -1,8 +1,3 @@
-/**
- * Relatorio de execucao das suites de teste do Front-End.
- *
- * Uso: npm run test:report
- */
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -20,7 +15,6 @@ const semCor = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
 const pad = (rotulo, valor, preenche = '.') =>
   `${rotulo} ${preenche.repeat(Math.max(1, 24 - semCor(rotulo).length))} ${valor}`;
 
-// ---------- deteccao do ferramental ----------
 function temJest() {
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(RAIZ, 'package.json'), 'utf8'));
@@ -31,11 +25,6 @@ function temJest() {
   }
 }
 
-/**
- * Conta os fluxos de E2E de aplicativo.
- *
- * O Maestro nao aparece em `package.json`: e binario instalado fora do projeto.
- */
 function contarFluxosMaestro() {
   const achados = [];
   const anda = (dir) => {
@@ -68,8 +57,6 @@ function acharArquivosDeTeste() {
   return achados;
 }
 
-// ---------- medicao do codigo-fonte ----------
-/** Resolve typescript e istanbul a partir do Back-End (mesmo repositorio). */
 function carregarFerramentas() {
   const candidatos = [
     path.join(RAIZ, 'node_modules'),
@@ -142,7 +129,6 @@ function medirCodigo() {
   return { modulos, total };
 }
 
-// ---------- execucao via jest, quando existir ----------
 function rodarJest(fluxosMaestro) {
   const os = require('os');
   const saidaJson = path.join(os.tmpdir(), `rodabem-front-${Date.now()}.json`);
@@ -170,7 +156,6 @@ function rodarJest(fluxosMaestro) {
     dados = JSON.parse(fs.readFileSync(saidaJson, 'utf8'));
     fs.unlinkSync(saidaJson);
   } catch {
-    /* tratado adiante */
   }
 
   let cobertura = null;
@@ -179,7 +164,6 @@ function rodarJest(fluxosMaestro) {
       fs.readFileSync(path.join(RAIZ, 'coverage', 'coverage-summary.json'), 'utf8'),
     ).total;
   } catch {
-    /* sem cobertura */
   }
 
   if (!dados) {
@@ -193,7 +177,6 @@ function rodarJest(fluxosMaestro) {
   console.log(
     pad(` [${marca}] Unitarios`, `${dados.numTotalTestSuites} suites, ${dados.numPassedTests} testes`),
   );
-  // Os fluxos do Maestro NAO rodam aqui: exigem emulador e build de release.
   console.log(pad(' [--] E2E Maestro', fluxosMaestro > 0
     ? `${cor.cinza}${fluxosMaestro} fluxos, nao executados aqui${cor.reset}`
     : `${cor.amarelo}nenhum fluxo encontrado${cor.reset}`));
@@ -231,7 +214,6 @@ function rodarJest(fluxosMaestro) {
   process.exit(ok ? 0 : 1);
 }
 
-// ---------- relatorio ----------
 function main() {
   const carimbo = new Date().toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -256,7 +238,6 @@ function main() {
     ? `${cor.verde}${fluxos} fluxos${cor.reset}`
     : `${cor.vermelho}nenhum fluxo${cor.reset}`));
 
-  // Caminho futuro: havendo Jest e suites, delega a execucao real.
   if (jest && suites.length > 0) {
     console.log(`\n${cor.cinza} Jest detectado - executando a suite...${cor.reset}\n`);
     rodarJest(fluxos);
@@ -295,7 +276,6 @@ function main() {
     console.log(`\n${cor.cinza} Total: ${t.arq} arquivos, ${t.s} instrucoes nao cobertas.${cor.reset}`);
   }
 
-  // Este caminho so roda quando o Jest nao foi detectado.
   console.log('\n' + linha('='));
   console.log(`${cor.amarelo}${cor.neg} JEST NAO DETECTADO - SUITE NAO EXECUTADA${cor.reset}`);
   console.log(`${cor.cinza} ${suites.length} arquivos de teste encontrados em app/ e src/.${cor.reset}`);

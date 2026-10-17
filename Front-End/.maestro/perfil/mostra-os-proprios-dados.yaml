@@ -1,4 +1,3 @@
-# RNE-01: "Consulta: o usuario pode visualizar apenas seus proprios dados".
 appId: com.anonymous.rodabem
 name: perfil - mostra os proprios dados
 ---

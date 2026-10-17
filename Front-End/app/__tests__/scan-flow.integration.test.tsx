@@ -11,17 +11,6 @@ import { api } from '@/services/api';
 import NovoCaminhao from '../caminhoes/novo';
 import NovoDocumento from '../documentos/novo';
 
-/**
- * Integracao de tela ate a camada HTTP, com o axios dublado no limite.
- *
- * O que justifica estes testes existirem alem dos de contrato da RNE-06: aqui o servico real e exercitado,
- * e com ele o acordo com o back — o endereco do endpoint e o nome do campo que carrega o arquivo. Se o back espera
- * `documento` e o front enviar outro nome, nenhum teste de tela percebe, porque todos dublam o servico.
- *
- * Esse acordo so e observavel na requisicao: nao existe saida de tela que o revele. E a excecao prevista no plano para afirmar forma de chamada.
- *
- * O E2E de aplicativo nao cobre esta lacuna: o scan depende da camera, que o Maestro nao consegue alimentar com um documento de verdade.
- */
 jest.mock('@/services/api', () => ({
   api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
 }));
@@ -65,7 +54,7 @@ const respostaScanDocumento = {
 
 const montarApp = async (initialUrl: string) => {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false, gcTime: 0 } },
   });
 
   return renderRouter(

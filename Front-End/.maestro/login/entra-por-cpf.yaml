@@ -1,4 +1,3 @@
-# RNE-02: a autenticacao por CPF e alternativa legitima ao telefone.
 appId: com.anonymous.rodabem
 name: login - autentica por cpf e senha
 ---

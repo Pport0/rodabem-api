@@ -1,6 +1,3 @@
-/**
- * Sonda algoritmica: o custo do login cresce com o tamanho da tabela?
- */
 import http from 'k6/http';
 import { check } from 'k6';
 import { Trend } from 'k6/metrics';
@@ -29,14 +26,12 @@ export const options = {
     },
   },
   thresholds: {
-    // A busca por telefone e o que o sistema consegue fazer bem. A busca por CPF nao deveria custar mais do que o dobro dela.
     login_por_telefone: ['p(95)<1000'],
     login_por_cpf: ['p(95)<2000'],
     checks: ['rate>0.99'],
   },
 };
 
-/** Mesmo algoritmo de `semear.ts`, para montar credencial sem consultar o banco. */
 function cpfValidoDe(indice) {
   let base = `${indice}`.padStart(9, '0').slice(-9);
 
@@ -59,9 +54,6 @@ function cpfValidoDe(indice) {
 
 const telefoneDe = (i) => `62${String(i).padStart(9, '0')}`;
 
-/**
- * Sorteia na metade final da tabela. A busca por CPF para no primeiro acerto, entao usar sempre o primeiro usuario esconderia o problema.
- */
 function indiceSorteado() {
   const metade = Math.floor(USUARIOS / 2);
   return metade + Math.floor(Math.random() * (USUARIOS - metade - 1));

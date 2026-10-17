@@ -1,6 +1,3 @@
-/**
- * Estresse: levar a aplicacao alem do limite e verificar se ela volta.
- */
 import http from 'k6/http';
 import { check } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
@@ -31,18 +28,14 @@ export const options = {
       executor: 'constant-vus',
       vus: 3,
       duration: '30s',
-      // Comeca depois que a rampa zerou, com uma folga para a fila drenar.
       startTime: '100s',
       exec: 'medirRecuperacao',
     },
   },
   thresholds: {
-    // A rampa PODE quebrar — e esse o objetivo. O limite abaixo e folgado de proposito: existe so para o k6 materializar
-    // a submetrica por etiqueta, que ele nao coleta sem um threshold declarado.
     'http_req_duration{fase:rampa}': ['p(95)<60000'],
     'http_req_duration{rota:login}': ['p(95)<60000'],
 
-    // O que nao se aceita e ficar quebrado depois que a pressao sai.
     erros_recuperacao: ['rate<0.01'],
     tempo_recuperacao: ['p(95)<500'],
   },
@@ -70,7 +63,6 @@ export function setup() {
 export function pressionar(dados) {
   const indice = Math.floor(Math.random() * 7900);
 
-  // Uma autenticacao a cada cinco iteracoes: e a operacao cara, mas se fosse toda iteracao o teste mediria so o bcrypt.
   if (indice % 5 === 0) {
     const login = http.post(
       `${BASE_URL}/auth/login`,

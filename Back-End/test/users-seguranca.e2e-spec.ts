@@ -25,7 +25,6 @@ describe('Usuarios - seguranca (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    // Mesmo ValidationPipe do `src/main.ts`.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -35,7 +34,6 @@ describe('Usuarios - seguranca (e2e)', () => {
       }),
     );
     await app.init();
-    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
     await app.listen(0);
 
     prisma = app.get(PrismaService);
@@ -48,7 +46,6 @@ describe('Usuarios - seguranca (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
-    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
     await prisma.$disconnect();
     await app.close();
   });

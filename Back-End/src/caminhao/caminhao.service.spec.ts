@@ -47,6 +47,16 @@ describe('CaminhaoService', () => {
     expect(result.message).toContain('cadastrado com sucesso');
   });
 
+  it.each([
+    ['sem placa', { modelo: 'FH 540', renavam: '12345678901' }],
+    ['sem modelo', { placa: 'ABC1D23', renavam: '12345678901' }],
+    ['sem renavam', { placa: 'ABC1D23', modelo: 'FH 540' }],
+  ])('deve recusar o cadastro %s mesmo quando chamado sem passar pelo DTO', async (_, dados) => {
+    await expect(service.create(userId, dados as any)).rejects.toThrow(BadRequestException);
+
+    expect(prisma.caminhao.create).not.toHaveBeenCalled();
+  });
+
   it('deve impedir cadastro de segundo caminhao para o mesmo usuario', async () => {
     prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, ...createDto });
 
@@ -105,7 +115,6 @@ describe('CaminhaoService', () => {
     expect(result.message).toContain('removido com sucesso');
   });
 
- 
   it('deve bloquear exclusao quando houver documentos vinculados', async () => {
     prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, ...createDto });
     prisma.documento.count.mockResolvedValue(2);

@@ -1,5 +1,3 @@
-// Gera uma identidade nova a cada execucao: CPF com digito verificador valido, telefone e e-mail unicos.
-// Sem isso, reexecutar um fluxo de cadastro falha com "CPF ja cadastrado" e o resultado deixa de significar qualquer coisa.
 function comDigitos(base) {
   var d = base.split('').map(Number);
   var s = 0;
@@ -25,8 +23,6 @@ output.email = 'maestro' + semente + '@teste.local';
 output.nome = 'Maestro ' + semente;
 output.senha = 'senha123';
 
-// Valores que `preencher-cadastro.yaml` consome. Um cenario que precisa variar um deles sobrescreve com `evalScript`
-// antes de chamar `cadastrar.yaml`.
 output.cpfDoCadastro = output.cpf;
 output.telefoneDoCadastro = output.telefone;
 output.emailDoCadastro = output.email;

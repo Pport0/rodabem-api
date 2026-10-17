@@ -1,4 +1,3 @@
-# RNE-01: "Edicao: o usuario pode atualizar seus dados". A troca de senha existe no back (PATCH /users/me/senha) e o botao esta na tela.
 appId: com.anonymous.rodabem
 name: perfil - permite alterar a senha
 ---
@@ -35,7 +34,6 @@ name: perfil - permite alterar a senha
     direction: DOWN
     visibilityPercentage: 30
 - tapOn: "ALTERAR SENHA"
-# Tocar precisa levar a algum lugar onde a senha possa ser trocada.
 - extendedWaitUntil:
     visible: "[Ss]enha atual|NOVA SENHA|Nova senha|Digite a nova senha"
     timeout: 20000

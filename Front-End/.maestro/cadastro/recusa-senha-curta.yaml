@@ -1,4 +1,3 @@
-# RNE-01: "Senha deve possuir no minimo 6 caracteres".
 appId: com.anonymous.rodabem
 name: cadastro - recusa senha com menos de seis caracteres
 ---

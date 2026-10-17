@@ -16,7 +16,6 @@ describe('Fluxo de autenticacao (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    // Mesmo ValidationPipe do `src/main.ts`.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -26,7 +25,6 @@ describe('Fluxo de autenticacao (e2e)', () => {
       }),
     );
     await app.init();
-    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
     await app.listen(0);
 
     prisma = app.get(PrismaService);
@@ -38,7 +36,6 @@ describe('Fluxo de autenticacao (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
-    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
     await prisma.$disconnect();
     await app.close();
   });
@@ -212,7 +209,6 @@ describe('Fluxo de autenticacao (e2e)', () => {
       expect(resposta.status).toBe(400);
     });
   });
-
 
   describe('validade do token', () => {
     it('deve recusar token expirado', async () => {

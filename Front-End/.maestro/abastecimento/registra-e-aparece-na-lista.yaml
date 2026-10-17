@@ -1,4 +1,3 @@
-# RNE-07: "Todo abastecimento registrado deve informar a quantidade de combustivel e o valor pago". O resultado visivel e o registro na listagem.
 appId: com.anonymous.rodabem
 name: abastecimento - registra e aparece na listagem
 ---
@@ -28,7 +27,6 @@ name: abastecimento - registra e aparece na listagem
 - extendedWaitUntil:
     visible: "O que você precisa hoje?"
     timeout: 30000
-# O cartao MEU CAMINHAO da home leva ao PERFIL: o caminhao e uma secao dele, e o formulario abre pelo botao "Cadastrar Caminhao".
 - tapOn: "MEU CAMINHÃO"
 - extendedWaitUntil:
     visible: "Cadastrar Caminhão"
@@ -39,16 +37,16 @@ name: abastecimento - registra e aparece na listagem
     timeout: 30000
 - tapOn: "ABC1234 ou ABC1D23"
 - inputText: "RDB1A23"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - tapOn: "Ex: Scania R450"
 - inputText: "Scania R450"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - tapOn: "00000000000"
 - inputText: "12345678901"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - tapOn: "Ex: 6"
 - inputText: "6"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - scrollUntilVisible:
     element: "CADASTRAR CAMINHAO"
     direction: DOWN
@@ -57,7 +55,6 @@ name: abastecimento - registra e aparece na listagem
 - extendedWaitUntil:
     visible: "RDB1A23"
     timeout: 30000
-# O cadastro do caminhao termina no PERFIL. O cartao ABASTECIMENTOS so existena tela inicial.
 - back
 - extendedWaitUntil:
     visible: "O que você precisa hoje?"
@@ -77,13 +74,13 @@ name: abastecimento - registra e aparece na listagem
 - tapOn: "Diesel S10"
 - tapOn: "Ex: 6.39"
 - inputText: "6.39"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - tapOn: "Ex: 320"
 - inputText: "100"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - tapOn: "Ex: 182350"
 - inputText: "180000"
-- hideKeyboard
+- runFlow: ../_comum/fechar-teclado.yaml
 - scrollUntilVisible:
     element: "CADASTRAR ABASTECIMENTO"
     direction: DOWN

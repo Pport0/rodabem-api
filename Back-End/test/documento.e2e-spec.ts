@@ -5,17 +5,10 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { clearDatabase, createTruck, registerAndLogin } from './e2e.utils';
 
-/**
- * Regras: RNE-05 do documento de especificacao.
- *
- * O app e montado com o mesmo ValidationPipe do `src/main.ts`. Sem isso o teste
- * exercita uma aplicacao que valida menos do que a que vai para producao.
- */
 describe('Documentos (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
 
-  /** Deslocamentos bem longe das fronteiras, para o resultado nao depender da hora. */
   const DIA = 24 * 60 * 60 * 1000;
   const emDias = (dias: number) =>
     new Date(Date.now() + dias * DIA).toISOString();
@@ -54,7 +47,6 @@ describe('Documentos (e2e)', () => {
       }),
     );
     await app.init();
-    // Poe o servidor para escutar uma vez so. Sem isso o supertest abre e fecha uma porta a cada requisicao.
     await app.listen(0);
 
     prisma = app.get(PrismaService);
@@ -66,7 +58,6 @@ describe('Documentos (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
-    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
     await prisma.$disconnect();
     await app.close();
   });

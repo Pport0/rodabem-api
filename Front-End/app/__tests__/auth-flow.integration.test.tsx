@@ -1,6 +1,3 @@
-/**
- * Testes de integracao do fluxo de autenticacao.
- */
 jest.unmock('expo-router');
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -38,7 +35,7 @@ const usuarioAutenticado = {
 
 const montarApp = async (initialUrl: string) => {
   const queryClient = new QueryClient({
-    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    defaultOptions: { mutations: { retry: false, gcTime: 0 }, queries: { retry: false, gcTime: 0 } },
   });
 
   return renderRouter(

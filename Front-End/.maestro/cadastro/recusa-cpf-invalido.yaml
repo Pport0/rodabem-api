@@ -1,4 +1,3 @@
-# RNE-01: "CPF deve ser valido e unico". O digito verificador aqui nao fecha.
 appId: com.anonymous.rodabem
 name: cadastro - recusa cpf com digito verificador invalido
 ---
@@ -17,7 +16,6 @@ name: cadastro - recusa cpf com digito verificador invalido
     element: "CONTINUAR"
     direction: DOWN
 - tapOn: "CONTINUAR"
-# O resultado que importa e nao entrar, e a recusa ficar visivel.
 - extendedWaitUntil:
     visible: "Falha ao criar usuário"
     timeout: 70000

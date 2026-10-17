@@ -1,8 +1,6 @@
-/**
- * Setup compartilhado das suites do Front-End.
- *
- * Concentra os dublês de modulos nativos do Expo que nao existem no ambiente de teste (Node). Cada suite ainda pode sobrescrever o comportamento por teste usando `jest.mocked(...)`.
- */
+// `QueryClient` de teste precisa sempre de `gcTime: 0`. O padrao do react-query e cinco
+// minutos, e ao desmontar a tela ele agenda um `setTimeout` desse tamanho que segura o
+// processo do Node — a suite termina, imprime o resultado e nao sai.
 
 import '@testing-library/react-native';
 

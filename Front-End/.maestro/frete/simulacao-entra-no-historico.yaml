@@ -1,0 +1,72 @@
+appId: com.anonymous.rodabem
+name: frete - simulacao fica no historico
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: ${output.senha}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000
+- runFlow: ../_comum/cadastrar-caminhao.yaml
+- tapOn: "CALCULADORA DE FRETE"
+- extendedWaitUntil:
+    visible: "DADOS DA VIAGEM"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "Nenhuma simulacao registrada"
+    direction: DOWN
+    visibilityPercentage: 30
+- scrollUntilVisible:
+    element: "DADOS DA VIAGEM"
+    direction: UP
+- tapOn:
+    text: "Cidade, estado ou endereco"
+    index: 0
+- inputText: "Goiania, GO"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn:
+    text: "Cidade, estado ou endereco"
+    index: 1
+- inputText: "Brasilia, DF"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "Ex: 6.29"
+- inputText: "6,29"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "Opcional, use para sobrescrever a media do app"
+- inputText: "3,5"
+- runFlow: ../_comum/fechar-teclado.yaml
+- scrollUntilVisible:
+    element: "SIMULAR FRETE"
+    direction: DOWN
+    visibilityPercentage: 30
+- tapOn: "SIMULAR FRETE"
+- scrollUntilVisible:
+    element: "ULTIMA SIMULACAO"
+    direction: DOWN
+    visibilityPercentage: 30
+    timeout: 90000
+- scrollUntilVisible:
+    element: "ate Brasilia, DF"
+    direction: DOWN
+    visibilityPercentage: 30
+- assertNotVisible: "Nenhuma simulacao registrada"

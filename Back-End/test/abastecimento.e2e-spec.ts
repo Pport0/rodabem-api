@@ -26,7 +26,6 @@ describe('Fluxo de abastecimento (e2e)', () => {
       }),
     );
     await app.init();
-    // Põe o servidor para escutar uma vez só. Sem isso o supertest abre e fecha uma porta a cada requisicao.
     await app.listen(0);
     prisma = app.get(PrismaService);
   });
@@ -37,7 +36,6 @@ describe('Fluxo de abastecimento (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
-    // `PrismaService` so implementa OnModuleInit, entao `app.close()` nao desconecta o cliente.
     await prisma.$disconnect();
     await app.close();
   });
@@ -106,9 +104,6 @@ describe('Fluxo de abastecimento (e2e)', () => {
         ...dados,
       });
 
-  /**
-   * Grava o abastecimento direto no banco com data e hora fixas.
-   */
   const abastecerEm = async (
     token: string,
     dataISO: string,
@@ -204,6 +199,28 @@ describe('Fluxo de abastecimento (e2e)', () => {
 
     it('deve exigir autenticacao', async () => {
       await request(app.getHttpServer()).post('/abastecimentos').send({}).expect(401);
+    });
+
+    it.each([
+      ['latitude', 'nao e um numero', '700011'],
+      ['longitude', 'nao e um numero', '700012'],
+      ['imagemUrl', 42, '700013'],
+    ])('deve recusar %s com tipo errado', async (campo, valor, sufixo) => {
+      const token = await comCaminhao(sufixo as string);
+
+      await abastecer(token, { [campo as string]: valor }).expect(400);
+    });
+
+    it('deve aceitar a localizacao e a imagem quando vem no tipo certo', async () => {
+      const token = await comCaminhao('700020');
+
+      const resposta = await abastecer(token, {
+        latitude: -16.6746,
+        longitude: -49.3036,
+        imagemUrl: 'https://exemplo.test/nota.jpg',
+      }).expect(201);
+
+      expect(resposta.body.id).toBeDefined();
     });
   });
 
@@ -318,6 +335,42 @@ describe('Fluxo de abastecimento (e2e)', () => {
       expect(resposta.body.observacao).toBe('nota');
     });
 
+    it('deve gravar todos os campos opcionais quando sao enviados', async () => {
+      const token = await comCaminhao('700033');
+      const criado = await abastecer(token).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .patch(`/abastecimentos/${criado.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          precoPorLitro: 7.5,
+          totalLitros: 200,
+          quilometragem: 2000,
+          tipoCombustivel: TipoCombustivel.DIESEL_S500,
+          latitude: -16.6869,
+          longitude: -49.2643,
+          localDescricao: 'BR-153, km 12',
+          postoIdentificado: 'Posto Rota Norte',
+          imagemUrl: 'https://cdn/nota.jpg',
+          observacao: 'tanque cheio',
+        })
+        .expect(200);
+
+      expect(resposta.body).toMatchObject({
+        precoPorLitro: 7.5,
+        totalLitros: 200,
+        valorTotal: 1500,
+        quilometragem: 2000,
+        tipoCombustivel: TipoCombustivel.DIESEL_S500,
+        latitude: -16.6869,
+        longitude: -49.2643,
+        localDescricao: 'BR-153, km 12',
+        postoIdentificado: 'Posto Rota Norte',
+        imagemUrl: 'https://cdn/nota.jpg',
+        observacao: 'tanque cheio',
+      });
+    });
+
     it('deve recusar edicao de abastecimento de outro usuario', async () => {
       const dono = await comCaminhao('700032');
       const invasor = await comCaminhao('700033');
@@ -342,12 +395,7 @@ describe('Fluxo de abastecimento (e2e)', () => {
     });
   });
 
-  /**
-   * Regra: a quilometragem de um abastecimento deve ser maior que a do registro anterior e menor que a do posterior,
-   * pela ordem de data.
-   */
   describe('PATCH /abastecimentos/:id - quilometragem entre os vizinhos', () => {
-    /** Tres abastecimentos em datas crescentes: 1000, 2000 e 3000 km. */
     const comHistorico = async (sufixo: string) => {
       const token = await comCaminhao(sufixo);
       const primeiro = await abastecerEm(token, '2026-03-01T12:00:00.000Z', {

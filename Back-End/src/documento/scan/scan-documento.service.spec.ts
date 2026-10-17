@@ -13,13 +13,6 @@ jest.mock('fs', () => ({
   unlinkSync: jest.fn(),
 }));
 
-/**
- * Criterio desta suite.
- *
- * A RNE-06 promete tres coisas: que a extracao seja TENTADA, que o resultado va PARA REVISAO do usuario, e que a falha NAO IMPECA o cadastro. Nada alem disso.
- *
- * Ficou um unico caso de extracao, 'deve extrair os dados de uma CNH tipica'. Ele nao esta aqui para fixar formato: esta porque sem ele nada mais prova que a extracao funciona, ja que o e2e de scan dubla este servico.
- */
 describe('ScanDocumentoService', () => {
   let service: ScanDocumentoService;
   let silenciarLog: jest.SpyInstance;
@@ -109,7 +102,6 @@ describe('ScanDocumentoService', () => {
       ).rejects.toThrow('Formatos aceitos: PDF, JPG, JPEG, PNG.');
     });
 
-    // RNE-06: "Validar formato e tamanho maximo de 12MB".
     it('deve aplicar o limite de tamanho de 12MB', async () => {
       const MB = 1024 * 1024;
 
@@ -163,9 +155,6 @@ describe('ScanDocumentoService', () => {
 
   describe('preparacao da imagem para OCR', () => {
 
-
-
-
     it('deve remover o arquivo temporario quando ele existe', async () => {
       jest.mocked(fs.existsSync).mockReturnValue(true);
 
@@ -187,7 +176,6 @@ describe('ScanDocumentoService', () => {
       observacao: null,
     };
 
-
     it('deve devolver campos vazios quando o reconhecimento falha', async () => {
       worker.recognize.mockRejectedValue(new Error('tesseract quebrou'));
 
@@ -195,8 +183,6 @@ describe('ScanDocumentoService', () => {
 
       expect(dadosExtraidos).toEqual(semCampos);
     });
-
-
 
     it('deve devolver campos vazios quando a criacao do worker falha', async () => {
       jest.mocked(Tesseract.createWorker).mockRejectedValue(new Error('sem memoria'));
@@ -227,11 +213,7 @@ describe('ScanDocumentoService', () => {
     });
   });
 
-
-
   describe('identificacao das datas', () => {
-    // Unico caso de extracao que sobrou. Nao esta aqui para fixar formato: esta porque sem ele nada mais prova que a
-    // extracao funciona — o e2e de scan dubla este servico.
     it('deve extrair os dados de uma CNH tipica', async () => {
       const { dadosExtraidos } = await processarComTexto(
         'CARTEIRA NACIONAL DE HABILITACAO 12345678901 4a DATA EMISSAO 4b VALIDADE 10/01/2020 10/01/2030',
@@ -243,10 +225,7 @@ describe('ScanDocumentoService', () => {
       expect(dadosExtraidos.dataVencimento).toBe('2030-01-10');
     });
 
-
-
   });
-
 
   describe('campos obrigatorios ausentes', () => {
     it('deve apontar os quatro campos quando nada e reconhecido', async () => {
@@ -265,8 +244,6 @@ describe('ScanDocumentoService', () => {
 
       expect(camposObrigatoriosFaltando).toEqual([]);
     });
-
-
 
   });
 

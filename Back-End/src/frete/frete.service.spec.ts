@@ -172,28 +172,6 @@ describe('FreteService', () => {
     await expect(service.findOne(userId, 1)).rejects.toThrow(NotFoundException);
   });
 
-  // ----------------------------------------------------------------------
-  // Regras de piso minimo da ANTT.
-  //
-  // O piso e calculado por viagem, por sentido. O retorno vazio e custo de operacao e nao aumenta o piso:
-  // ele tem coeficiente proprio na ANTT.
-  // ----------------------------------------------------------------------
-  // ----------------------------------------------------------------------
-  // Piso minimo da ANTT, conforme Resolucao 5.867/2020.
-  //
-  //   Valor de ida  = (Distancia x CCD) + CC
-  //   Retorno vazio = 0,92 x Distancia x CCD        (soma ao valor de ida)
-  //
-  // CCD = coeficiente de custo de deslocamento, por km.
-  // CC  = coeficiente de custo de carga e descarga, fixo por operacao.
-  //
-  // Caso de referencia, retirado da calculadora oficial da ANTT
-  // (Tabela C, alto desempenho, 500 km):
-  //   CCD 5,1771 | CC 220,31
-  //   ida .................. 2.808,86
-  //   retorno vazio ........ 2.381,47
-  //   total ................ 5.190,33
-  // ----------------------------------------------------------------------
   describe('piso minimo da ANTT', () => {
     const CCD = 5.1771;
     const CC = 220.31;
@@ -221,7 +199,6 @@ describe('FreteService', () => {
     it('deve somar o custo de carga e descarga ao custo de deslocamento', async () => {
       const result = await simularCom();
 
-      // 500 x 5,1771 = 2.588,55, mais CC 220,31
       expect(result.valorMinimoAntt).toBe(2808.86);
     });
 
@@ -246,7 +223,6 @@ describe('FreteService', () => {
       const ida = await simularCom();
       const comRetorno = await simularCom({ retornoVazio: true });
 
-      // O acrescimo do retorno nao pode conter CC: nao ha carga na volta vazia.
       const acrescimo = comRetorno.valorMinimoAntt - ida.valorMinimoAntt;
 
       expect(acrescimo).toBeLessThan(0.92 * 500 * CCD + CC);
@@ -268,8 +244,6 @@ describe('FreteService', () => {
       expect(where.tipoCarga).toBe(TipoCarga.GERAL);
     });
 
-    // O alto desempenho usa outra tabela da ANTT (C ou D), com CCD e CC proprios.
-    // O sentido da diferenca depende da tabela vigente e nao esta fixado aqui.
     it('nao deve ignorar o alto desempenho no calculo do piso', async () => {
       const comum = await simularCom();
       const altoDesempenho = await simularCom({ altoDesempenho: true });
@@ -277,8 +251,6 @@ describe('FreteService', () => {
       expect(altoDesempenho.valorMinimoAntt).not.toBe(comum.valorMinimoAntt);
     });
 
-    // A calculadora oficial pergunta "e composicao veicular?" porque isso define qual tabela se aplica.
-    // Hoje o DTO nao tem esse campo.
     it('nao deve ignorar a composicao veicular no calculo do piso', async () => {
       const simples = await simularCom({ composicaoVeicular: false });
       const composicao = await simularCom({ composicaoVeicular: true });
@@ -297,7 +269,6 @@ describe('FreteService', () => {
     });
   });
 
-  // Custo de operacao: aqui o retorno vazio conta, porque o caminhao roda.
   describe('custo de combustivel', () => {
     const simularCom = async (resto: Record<string, any> = {}) => {
       prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, numeroEixos: 6 });
@@ -319,7 +290,6 @@ describe('FreteService', () => {
         retornoVazio: true,
       });
 
-      // 200 km rodados a 10 km/L
       expect(result.litrosNecessarios).toBe(20);
     });
 
@@ -352,7 +322,6 @@ describe('FreteService', () => {
     });
   });
 
-  // Resultado financeiro da viagem.
   describe('resultado da simulacao', () => {
     const simularCom = async (resto: Record<string, any> = {}, valorPorKm = 5) => {
       prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, numeroEixos: 6 });
@@ -369,8 +338,6 @@ describe('FreteService', () => {
     it('deve subtrair o custo de combustivel do piso da ANTT', async () => {
       const result = await simularCom({ precoCombustivel: 6, pedagiosManual: 50 });
 
-      // Nota 5 da Resolucao 5.867/2020: o pedagio e obrigatoriamente acrescido ao piso.
-      // Quem paga e o contratante, entao ele nao reduz o que sobra para o transportador: piso 500 - combustivel 60.
       expect(result.valorLiquidoEstimado).toBe(440);
     });
 
@@ -387,7 +354,6 @@ describe('FreteService', () => {
         1,
       );
 
-      // piso 100 contra 1000 de combustivel
       expect(result.valorLiquidoEstimado).toBeLessThan(0);
       expect(result.aviso).toMatch(/nao cobre|não cobre/);
     });

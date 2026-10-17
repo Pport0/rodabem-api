@@ -1,4 +1,3 @@
-# RNE-02: "Login deve permitir autenticacao por CPF + senha ou Telefone + senha".
 appId: com.anonymous.rodabem
 name: login - autentica por telefone e senha
 ---

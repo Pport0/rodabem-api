@@ -1,8 +1,5 @@
 import { createHash, decrypt, encrypt } from './crypto.util';
 
-/**
- * Regra: RNE-01 exige que o CPF nao seja armazenado em texto puro, e o sistema precisa devolve-lo ao dono no perfil. Isso obriga cifragem reversivel.
- */
 describe('crypto.util', () => {
   describe('cifragem reversivel', () => {
     it('deve devolver o valor original apos cifrar e decifrar', () => {
@@ -17,7 +14,6 @@ describe('crypto.util', () => {
       const primeiro = encrypt(cpf);
       const segundo = encrypt(cpf);
 
-      // Vetor de inicializacao aleatorio: dois cadastros com o mesmo CPF nao podem gerar o mesmo texto cifrado, senao a cifra vira um identificador.
       expect(primeiro).not.toBe(segundo);
       expect(decrypt(primeiro)).toBe(cpf);
       expect(decrypt(segundo)).toBe(cpf);
@@ -38,7 +34,6 @@ describe('crypto.util', () => {
 
   describe('hash de busca', () => {
     it('deve produzir sempre o mesmo hash para a mesma entrada', () => {
-      // O cadastro procura duplicidade de CPF pelo hash. Se o hash variasse, o mesmo CPF entraria duas vezes.
       expect(createHash('52998224725')).toBe(createHash('52998224725'));
     });
 
