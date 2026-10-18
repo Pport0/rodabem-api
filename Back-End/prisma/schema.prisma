@@ -40,6 +40,7 @@ model User {
   documento Documento[]
   abastecimentos Abastecimento[]
   simulacoes SimulacaoFrete[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("usuarios")
 }
@@ -234,4 +235,16 @@ model VersaoAntt {
 enum ComposicaoVeicular {
   COM_CARRETA
   SEM_CARRETA
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
