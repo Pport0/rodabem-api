@@ -3,6 +3,7 @@ import Input from '@/components/input';
 import colors from '@/constants/colors';
 import { getMeuCaminhao, updateCaminhao, deleteCaminhao } from '@/services/caminhaoService';
 import { Toast } from '@/shared/ui/molecules/Toast';
+import { CaminhaoFormErrors, validateCaminhao } from '@/utils/caminhaoValidation';
 import { queryClient } from '@/utils/queryClient';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -19,13 +20,6 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
-
-interface FormErrors {
-  placa?: string;
-  modelo?: string;
-  renavam?: string;
-  numeroEixos?: string;
-}
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'response' in error) {
@@ -50,7 +44,7 @@ export default function EditarCaminhao() {
   const [cor, setCor] = useState('');
   const [anoFabricacao, setAnoFabricacao] = useState('');
   const [numeroEixos, setNumeroEixos] = useState('');
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<CaminhaoFormErrors>({});
 
   const { data: caminhao, isLoading } = useQuery<Caminhao | null>({
     queryKey: ['caminhao'],
@@ -122,23 +116,7 @@ export default function EditarCaminhao() {
   };
 
   const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-    const numeroEixosValue = Number(numeroEixos);
-
-    if (!placa.trim() || placa.replace(/[^A-Z0-9]/g, '').length < 7) {
-      newErrors.placa = 'Placa invalida (ex: ABC1234 ou ABC1D23)';
-    }
-    if (!modelo.trim()) {
-      newErrors.modelo = 'Modelo e obrigatorio';
-    }
-    if (!renavam.trim() || renavam.replace(/\D/g, '').length < 9) {
-      newErrors.renavam = 'RENAVAM invalido';
-    }
-    if (!numeroEixos.trim()) {
-      newErrors.numeroEixos = 'Numero de eixos e obrigatorio';
-    } else if (!Number.isInteger(numeroEixosValue) || numeroEixosValue < 2) {
-      newErrors.numeroEixos = 'Informe um numero de eixos valido';
-    }
+    const newErrors = validateCaminhao({ placa, modelo, renavam, numeroEixos });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

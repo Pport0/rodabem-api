@@ -8,10 +8,10 @@ import {
   updateCaminhao,
 } from "@/services/caminhaoService";
 import { Toast } from "@/shared/ui/molecules/Toast";
+import { CaminhaoFormErrors, validateCaminhao } from "@/utils/caminhaoValidation";
 import { queryClient } from "@/utils/queryClient";
+import { pickScanFile, ScanSource } from "@/utils/scanFile";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import * as DocumentPicker from "expo-document-picker";
-import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -27,27 +27,8 @@ import {
   View,
 } from "react-native";
 
-interface FormErrors {
-  placa?: string;
-  modelo?: string;
-  renavam?: string;
-  numeroEixos?: string;
-}
-
 function cleanNumber(value: string) {
   return value.replace(/\D/g, "");
-}
-
-function resolveMimeType(fileName: string, mimeType?: string | null) {
-  if (mimeType) return mimeType;
-  const lower = fileName.toLowerCase();
-  if (lower.endsWith(".pdf")) return "application/pdf";
-  if (lower.endsWith(".png")) return "image/png";
-  return "image/jpeg";
-}
-
-function normalizeFileName(name?: string | null, fallback = "scan.jpg") {
-  return name?.trim() || fallback;
 }
 
 export default function NovoCaminhao() {
@@ -74,7 +55,7 @@ export default function NovoCaminhao() {
   const [scanMessage, setScanMessage] = useState("");
   const [scanConfidence, setScanConfidence] = useState<"alta" | "media" | "baixa" | "">("");
   const [scanArquivoUrl, setScanArquivoUrl] = useState("");
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<CaminhaoFormErrors>({});
 
   const scanStatusText = useMemo(() => {
     if (!scanMessage) return "";
@@ -140,21 +121,7 @@ export default function NovoCaminhao() {
   });
 
   const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-    const numeroEixosValue = Number(numeroEixos);
-
-    if (!placa.trim() || placa.replace(/[^A-Z0-9]/g, "").length < 7) {
-      newErrors.placa = "Placa invalida (ex: ABC1234 ou ABC1D23)";
-    }
-    if (!modelo.trim()) newErrors.modelo = "Modelo e obrigatorio";
-    if (!renavam.trim() || renavam.replace(/\D/g, "").length < 9) {
-      newErrors.renavam = "RENAVAM invalido";
-    }
-    if (!numeroEixos.trim()) {
-      newErrors.numeroEixos = "Numero de eixos e obrigatorio";
-    } else if (!Number.isInteger(numeroEixosValue) || numeroEixosValue < 2) {
-      newErrors.numeroEixos = "Informe um numero de eixos valido";
-    }
+    const newErrors = validateCaminhao({ placa, modelo, renavam, numeroEixos });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -186,58 +153,12 @@ export default function NovoCaminhao() {
     });
   };
 
-  const pickFileAndScan = async (source: "camera" | "library" | "document") => {
+  const pickFileAndScan = async (source: ScanSource) => {
     try {
-      let uri = "";
-      let name = "";
-      let type = "";
+      const file = await pickScanFile(source, "caminhao");
+      if (!file) return;
 
-      if (source === "camera") {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-          Toast.show("Permissao de camera negada", {
-            type: "error",
-            backgroundColor: "#E53E3E",
-          });
-          return;
-        }
-
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.9,
-        });
-
-        if (result.canceled || !result.assets?.length) return;
-        const asset = result.assets[0];
-        uri = asset.uri;
-        name = normalizeFileName(asset.fileName, `caminhao-${Date.now()}.jpg`);
-        type = resolveMimeType(name, asset.mimeType);
-      } else if (source === "library") {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.9,
-        });
-
-        if (result.canceled || !result.assets?.length) return;
-        const asset = result.assets[0];
-        uri = asset.uri;
-        name = normalizeFileName(asset.fileName, `caminhao-${Date.now()}.jpg`);
-        type = resolveMimeType(name, asset.mimeType);
-      } else {
-        const result = await DocumentPicker.getDocumentAsync({
-          type: ["application/pdf", "image/*"],
-          copyToCacheDirectory: true,
-          multiple: false,
-        });
-
-        if (result.canceled || !result.assets?.length) return;
-        const asset = result.assets[0];
-        uri = asset.uri;
-        name = normalizeFileName(asset.name, `caminhao-${Date.now()}`);
-        type = resolveMimeType(name, asset.mimeType);
-      }
-
-      const response = await scanCaminhao({ uri, name, type });
+      const response = await scanCaminhao(file);
       applyScanResult(response);
     } catch (error: any) {
       const message =

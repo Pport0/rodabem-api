@@ -57,18 +57,32 @@ export class FreteService {
       consumoMedioKmL = mediaResult.mediaConsumo;
     }
 
-
     const distanciaIda = rota.distanciaKm;
 
     const pedagioBase = dto.pedagiosManual ?? 0;
     const pedagiosTotal = dto.retornoVazio ? pedagioBase * 2 : pedagioBase;
 
+    const agora = new Date();
+    const versaoAtual = await this.prisma.versaoAntt.findFirst({
+      where: {
+        vigenteDesde: { lte: agora },
+        OR: [
+          { vigenteAte: null },
+          { vigenteAte: { gte: agora } },
+        ],
+      },
+      orderBy: { vigenteDesde: 'desc' },
+    });
+
+    if (!versaoAtual) {
+      throw new NotFoundException('Nenhuma tabela ANTT vigente encontrada.');
+    }
 
     const tabelaAntt = await this.prisma.tabelaAntt.findFirst({
       where: {
+        versaoId: versaoAtual.id,
         numeroEixos: caminhao.numeroEixos,
         tipoCarga: dto.tipoCarga,
-
         altoDesempenho: dto.altoDesempenho ?? false,
         distanciaMin: { lte: distanciaIda },
         distanciaMax: { gte: distanciaIda },
@@ -80,7 +94,6 @@ export class FreteService {
         `Não foram encontrados valores da ANTT para ${caminhao.numeroEixos} eixos com carga do tipo ${dto.tipoCarga}.`,
       );
     }
-
 
     const ccd = tabelaAntt.valorPorKm;
     const cc = tabelaAntt.cc ?? 0;
@@ -102,7 +115,6 @@ export class FreteService {
     const custoCombustivel = parseFloat(
       (litrosNecessarios * dto.precoCombustivel).toFixed(2),
     );
-
 
     const custoOperacional = custoCombustivel + pedagiosTotal;
     const valorLiquidoEstimado = parseFloat(
@@ -128,6 +140,7 @@ export class FreteService {
         valorLiquidoEstimado,
         userId,
         caminhaoId: caminhao.id,
+        versaoAnttId: versaoAtual.id,
       },
     });
 

@@ -58,6 +58,28 @@ describe('Cartao de documento - quando o back nao manda status', () => {
   });
 });
 
+describe('Cartao de documento - janela de alerta definida pelo back (#52)', () => {
+  it('deve exibir VALIDO quando o back diz valido, mesmo a menos de 30 dias do vencimento', async () => {
+    await montar({ status: 'VALIDO', dataVencimento: emDias(10) });
+
+    expect(screen.getByText('VÁLIDO')).toBeTruthy();
+    expect(screen.queryByText('VENCENDO EM BREVE')).toBeNull();
+  });
+
+  it('deve exibir VENCENDO quando o back diz vencendo, mesmo a mais de 30 dias do vencimento', async () => {
+    await montar({ status: 'VENCENDO', dataVencimento: emDias(45) });
+
+    expect(screen.getByText('VENCENDO EM BREVE')).toBeTruthy();
+  });
+
+  it('nao deve decidir "vencendo" por conta propria quando o back nao manda status', async () => {
+    await montar({ status: undefined, dataVencimento: emDias(10) });
+
+    expect(screen.queryByText('VENCENDO EM BREVE')).toBeNull();
+    expect(screen.queryByText('EXPIRADO')).toBeNull();
+  });
+});
+
 describe('Cartao de documento - o que o motorista le', () => {
   it('deve exibir a data de vencimento no padrao brasileiro', async () => {
     await montar({ dataVencimento: '2027-03-10T12:00:00.000Z' });
