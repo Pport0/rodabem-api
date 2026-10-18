@@ -5,15 +5,11 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 
 type DocumentStatus = "valido" | "vencendo" | "vencido";
 
+// A janela de "vencendo" e parametro do back (DIAS_ALERTA_VENCIMENTO).
+// Sem status do back, o front so afirma o que a data diz sozinha: se ja venceu.
 function getDocumentStatus(dataVencimento: string): DocumentStatus {
-  const hoje = new Date();
-  const vencimento = new Date(dataVencimento);
-  const diffDays = Math.ceil(
-    (vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (diffDays < 0) return "vencido";
-  if (diffDays <= 30) return "vencendo";
-  return "valido";
+  const vencido = new Date(dataVencimento).getTime() < Date.now();
+  return vencido ? "vencido" : "valido";
 }
 
 function getBackendStatus(status?: string): DocumentStatus | null {

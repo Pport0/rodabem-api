@@ -30,7 +30,7 @@ export default function HomeHeader() {
         backgroundColor={primaryColor}
         size={36}
         image={{
-          name: user?.nome?.charAt(0) ?? 'U',
+          name: user?.nome || 'U',
           uri: '',
         }}
       />

@@ -14,6 +14,21 @@ export interface Documento {
   caminhaoId?: number | null;
 }
 
+export interface AlertaVencimento {
+  id: number;
+  nome: string;
+  numero: string;
+  dataVencimento: string;
+  caminhaoId?: number | null;
+  vinculo: DocumentoVinculo;
+  diasRestantes: number;
+}
+
+export interface AlertasVencimentoResponse {
+  alertas: AlertaVencimento[];
+  mensagem: string;
+}
+
 export interface CreateDocumentoDto {
   id?: number;
   nome: string;
