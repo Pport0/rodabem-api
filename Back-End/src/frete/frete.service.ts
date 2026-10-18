@@ -153,11 +153,26 @@ export class FreteService {
     };
   }
 
-  async historico(userId: number) {
-    return this.prisma.simulacaoFrete.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+  async historico(userId: number, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const [simulacoes, total] = await Promise.all([
+      this.prisma.simulacaoFrete.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.simulacaoFrete.count({ where: { userId } }),
+    ]);
+
+    return {
+      data: simulacoes,
+      total,
+      page,
+      limit,
+      totalPaginas: Math.ceil(total / limit),
+    };
   }
 
   async findOne(userId: number, id: number) {

@@ -94,6 +94,9 @@ model Documento {
   caminhao   Caminhao? @relation(fields: [caminhaoId], references: [id])
 
   createdAt DateTime @default(now())
+
+   @@index([userId])
+  @@index([caminhaoId])
 }
 
 
@@ -132,6 +135,9 @@ model Abastecimento {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([caminhaoId])
 
   @@map("abastecimentos")
 }
@@ -191,6 +197,9 @@ model SimulacaoFrete {
   caminhao   Caminhao @relation(fields: [caminhaoId], references: [id])
 
   createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([caminhaoId])
 
   @@map("simulacoes_frete")
 }
