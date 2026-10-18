@@ -15,6 +15,7 @@ const coeficientes = [
   { numeroEixos: 2, tipoCarga: TipoCarga.PERIGOSA_GRANEL_LIQUIDO, valorPorKm: 4.5918, cc: 163.36 },
   { numeroEixos: 2, tipoCarga: TipoCarga.PERIGOSA_GRANEL_SOLIDO,  valorPorKm: 3.8265, cc: 136.13 },
   { numeroEixos: 2, tipoCarga: TipoCarga.NEOGRANEL,               valorPorKm: 3.60,   cc: 451.84 },
+  { numeroEixos: 2, tipoCarga: TipoCarga.GRANEL_PRESSURIZADO,     valorPorKm: 7.04,   cc: 757.81 },
   // 3 eixos
   { numeroEixos: 3, tipoCarga: TipoCarga.GERAL,                   valorPorKm: 3.5602, cc: 126.74 },
   { numeroEixos: 3, tipoCarga: TipoCarga.GRANEL_SOLIDO,           valorPorKm: 3.2042, cc: 114.07 },
@@ -27,6 +28,7 @@ const coeficientes = [
   { numeroEixos: 3, tipoCarga: TipoCarga.PERIGOSA_GRANEL_LIQUIDO, valorPorKm: 5.3344, cc: 189.92 },
   { numeroEixos: 3, tipoCarga: TipoCarga.PERIGOSA_GRANEL_SOLIDO,  valorPorKm: 4.4453, cc: 158.27 },
   { numeroEixos: 3, tipoCarga: TipoCarga.NEOGRANEL,               valorPorKm: 5.10,   cc: 541.44 },
+  { numeroEixos: 3, tipoCarga: TipoCarga.GRANEL_PRESSURIZADO,     valorPorKm: 7.04,   cc: 757.81 },
   // 4 eixos
   { numeroEixos: 4, tipoCarga: TipoCarga.GERAL,                   valorPorKm: 4.0566, cc: 144.42 },
   { numeroEixos: 4, tipoCarga: TipoCarga.GRANEL_SOLIDO,           valorPorKm: 3.6509, cc: 130.00 },
@@ -39,6 +41,7 @@ const coeficientes = [
   { numeroEixos: 4, tipoCarga: TipoCarga.PERIGOSA_GRANEL_LIQUIDO, valorPorKm: 6.0769, cc: 216.35 },
   { numeroEixos: 4, tipoCarga: TipoCarga.PERIGOSA_GRANEL_SOLIDO,  valorPorKm: 5.0641, cc: 180.29 },
   { numeroEixos: 4, tipoCarga: TipoCarga.NEOGRANEL,               valorPorKm: 5.81,   cc: 596.35 },
+  { numeroEixos: 4, tipoCarga: TipoCarga.GRANEL_PRESSURIZADO,     valorPorKm: 7.04,   cc: 757.81 },
   // 5 eixos
   { numeroEixos: 5, tipoCarga: TipoCarga.GERAL,                   valorPorKm: 4.5530, cc: 162.10 },
   { numeroEixos: 5, tipoCarga: TipoCarga.GRANEL_SOLIDO,           valorPorKm: 4.0977, cc: 145.93 },
@@ -77,7 +80,7 @@ const coeficientes = [
   { numeroEixos: 7, tipoCarga: TipoCarga.PERIGOSA_GRANEL_LIQUIDO, valorPorKm: 8.3046, cc: 295.77 },
   { numeroEixos: 7, tipoCarga: TipoCarga.PERIGOSA_GRANEL_SOLIDO,  valorPorKm: 6.9205, cc: 246.47 },
   { numeroEixos: 7, tipoCarga: TipoCarga.NEOGRANEL,               valorPorKm: 8.09,   cc: 831.66 },
- 
+  { numeroEixos: 7, tipoCarga: TipoCarga.GRANEL_PRESSURIZADO,     valorPorKm: 7.77,   cc: 784.82 },
   // 9 eixos
   { numeroEixos: 9, tipoCarga: TipoCarga.GERAL,                   valorPorKm: 6.5386, cc: 232.84 },
   { numeroEixos: 9, tipoCarga: TipoCarga.GRANEL_SOLIDO,           valorPorKm: 5.8847, cc: 209.58 },
@@ -130,27 +133,24 @@ export async function seedAntt() {
     return;
   }
 
-  console.log(`📋 Tabela ANTT já tem ${jaExiste} registros. Verificando tipos novos...`);
+  console.log(`📋 Tabela ANTT já tem ${jaExiste} registros. Verificando registros faltantes...`);
 
-  const tiposNovos = [
-    TipoCarga.GRANEL_PRESSURIZADO,
-    TipoCarga.NEOGRANEL,
-  ];
-
-  for (const tipo of tiposNovos) {
-    const jaTemTipo = await prisma.tabelaAntt.count({
-      where: { versaoId: versao.id, tipoCarga: tipo },
+  for (const coef of coeficientes) {
+    const jaExisteRegistro = await prisma.tabelaAntt.findFirst({
+      where: {
+        versaoId: versao.id,
+        tipoCarga: coef.tipoCarga,
+        numeroEixos: coef.numeroEixos,
+      },
     });
 
-    if (jaTemTipo > 0) {
-      console.log(`⏭️  ${tipo} já existe (${jaTemTipo} registros). Ignorado.`);
-      continue;
+    if (!jaExisteRegistro) {
+      await prisma.tabelaAntt.create({
+        data: { ...coef, versaoId: versao.id },
+      });
+      console.log(`✅ Inserido: ${coef.numeroEixos} eixos / ${coef.tipoCarga}`);
     }
-
-    const linhas = coeficientes.filter(c => c.tipoCarga === tipo);
-    await prisma.tabelaAntt.createMany({
-      data: linhas.map(item => ({ ...item, versaoId: versao.id })),
-    });
-    console.log(`✅ ${linhas.length} registros inseridos para ${tipo}.`);
   }
+
+  console.log('✅ Verificação de registros faltantes concluída.');
 }
