@@ -165,6 +165,42 @@ describe('Tela de cadastro - rotulos', () => {
   });
 });
 
+describe('Tela de cadastro - telefone opcional (#47)', () => {
+  it('nao deve enviar telefone quando o campo fica em branco', async () => {
+    await preencher({ telefone: '' });
+    await enviar();
+
+    expect(mockSignUp).toHaveBeenCalledWith(
+      expect.objectContaining({ telefone: undefined }),
+    );
+  });
+
+  it('deve recusar telefone com 9 digitos, um a menos que o minimo', async () => {
+    await preencher({ telefone: '629999999' });
+    await enviar();
+
+    expect(screen.getByText('Telefone inválido')).toBeTruthy();
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
+  it('deve aceitar telefone fixo com 10 digitos', async () => {
+    await preencher({ telefone: '6233334444' });
+    await enviar();
+
+    expect(mockSignUp).toHaveBeenCalledWith(
+      expect.objectContaining({ telefone: '6233334444' }),
+    );
+  });
+
+  it('deve manter o asterisco nos campos que a RNE-01 define como obrigatorios', async () => {
+    await render(<Register />);
+
+    for (const rotulo of ['NOME COMPLETO*', 'CPF*', 'EMAIL*', 'SENHA DE ACESSO*', 'CONFIRME SUA SENHA*']) {
+      expect(screen.getByText(rotulo)).toBeTruthy();
+    }
+  });
+});
+
 describe('Tela de cadastro - envio', () => {
 
   it('deve remover a mascara do CPF e do telefone antes de enviar', async () => {
