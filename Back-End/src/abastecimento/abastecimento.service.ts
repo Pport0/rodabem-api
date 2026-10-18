@@ -23,7 +23,7 @@ export class AbastecimentoService {
       );
     }
 
-    await this.validarQuilometragem(caminhao.id, dto.quilometragem);
+    await this.validarQuilometragemCriacao(caminhao.id, dto.quilometragem);
 
     const valorTotal = parseFloat(
       (dto.precoPorLitro * dto.totalLitros).toFixed(2),
@@ -101,7 +101,7 @@ export class AbastecimentoService {
       dto.quilometragem !== undefined &&
       dto.quilometragem !== abastecimento.quilometragem
     ) {
-      await this.validarQuilometragem(
+      await this.validarQuilometragemEdicao(
         abastecimento.caminhaoId,
         dto.quilometragem,
         id,
@@ -194,41 +194,61 @@ export class AbastecimentoService {
     };
   }
 
-  private async validarQuilometragem(
+  private async validarQuilometragemCriacao(
     caminhaoId: number,
     quilometragem: number,
-    ignorarId?: number,
   ) {
-    
-    const anterior = await this.prisma.abastecimento.findFirst({
-      where: {
-        caminhaoId,
-        quilometragem: { lt: quilometragem },
-        ...(ignorarId !== undefined && { id: { not: ignorarId } }),
-      },
+    const ultimo = await this.prisma.abastecimento.findFirst({
+      where: { caminhaoId },
       orderBy: { quilometragem: 'desc' },
       select: { quilometragem: true },
     });
 
-    
-    const posterior = await this.prisma.abastecimento.findFirst({
+    if (ultimo && quilometragem <= ultimo.quilometragem) {
+      throw new BadRequestException(
+        `A quilometragem informada (${quilometragem} km) deve ser maior que a última registrada (${ultimo.quilometragem} km).`,
+      );
+    }
+  }
+
+  private async validarQuilometragemEdicao(
+    caminhaoId: number,
+    quilometragem: number,
+    ignorarId: number,
+  ) {
+    const registroAtual = await this.prisma.abastecimento.findUnique({
+      where: { id: ignorarId },
+      select: { dataAbastecimento: true },
+    });
+
+    if (!registroAtual) return;
+
+    const anterior = await this.prisma.abastecimento.findFirst({
       where: {
         caminhaoId,
-        quilometragem: { gte: quilometragem },
-        ...(ignorarId !== undefined && { id: { not: ignorarId } }),
+        id: { not: ignorarId },
+        dataAbastecimento: { lt: registroAtual.dataAbastecimento },
       },
-      orderBy: { quilometragem: 'asc' },
+      orderBy: { dataAbastecimento: 'desc' },
       select: { quilometragem: true },
     });
 
-    
+    const posterior = await this.prisma.abastecimento.findFirst({
+      where: {
+        caminhaoId,
+        id: { not: ignorarId },
+        dataAbastecimento: { gt: registroAtual.dataAbastecimento },
+      },
+      orderBy: { dataAbastecimento: 'asc' },
+      select: { quilometragem: true },
+    });
+
     if (anterior && quilometragem <= anterior.quilometragem) {
       throw new BadRequestException(
         `A quilometragem informada (${quilometragem} km) deve ser maior que o registro anterior (${anterior.quilometragem} km).`,
       );
     }
 
-    
     if (posterior && quilometragem >= posterior.quilometragem) {
       throw new BadRequestException(
         `A quilometragem informada (${quilometragem} km) deve ser menor que o registro posterior (${posterior.quilometragem} km).`,
