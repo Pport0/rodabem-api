@@ -71,9 +71,9 @@ describe('scanFile - auxiliares comuns ao scan de caminhao e documento (#50)', (
     expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
   });
 
-  it('deve devolver null quando o usuario cancela a galeria', async () => {
-    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({ canceled: true } as any);
+  it('deve devolver null quando o usuario cancela o seletor de documentos', async () => {
+    jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: true } as any);
 
-    await expect(pickScanFile('library', 'documento')).resolves.toBeNull();
+    await expect(pickScanFile('document', 'documento')).resolves.toBeNull();
   });
 });
