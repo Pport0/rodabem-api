@@ -1,5 +1,6 @@
 import colors from "@/constants/colors";
 import { ActionCard } from "@/components/actionCard";
+import { AlertaVencimento } from "@/components/alertaVencimento";
 import { useUser } from "@/hooks/useUser";
 import { router } from "expo-router";
 import { ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
@@ -17,6 +18,8 @@ export default function Home() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      <AlertaVencimento />
+
       <View style={styles.greetingSection}>
         <Text style={styles.greeting}>Olá, {firstName}!</Text>
         <Text style={styles.subGreeting}>O que você precisa hoje?</Text>
