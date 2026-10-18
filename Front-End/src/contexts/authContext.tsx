@@ -32,13 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let userData: { cpf?: string; telefone?: string, senha: string } = { senha: password };
       return signIn({ cpf: cpfOrPhone, telefone: cpfOrPhone, senha: password });
     },
-    onSuccess: (data: any) => {
-      show('Login realizado com sucesso', { type: 'success', backgroundColor: '#10B981' }); 
+    onSuccess: async (data: any) => {
       const token = data.access_token;
-      if(token) {
-        SecureStore.setItem(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token', token);
-        SecureStore.setItem(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user', JSON.stringify(data.user));
+      if (token) {
+        await SecureStore.setItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token', token);
+        await SecureStore.setItemAsync(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user', JSON.stringify(data.user));
+        show('Login realizado com sucesso', { type: 'success', backgroundColor: '#10B981' });
         router.push('/(drawer)/home');
+      } else {
+        show('Não foi possível concluir o login. Tente novamente.', { type: 'error', backgroundColor: '#bf0a30' });
       }
     },
     onError: (error) => {
@@ -65,9 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const logout = () => {
-    SecureStore.deleteItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token');
-    router.push('/');
+  const logout = async () => {
+    await Promise.all([
+      SecureStore.deleteItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token'),
+      SecureStore.deleteItemAsync(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user'),
+    ]);
+    router.replace('/');
   };
 
   return (

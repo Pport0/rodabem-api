@@ -137,6 +137,7 @@ export default function Perfil() {
 
         <TouchableOpacity
           style={[styles.outlineButton, { borderColor: primaryColor }]}
+          onPress={() => router.push("/alterarSenha" as any)}
           activeOpacity={0.85}
         >
           <Text style={[styles.outlineButtonText, { color: primaryColor }]}>ALTERAR SENHA</Text>

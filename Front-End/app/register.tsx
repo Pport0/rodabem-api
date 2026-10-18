@@ -46,6 +46,12 @@ export default function Register() {
     if (telefone.replace(/\D/g, '').length < 10) {
       newErrors.telefone = 'Telefone inválido';
     }
+    const emailValue = email.trim();
+    if (!emailValue) {
+      newErrors.email = 'Email é obrigatório';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+      newErrors.email = 'Email inválido';
+    }
     if (!senha) {
       newErrors.senha = 'Senha é obrigatória';
     } else if (!isMinLength) {

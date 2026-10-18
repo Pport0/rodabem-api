@@ -12,9 +12,15 @@ export default function Login() {
 
   const [cpfOrPhone, setCpfOrPhone] = useState('');
   const [password, setPassword] = useState(''); 
+  const [errors, setErrors] = useState<{ cpfOrPhone?: string; password?: string }>({});
   const { login } = useAuth();
 
   const handleLogin = () => {
+    const nextErrors: { cpfOrPhone?: string; password?: string } = {};
+    if (!cpfOrPhone.trim()) nextErrors.cpfOrPhone = 'Informe seu CPF ou telefone.';
+    if (!password.trim()) nextErrors.password = 'Informe sua senha.';
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     login({ cpfOrPhone, password });
   }
 
@@ -28,12 +34,14 @@ export default function Login() {
         CPF ou Telefone
       </Text>
       <Input placeholder="Insira o seu cpf ou telefone" value={cpfOrPhone} onChangeText={setCpfOrPhone} type="text" />
+      {errors.cpfOrPhone && <Text style={styles.errorText}>{errors.cpfOrPhone}</Text>}
     </View>
     <View style={styles.inputContainer}>
       <Text style={styles.label}>
         Senha
       </Text>
       <Input placeholder="Insira a sua senha" value={password} onChangeText={setPassword} type="password" />
+      {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
     </View>
     <Button borderRadius={10} height={60} width={Dimensions.get('window').width - 40} backgroundColor={primaryColor} onPress={handleLogin}>
       <Text style={styles.buttonText}>Acessar</Text>
@@ -72,6 +80,10 @@ const styles = StyleSheet.create({
   inputContainer: {
     gap: 10,
     width: '100%',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#E53E3E',
   },
   buttonText: {
     color: '#fff',

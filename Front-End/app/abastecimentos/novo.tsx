@@ -35,6 +35,14 @@ interface FormErrors {
   quilometragem?: string;
 }
 
+function parsePtBrNumber(value: string): number {
+  const normalized = value.trim();
+  if (!normalized) return Number.NaN;
+  return Number(normalized.includes(",")
+    ? normalized.replace(/\./g, "").replace(",", ".")
+    : normalized);
+}
+
 export default function NovoAbastecimento() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? "light"].primary;
@@ -69,8 +77,8 @@ export default function NovoAbastecimento() {
   }, [abastecimentoQuery.data]);
 
   const totalPreview = useMemo(() => {
-    const preco = Number(precoPorLitro.replace(",", "."));
-    const litros = Number(totalLitros.replace(",", "."));
+    const preco = parsePtBrNumber(precoPorLitro);
+    const litros = parsePtBrNumber(totalLitros);
     if (!preco || !litros) return null;
     return preco * litros;
   }, [precoPorLitro, totalLitros]);
@@ -78,8 +86,8 @@ export default function NovoAbastecimento() {
   const mutation = useMutation({
     mutationFn: async () => {
       const payload = {
-        precoPorLitro: Number(precoPorLitro.replace(",", ".")),
-        totalLitros: Number(totalLitros.replace(",", ".")),
+        precoPorLitro: parsePtBrNumber(precoPorLitro),
+        totalLitros: parsePtBrNumber(totalLitros),
         quilometragem: Number(quilometragem),
         tipoCombustivel,
         localDescricao: localDescricao.trim() || undefined,
@@ -117,13 +125,15 @@ export default function NovoAbastecimento() {
 
   const validate = () => {
     const nextErrors: FormErrors = {};
-    const preco = Number(precoPorLitro.replace(",", "."));
-    const litros = Number(totalLitros.replace(",", "."));
+    const preco = parsePtBrNumber(precoPorLitro);
+    const litros = parsePtBrNumber(totalLitros);
     const km = Number(quilometragem);
 
     if (!preco || preco <= 0) nextErrors.precoPorLitro = "Informe um preco por litro valido.";
     if (!litros || litros <= 0) nextErrors.totalLitros = "Informe a quantidade de litros.";
-    if (!km || km < 0) nextErrors.quilometragem = "Informe a quilometragem atual.";
+    if (!quilometragem.trim() || Number.isNaN(km) || km < 0) {
+      nextErrors.quilometragem = "Informe a quilometragem atual.";
+    }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -185,7 +195,7 @@ export default function NovoAbastecimento() {
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>PRECO POR LITRO *</Text>
               <Input
-                placeholder="Ex: 6.39"
+                placeholder="Ex: 6,39"
                 value={precoPorLitro}
                 onChangeText={(text) => setPrecoPorLitro(text.replace(/[^0-9.,]/g, ""))}
                 keyboardType="decimal-pad"
