@@ -33,6 +33,7 @@ export default function Register() {
 
   const isMinLength = senha.length >= 6;
   const hasChars = senha.length > 0;
+  const telefoneDigits = telefone.replace(/\D/g, '');
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -43,7 +44,8 @@ export default function Register() {
     if (cpf.replace(/\D/g, '').length !== 11) {
       newErrors.cpf = 'CPF inválido';
     }
-    if (telefone.replace(/\D/g, '').length < 10) {
+    // Telefone e opcional (RNE-01), mas se informado tem que estar completo.
+    if (telefoneDigits && telefoneDigits.length < 10) {
       newErrors.telefone = 'Telefone inválido';
     }
     const emailValue = email.trim();
@@ -69,7 +71,8 @@ export default function Register() {
 
   const handleRegister = async () => {
     if (!validate()) return;
-    await signUp({ cpf: cpf.replace(/\D/g, ''), telefone: telefone.replace(/\D/g, ''), senha, email: email.trim(), nome: nome.trim() });
+    // Vazio vai como undefined: telefone e unico no banco, e "" colidiria entre usuarios sem telefone.
+    await signUp({ cpf: cpf.replace(/\D/g, ''), telefone: telefoneDigits || undefined, senha, email: email.trim(), nome: nome.trim() });
   };
 
   return (
@@ -106,7 +109,7 @@ export default function Register() {
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>TELEFONE*</Text>
+        <Text style={styles.label}>TELEFONE</Text>
         <Input
           placeholder="(00) 00000-0000"
           value={telefone}

@@ -1,4 +1,9 @@
-import { Documento, CreateDocumentoDto, UpdateDocumentoDto } from "@/@types/documento";
+import {
+  AlertasVencimentoResponse,
+  Documento,
+  CreateDocumentoDto,
+  UpdateDocumentoDto,
+} from "@/@types/documento";
 import { DocumentoScanResponse } from "@/@types/scan";
 import { api } from "./api";
 
@@ -16,6 +21,11 @@ function extractDocumento(data: DocumentoApiResponse): Documento | null {
 
 export async function getDocumentos(): Promise<Documento[]> {
   const response = await api.get<Documento[]>("/documentos");
+  return response.data;
+}
+
+export async function getAlertasVencimento(): Promise<AlertasVencimentoResponse> {
+  const response = await api.get<AlertasVencimentoResponse>("/documentos/alertas");
   return response.data;
 }
 

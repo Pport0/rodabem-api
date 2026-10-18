@@ -1,0 +1,12 @@
+appId: com.anonymous.rodabem
+name: login - oferece recuperacao de senha
+---
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "ENTRAR"
+- extendedWaitUntil:
+    visible: "Esqueci minha senha"
+    timeout: 30000
+- tapOn: "Esqueci minha senha"
+- extendedWaitUntil:
+    visible: ".*[Ee]-?mail.*"
+    timeout: 20000

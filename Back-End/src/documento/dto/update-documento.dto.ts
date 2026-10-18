@@ -1,10 +1,4 @@
-export class UpdateDocumentoDto {
-  nome?: string;
-  numero?: string;
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateDocumentoDto } from './create-documento.dto';
 
-  dataEmissao?: string;
-  dataVencimento?: string;
-
-  observacao?: string;
-  arquivoUrl?: string;
-}
+export class UpdateDocumentoDto extends PartialType(CreateDocumentoDto) {}

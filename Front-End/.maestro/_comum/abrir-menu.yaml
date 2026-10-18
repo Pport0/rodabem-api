@@ -1,0 +1,7 @@
+appId: com.anonymous.rodabem
+---
+- tapOn:
+    point: "8%,8%"
+- extendedWaitUntil:
+    visible: "Meu Perfil"
+    timeout: 20000

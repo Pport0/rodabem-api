@@ -4,6 +4,7 @@ import Input from '@/components/input';
 import colors from '@/constants/colors';
 import { updateDocumento } from '@/services/documentoService';
 import { useToast } from '@/shared/ui/molecules/Toast';
+import { DocumentoFormErrors, validateDocumento } from '@/utils/documentoValidation';
 import { queryClient } from '@/utils/queryClient';
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
@@ -21,12 +22,8 @@ import {
   View,
 } from 'react-native';
 
-interface FormErrors {
+interface FormErrors extends DocumentoFormErrors {
   id?: string;
-  nome?: string;
-  numero?: string;
-  dataEmissao?: string;
-  dataVencimento?: string;
 }
 
 function getErrorMessage(error: unknown) {
@@ -107,19 +104,9 @@ export default function EditarDocumento() {
   });
 
   const validate = () => {
-    const newErrors: FormErrors = {};
+    const newErrors: FormErrors = validateDocumento({ nome, numero, dataEmissao, dataVencimento });
 
     if (!documentoId) newErrors.id = 'Documento invalido para edicao';
-    if (!nome.trim()) newErrors.nome = 'Nome do documento e obrigatorio';
-    if (!numero.trim()) newErrors.numero = 'Numero e obrigatorio';
-    if (!dataEmissao) newErrors.dataEmissao = 'Data de emissao obrigatoria';
-    if (!dataVencimento) {
-      newErrors.dataVencimento = 'Data de vencimento obrigatoria';
-    }
-    if (dataEmissao && dataVencimento && dataVencimento < dataEmissao) {
-      newErrors.dataVencimento =
-        'A data de vencimento nao pode ser anterior a emissao';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

@@ -2,14 +2,27 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { CloudinaryService } from '../caminhao/scan/cloudinary.service';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 
 @Injectable()
 export class DocumentoService {
-  constructor(private prisma: PrismaService) {}
+
+  private readonly diasAlerta: number;
+  private readonly logger = new Logger(DocumentoService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+    private cloudinaryService: CloudinaryService,
+  ) {
+    this.diasAlerta = this.configService.get<number>('DIAS_ALERTA_VENCIMENTO') ?? 30;
+  }
 
   async create(userId: number, data: CreateDocumentoDto) {
     const {
@@ -20,6 +33,7 @@ export class DocumentoService {
       caminhaoId,
       observacao,
       arquivoUrl,
+      publicId,
     } = data;
 
     if (!nome || !numero || !dataEmissao || !dataVencimento) {
@@ -50,6 +64,7 @@ export class DocumentoService {
         dataVencimento: new Date(dataVencimento),
         observacao,
         arquivoUrl,
+        publicId: publicId ?? null,
         caminhaoId: caminhaoId ?? null,
         userId,
       },
@@ -99,12 +114,8 @@ export class DocumentoService {
       where: { id },
       data: {
         ...data,
-        dataEmissao: data.dataEmissao
-          ? new Date(data.dataEmissao)
-          : undefined,
-        dataVencimento: data.dataVencimento
-          ? new Date(data.dataVencimento)
-          : undefined,
+        dataEmissao: data.dataEmissao ? new Date(data.dataEmissao) : undefined,
+        dataVencimento: data.dataVencimento ? new Date(data.dataVencimento) : undefined,
       },
     });
   }
@@ -122,6 +133,17 @@ export class DocumentoService {
       throw new ForbiddenException('Acesso nao permitido');
     }
 
+    if (doc.publicId) {
+      try {
+        await this.cloudinaryService.deleteFile(doc.publicId);
+      } catch (err: unknown) {
+        this.logger.warn(
+          'Nao foi possivel remover arquivo do Cloudinary (publicId: ' + doc.publicId + '): ' + (err instanceof Error ? err.message : 'erro desconhecido'),
+        );
+
+      }
+    }
+
     await this.prisma.documento.delete({
       where: { id },
     });
@@ -131,22 +153,59 @@ export class DocumentoService {
     };
   }
 
+  async alertasVencimento(userId: number) {
+    const diasAlerta = this.diasAlerta;
+    const hoje = new Date();
+    const limite = new Date(hoje.getTime() + diasAlerta * 24 * 60 * 60 * 1000);
+
+    const documentos = await this.prisma.documento.findMany({
+      where: {
+        userId,
+        dataVencimento: {
+          lte: limite,
+          gte: hoje,
+        },
+      },
+      orderBy: { dataVencimento: 'asc' },
+      select: {
+        id: true,
+        nome: true,
+        numero: true,
+        dataVencimento: true,
+        caminhaoId: true,
+      },
+    });
+
+    if (documentos.length === 0) {
+      return {
+        alertas: [],
+        mensagem: 'Nenhum documento a vencer.',
+      };
+    }
+
+    return {
+      alertas: documentos.map((doc) => ({
+        ...doc,
+        vinculo: doc.caminhaoId ? 'CAMINHAO' : 'MOTORISTA',
+        diasRestantes: this.getDiasRestantes(doc.dataVencimento),
+      })),
+      mensagem: `${documentos.length} documento(s) vencendo nos próximos ${diasAlerta} dias.`,
+    };
+  }
+
   private getStatus(dataVencimento: Date) {
     const hoje = new Date();
-    const diasConfig = 30;
-
     const diff =
       (new Date(dataVencimento).getTime() - hoje.getTime()) /
       (1000 * 60 * 60 * 24);
 
     if (diff < 0) return 'EXPIRADO';
-    if (diff <= diasConfig) return 'VENCENDO';
+    if (diff <= this.diasAlerta) return 'VENCENDO';
     return 'VALIDO';
   }
 
   private getDiasRestantes(dataVencimento: Date) {
     const hoje = new Date();
-
     return Math.ceil(
       (new Date(dataVencimento).getTime() - hoje.getTime()) /
         (1000 * 60 * 60 * 24),

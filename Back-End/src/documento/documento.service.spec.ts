@@ -20,12 +20,16 @@ describe('DocumentoService', () => {
     },
   };
 
+  const configService = {
+    get: jest.fn().mockReturnValue(30),
+  };
+
   const userId = 1;
   const now = new Date();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new DocumentoService(prisma as any);
+    service = new DocumentoService(prisma as any, configService as any);
   });
 
   it('deve cadastrar documento com dados validos', async () => {
@@ -117,6 +121,29 @@ describe('DocumentoService', () => {
     expect(prisma.documento.findMany).toHaveBeenCalledWith({
       where: { userId },
     });
+  });
+
+  it('deve recusar a edicao de documento inexistente', async () => {
+    prisma.documento.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.update(userId, 999, { observacao: 'Atualizado' }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(prisma.documento.update).not.toHaveBeenCalled();
+  });
+
+  it('deve recusar a edicao com vencimento anterior a emissao', async () => {
+    prisma.documento.findUnique.mockResolvedValue({ id: 9, userId });
+
+    await expect(
+      service.update(userId, 9, {
+        dataEmissao: '2026-06-01',
+        dataVencimento: '2026-05-01',
+      } as never),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(prisma.documento.update).not.toHaveBeenCalled();
   });
 
   it('deve impedir consulta indireta de documento de outro usuario na edicao', async () => {

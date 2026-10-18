@@ -1,11 +1,26 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+  Req,
+  ForbiddenException,
+  Patch,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(private usersService: UsersService) { }
 
   @Post()
   create(@Body() dto: CreateUserDto) {
@@ -13,8 +28,15 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me')
+  me(@Req() req) {
+    return this.usersService.findById(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll(
+    @Req() req,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('nome') nome?: string,
@@ -26,15 +48,31 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Put(':id')
   update(
+    @Req() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: Partial<{ nome: string; email: string; telefone: string; avatarUrl: string }>,
+    @Body() dto: UpdateUserDto,
   ) {
+    if (req.user.userId !== id) {
+      throw new ForbiddenException('Você não tem permissão para editar este usuário.');
+    }
     return this.usersService.update(id, dto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Req() req, @Param('id', ParseIntPipe) id: number) {
+    if (req.user.userId !== id) {
+      throw new ForbiddenException('Você não tem permissão para excluir este usuário.');
+    }
     return this.usersService.remove(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/senha')
+  alterarSenha(
+    @Req() req,
+    @Body() dto: { senhaAtual: string; novaSenha: string },
+  ) {
+    return this.usersService.alterarSenha(req.user.userId, dto);
   }
 }

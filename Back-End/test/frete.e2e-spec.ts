@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TipoCarga, TipoCombustivel } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
@@ -26,7 +26,17 @@ describe('Fluxo de frete (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: false,
+        transform: true,
+        stopAtFirstError: true,
+      }),
+    );
     await app.init();
+    await app.listen(0);
+
     prisma = app.get(PrismaService);
   });
 
@@ -36,6 +46,7 @@ describe('Fluxo de frete (e2e)', () => {
 
   afterAll(async () => {
     await clearDatabase(prisma);
+    await prisma.$disconnect();
     await app.close();
   });
 
@@ -104,4 +115,136 @@ describe('Fluxo de frete (e2e)', () => {
       })
       .expect(400);
   });
+
+  describe('POST /caminhao - numero de eixos previsto pela ANTT', () => {
+    const EIXOS_DA_ANTT = [2, 3, 4, 5, 6, 7, 9];
+    const FORA_DA_TABELA = [1, 8, 10];
+
+    it.each(FORA_DA_TABELA)(
+      'deve recusar o cadastro de caminhao com %i eixos, que a ANTT nao preve',
+      async (numeroEixos) => {
+        const { token } = await registerAndLogin(app, `30${numeroEixos}`);
+
+        await createTruck(app, token, { numeroEixos }).expect(400);
+      },
+    );
+
+    it.each(EIXOS_DA_ANTT)(
+      'deve aceitar o cadastro de caminhao com %i eixos, que a ANTT preve',
+      async (numeroEixos) => {
+        const { token } = await registerAndLogin(app, `31${numeroEixos}`);
+
+        await createTruck(app, token, { numeroEixos }).expect(201);
+      },
+    );
+  });
+
+  describe('POST /frete/simular - faixa da tabela', () => {
+    const semearTabela = async () => {
+      for (const [numeroEixos, valorPorKm] of [[4, 3], [6, 5], [8, 7]]) {
+        await prisma.tabelaAntt.create({
+          data: {
+            numeroEixos,
+            tipoCarga: TipoCarga.GERAL,
+            distanciaMin: 0,
+            distanciaMax: 1000,
+            valorPorKm,
+            atualizadoEm: new Date(),
+          },
+        });
+      }
+    };
+
+    it('deve usar a faixa exata quando ela existe', async () => {
+      await semearTabela();
+
+      const { token } = await registerAndLogin(app, '100010');
+      await createTruck(app, token, { numeroEixos: 6 }).expect(201);
+
+      const resposta = await request(app.getHttpServer())
+        .post('/frete/simular')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          origem: 'Goiania, GO',
+          destino: 'Brasilia, DF',
+          tipoCarga: TipoCarga.GERAL,
+          precoCombustivel: 6,
+          consumoMedioKmLOverride: 10,
+        });
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.valorMinimoAntt).toBeGreaterThan(0);
+    });
+  });
+
+  describe('POST /frete/simular - percentual de lucro desejado (RF-14)', () => {
+    const semearTabela = async () => {
+      await prisma.tabelaAntt.create({
+        data: {
+          numeroEixos: 6,
+          tipoCarga: TipoCarga.GERAL,
+          distanciaMin: 0,
+          distanciaMax: 1000,
+          valorPorKm: 5,
+          atualizadoEm: new Date(),
+        },
+      });
+    };
+
+    const simularComLucro = async (sufixo: string, percentualLucroDesejado: number) => {
+      await semearTabela();
+
+      const { token } = await registerAndLogin(app, sufixo);
+      await createTruck(app, token, { numeroEixos: 6 }).expect(201);
+
+      return request(app.getHttpServer())
+        .post('/frete/simular')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          origem: 'Goiania, GO',
+          destino: 'Brasilia, DF',
+          tipoCarga: TipoCarga.GERAL,
+          precoCombustivel: 6,
+          consumoMedioKmLOverride: 10,
+          percentualLucroDesejado,
+        });
+    };
+
+    it('deve devolver um valor sugerido a partir do percentual de lucro informado', async () => {
+      const resposta = await simularComLucro('400001', 20);
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.valorSugerido).toBeGreaterThan(0);
+    });
+
+    it('deve sugerir valor maior quando o lucro desejado e maior', async () => {
+      const vinte = await simularComLucro('400002', 20);
+      await clearDatabase(prisma);
+      const quarenta = await simularComLucro('400003', 40);
+
+      expect(quarenta.body.valorSugerido).toBeGreaterThan(vinte.body.valorSugerido);
+    });
+
+    it('nao deve sugerir valor abaixo do piso minimo da ANTT', async () => {
+      const resposta = await simularComLucro('400004', 0);
+
+      expect(resposta.body.valorSugerido).toBeGreaterThanOrEqual(
+        resposta.body.valorMinimoAntt,
+      );
+    });
+
+    it('deve aceitar lucro zero, cobrindo os custos sem margem', async () => {
+      const resposta = await simularComLucro('400005', 0);
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.valorSugerido).toBeGreaterThan(0);
+    });
+
+    it('deve recusar percentual de lucro negativo', async () => {
+      const resposta = await simularComLucro('400006', -10);
+
+      expect(resposta.status).toBe(400);
+    });
+  });
+
 });

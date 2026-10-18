@@ -5,10 +5,10 @@ import colors from "@/constants/colors";
 import { getMeuCaminhao } from "@/services/caminhaoService";
 import { createDocumento, scanDocumento } from "@/services/documentoService";
 import { Toast } from "@/shared/ui/molecules/Toast";
+import { DocumentoFormErrors, validateDocumento } from "@/utils/documentoValidation";
 import { queryClient } from "@/utils/queryClient";
+import { pickScanFile, ScanSource } from "@/utils/scanFile";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import * as DocumentPicker from "expo-document-picker";
-import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -24,25 +24,6 @@ import {
   useColorScheme,
   View,
 } from "react-native";
-
-interface FormErrors {
-  nome?: string;
-  numero?: string;
-  dataEmissao?: string;
-  dataVencimento?: string;
-}
-
-function resolveMimeType(fileName: string, mimeType?: string | null) {
-  if (mimeType) return mimeType;
-  const lower = fileName.toLowerCase();
-  if (lower.endsWith(".pdf")) return "application/pdf";
-  if (lower.endsWith(".png")) return "image/png";
-  return "image/jpeg";
-}
-
-function normalizeFileName(name?: string | null, fallback = "scan.jpg") {
-  return name?.trim() || fallback;
-}
 
 function parseOCRDate(value?: string | null) {
   if (!value) return null;
@@ -70,7 +51,7 @@ export default function NovoDocumento() {
   const [scanMessage, setScanMessage] = useState("");
   const [scanConfidence, setScanConfidence] = useState<"alta" | "media" | "baixa" | "">("");
   const [vincularAoCaminhao, setVincularAoCaminhao] = useState(Boolean(caminhaoId || meuCaminhao?.id));
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<DocumentoFormErrors>({});
 
   useEffect(() => {
     if (caminhaoId) setVincularAoCaminhao(true);
@@ -110,18 +91,7 @@ export default function NovoDocumento() {
   });
 
   const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!nome.trim()) newErrors.nome = "Nome do documento e obrigatorio";
-    if (!numero.trim()) newErrors.numero = "Numero e obrigatorio";
-    if (!dataEmissao) newErrors.dataEmissao = "Data de emissao obrigatoria";
-    if (!dataVencimento) {
-      newErrors.dataVencimento = "Data de vencimento obrigatoria";
-    }
-    if (dataEmissao && dataVencimento && dataVencimento < dataEmissao) {
-      newErrors.dataVencimento =
-        "A data de vencimento nao pode ser anterior a emissao";
-    }
+    const newErrors = validateDocumento({ nome, numero, dataEmissao, dataVencimento });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -152,58 +122,12 @@ export default function NovoDocumento() {
     });
   };
 
-  const pickFileAndScan = async (source: "camera" | "library" | "document") => {
+  const pickFileAndScan = async (source: ScanSource) => {
     try {
-      let uri = "";
-      let name = "";
-      let type = "";
+      const file = await pickScanFile(source, "documento");
+      if (!file) return;
 
-      if (source === "camera") {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-          Toast.show("Permissao de camera negada", {
-            type: "error",
-            backgroundColor: "#E53E3E",
-          });
-          return;
-        }
-
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.9,
-        });
-
-        if (result.canceled || !result.assets?.length) return;
-        const asset = result.assets[0];
-        uri = asset.uri;
-        name = normalizeFileName(asset.fileName, `documento-${Date.now()}.jpg`);
-        type = resolveMimeType(name, asset.mimeType);
-      } else if (source === "library") {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.9,
-        });
-
-        if (result.canceled || !result.assets?.length) return;
-        const asset = result.assets[0];
-        uri = asset.uri;
-        name = normalizeFileName(asset.fileName, `documento-${Date.now()}.jpg`);
-        type = resolveMimeType(name, asset.mimeType);
-      } else {
-        const result = await DocumentPicker.getDocumentAsync({
-          type: ["application/pdf", "image/*"],
-          copyToCacheDirectory: true,
-          multiple: false,
-        });
-
-        if (result.canceled || !result.assets?.length) return;
-        const asset = result.assets[0];
-        uri = asset.uri;
-        name = normalizeFileName(asset.name, `documento-${Date.now()}`);
-        type = resolveMimeType(name, asset.mimeType);
-      }
-
-      const response = await scanDocumento({ uri, name, type });
+      const response = await scanDocumento(file);
       applyScanResult(response);
     } catch (error: any) {
       const message =

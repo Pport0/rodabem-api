@@ -17,7 +17,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
+    "test:all": "jest --config ./test/jest-all.json --runInBand --coverage --coverageReporters=html --coverageReporters=text",
+    "test:report": "node test/run-report.js"
   },
   "dependencies": {
     "@google-cloud/vision": "^5.3.6",
@@ -29,6 +31,7 @@
     "@nestjs/platform-express": "^11.1.14",
     "@nestjs/schedule": "^6.1.1",
     "@nestjs/swagger": "^11.2.6",
+    "@nestjs/throttler": "^6.7.1",
     "@prisma/client": "^6.19.3",
     "@types/multer": "^2.1.0",
     "axios": "^1.13.5",
@@ -36,10 +39,12 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "cloudinary": "^2.10.0",
+    "file-type": "^21.3.4",
     "multer": "^2.1.1",
     "openai": "^6.37.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf2pic": "^3.2.0",
     "prisma": "^6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",

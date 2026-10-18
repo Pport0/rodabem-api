@@ -1,0 +1,37 @@
+appId: com.anonymous.rodabem
+name: perfil - mostra os proprios dados
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: ${output.senha}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000
+- runFlow: ../_comum/abrir-menu.yaml
+- tapOn: "Meu Perfil"
+- extendedWaitUntil:
+    visible: "MEUS DADOS"
+    timeout: 20000
+- assertVisible: ${output.nome}
+- assertVisible: ${output.cpf}
+- assertVisible: ${output.email}

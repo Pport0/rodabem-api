@@ -1,0 +1,12 @@
+appId: com.anonymous.rodabem
+---
+- extendedWaitUntil:
+    visible: "Insira o seu cpf ou telefone"
+    timeout: 30000
+- tapOn: "Insira o seu cpf ou telefone"
+- inputText: ${CREDENCIAL}
+- runFlow: fechar-teclado.yaml
+- tapOn: "Insira a sua senha"
+- inputText: ${SENHA}
+- runFlow: fechar-teclado.yaml
+- tapOn: "Acessar"

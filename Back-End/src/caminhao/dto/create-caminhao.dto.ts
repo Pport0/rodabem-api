@@ -1,4 +1,5 @@
 import {
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -45,8 +46,7 @@ export class CreateCaminhaoDto {
   anoFabricacao?: number;
 
   @IsOptional()
-  @IsInt({ message: 'Número de eixos deve ser um número inteiro.' })
-  @Min(2, { message: 'Número mínimo de eixos é 2.' })
-  @Max(9, { message: 'Número máximo de eixos é 9.' })
-  numeroEixos?: number; // 👈 adicionar
+  @IsInt()
+  @IsIn([2, 3, 4, 5, 6, 7, 9], { message: 'Número de eixos inválido. Valores aceitos: 2, 3, 4, 5, 6, 7, 9.' })
+  numeroEixos?: number;
 }

@@ -1,0 +1,6 @@
+appId: com.anonymous.rodabem
+name: abertura - oferece entrar e criar conta
+---
+- runFlow: ../_comum/abrir.yaml
+- assertVisible: "ENTRAR"
+- assertVisible: "CRIAR CONTA"

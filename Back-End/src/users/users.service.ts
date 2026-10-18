@@ -1,14 +1,25 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { encrypt, createHash } from '../common/utils/crypto.util';
+import { encrypt, createHash, decrypt } from '../common/utils/crypto.util';
+import { isValidCPF } from './validators/cpf.validator';
+
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateUserDto) {
+    if (!isValidCPF(dto.cpf)) {
+      throw new BadRequestException('CPF inválido.');
+    }
+
     const cpfHash = createHash(dto.cpf);
 
     const existing = await this.prisma.user.findUnique({ where: { cpfHash } });
@@ -16,6 +27,14 @@ export class UsersService {
 
     const emailExisting = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (emailExisting) throw new ConflictException('E-mail já cadastrado');
+
+    
+    if (dto.telefone) {
+      const telefoneExisting = await this.prisma.user.findUnique({
+        where: { telefone: dto.telefone },
+      });
+      if (telefoneExisting) throw new ConflictException('Telefone já cadastrado');
+    }
 
     const senhaHash = await bcrypt.hash(dto.senha, 10);
     const cpfEncrypted = encrypt(dto.cpf);
@@ -35,6 +54,34 @@ export class UsersService {
     return result;
   }
 
+  async findById(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        telefone: true,
+        avatarUrl: true,
+        status: true,
+        createdAt: true,
+        cpfEncrypted: true,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Usuário não encontrado');
+    }
+
+    const { cpfEncrypted, ...resto } = user;
+    const cpf = cpfEncrypted ? decrypt(cpfEncrypted) : null;
+
+    return {
+      ...resto,
+      cpf,
+    };
+  }
+
   async findAll(params: { page?: number; limit?: number; nome?: string; status?: string }) {
     const page = params.page || 1;
     const limit = params.limit || 10;
@@ -49,7 +96,15 @@ export class UsersService {
         where,
         skip,
         take: Number(limit),
-        select: { id: true, nome: true, email: true, telefone: true, avatarUrl: true, status: true, createdAt: true },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          telefone: true,
+          avatarUrl: true,
+          status: true,
+          createdAt: true,
+        },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.user.count({ where }),
@@ -58,14 +113,24 @@ export class UsersService {
     return { data: users, total, page, limit };
   }
 
-  async update(id: number, dto: Partial<{ nome: string; email: string; telefone: string; avatarUrl: string }>) {
+  async update(
+    id: number,
+    dto: Partial<{ nome: string; email: string; telefone: string; avatarUrl: string }>,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
     const updated = await this.prisma.user.update({
       where: { id },
       data: dto,
-      select: { id: true, nome: true, email: true, telefone: true, avatarUrl: true, status: true },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        telefone: true,
+        avatarUrl: true,
+        status: true,
+      },
     });
 
     return updated;
@@ -75,7 +140,54 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
+    const caminhao = await this.prisma.caminhao.findUnique({ where: { userId: id } });
+    if (caminhao) {
+      throw new BadRequestException(
+        'Não é possível excluir o usuário pois ele possui um caminhão cadastrado. Remova o caminhão primeiro.',
+      );
+    }
+
+    const documentos = await this.prisma.documento.count({ where: { userId: id } });
+    if (documentos > 0) {
+      throw new BadRequestException(
+        'Não é possível excluir o usuário pois ele possui documentos cadastrados. Remova os documentos primeiro.',
+      );
+    }
+
+    const abastecimentos = await this.prisma.abastecimento.count({ where: { userId: id } });
+    if (abastecimentos > 0) {
+      throw new BadRequestException(
+        'Não é possível excluir o usuário pois ele possui abastecimentos cadastrados. Remova os abastecimentos primeiro.',
+      );
+    }
+
     await this.prisma.user.delete({ where: { id } });
     return { message: 'Usuário excluído com sucesso!' };
+  }
+
+  async alterarSenha(
+    id: number,
+    dto: { senhaAtual: string; novaSenha: string },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    const senhaValida = await bcrypt.compare(dto.senhaAtual, user.senhaHash);
+    if (!senhaValida) {
+      throw new BadRequestException('Senha atual incorreta.');
+    }
+
+    if (dto.novaSenha.length < 6) {
+      throw new BadRequestException('A nova senha deve ter pelo menos 6 caracteres.');
+    }
+
+    const novaSenhaHash = await bcrypt.hash(dto.novaSenha, 10);
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { senhaHash: novaSenhaHash },
+    });
+
+    return { message: 'Senha alterada com sucesso.' };
   }
 }

@@ -1,0 +1,14 @@
+appId: com.anonymous.rodabem
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "ENTRAR"
+    timeout: 120000
+- runFlow:
+    when:
+      visible: "Open debugger to view warnings."
+    commands:
+      - tapOn:
+          point: "92%,92%"
+- assertVisible: "CRIAR CONTA"

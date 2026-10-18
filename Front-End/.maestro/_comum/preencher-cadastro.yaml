@@ -1,0 +1,23 @@
+appId: com.anonymous.rodabem
+---
+- extendedWaitUntil:
+    visible: "Digite aqui o seu nome completo"
+    timeout: 30000
+- tapOn: "Digite aqui o seu nome completo"
+- inputText: ${NOME}
+- runFlow: fechar-teclado.yaml
+- tapOn: "000.000.000-00"
+- inputText: ${CPF}
+- runFlow: fechar-teclado.yaml
+- tapOn: "(00) 00000-0000"
+- inputText: ${TELEFONE}
+- runFlow: fechar-teclado.yaml
+- tapOn: "Digite aqui o seu email"
+- inputText: ${EMAIL}
+- runFlow: fechar-teclado.yaml
+- tapOn: "Digite uma senha"
+- inputText: ${SENHA}
+- runFlow: fechar-teclado.yaml
+- tapOn: "Confirme a sua senha"
+- inputText: ${SENHA}
+- runFlow: fechar-teclado.yaml

@@ -1,0 +1,54 @@
+appId: com.anonymous.rodabem
+name: frete - recusa simulacao sem caminhao cadastrado
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "CRIAR CONTA"
+- runFlow:
+    file: ../_comum/preencher-cadastro.yaml
+    env:
+      NOME: ${output.nome}
+      CPF: ${output.cpf}
+      TELEFONE: ${output.telefone}
+      EMAIL: ${output.email}
+      SENHA: ${output.senha}
+- scrollUntilVisible:
+    element: "CONTINUAR"
+    direction: DOWN
+- tapOn: "CONTINUAR"
+- extendedWaitUntil:
+    visible: "Insira suas credenciais para acessar"
+    timeout: 30000
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: ${output.senha}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000
+- tapOn: "CALCULADORA DE FRETE"
+- extendedWaitUntil:
+    visible: "DADOS DA VIAGEM"
+    timeout: 30000
+- tapOn:
+    text: "Cidade, estado ou endereco"
+    index: 0
+- inputText: "Goiania, GO"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn:
+    text: "Cidade, estado ou endereco"
+    index: 1
+- inputText: "Brasilia, DF"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "Ex: 6.29"
+- inputText: "6,29"
+- runFlow: ../_comum/fechar-teclado.yaml
+- scrollUntilVisible:
+    element: "SIMULAR FRETE"
+    direction: DOWN
+    visibilityPercentage: 30
+- tapOn: "SIMULAR FRETE"
+- extendedWaitUntil:
+    visible: ".*caminh.*"
+    timeout: 60000

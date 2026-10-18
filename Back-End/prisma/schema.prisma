@@ -24,7 +24,7 @@ model User {
   cpfEncrypted String
   cpfHash      String @unique
 
-  telefone  String?
+  telefone  String? @unique
   avatarUrl String?
 
   status Boolean @default(true)
@@ -85,6 +85,7 @@ model Documento {
   observacao String?
 
   arquivoUrl String?
+  publicId   String? 
 
   userId Int
   user   User @relation(fields: [userId], references: [id])
@@ -93,6 +94,9 @@ model Documento {
   caminhao   Caminhao? @relation(fields: [caminhaoId], references: [id])
 
   createdAt DateTime @default(now())
+
+   @@index([userId])
+  @@index([caminhaoId])
 }
 
 
@@ -132,6 +136,9 @@ model Abastecimento {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId])
+  @@index([caminhaoId])
+
   @@map("abastecimentos")
 }
 
@@ -140,19 +147,30 @@ enum TipoCarga {
   GRANEL_SOLIDO
   GRANEL_LIQUIDO
   FRIGORIFICADA
-  PERIGOSA
   CONTEINER
+  GRANEL_PRESSURIZADO  
+  NEOGRANEL  
+  PERIGOSA_GERAL
+  PERIGOSA_CONTEINERIZADA
+  PERIGOSA_FRIGORIFICADA
+  PERIGOSA_GRANEL_LIQUIDO
+  PERIGOSA_GRANEL_SOLIDO
 }
 
 model TabelaAntt {
-  id          Int      @id @default(autoincrement())
-  numeroEixos Int
-  tipoCarga   TipoCarga
-  distanciaMin Int
-  distanciaMax Int
-  valorPorKm  Float
-  atualizadoEm DateTime
+  id          Int        @id @default(autoincrement())
+  versaoId    Int
+  versao      VersaoAntt @relation(fields: [versaoId], references: [id])
 
+  numeroEixos    Int
+  tipoCarga      TipoCarga
+  distanciaMin   Int
+  distanciaMax   Int
+  valorPorKm     Float
+  cc             Float     @default(0)
+  altoDesempenho Boolean   @default(false)
+
+  @@index([versaoId])
   @@map("tabela_antt")
 }
 
@@ -185,5 +203,25 @@ model SimulacaoFrete {
 
   createdAt  DateTime @default(now())
 
+   versaoAnttId Int
+  versaoAntt   VersaoAntt @relation(fields: [versaoAnttId], references: [id])
+
+  @@index([userId])
+  @@index([caminhaoId])
+  @@index([versaoAnttId])
+
   @@map("simulacoes_frete")
+}
+
+model VersaoAntt {
+  id           Int              @id @default(autoincrement())
+  resolucao    String           @unique
+  vigenteDesde DateTime
+  vigenteAte   DateTime?
+  criadoEm     DateTime         @default(now())
+
+  tabela     TabelaAntt[]
+  simulacoes SimulacaoFrete[]
+
+  @@map("versoes_antt")
 }

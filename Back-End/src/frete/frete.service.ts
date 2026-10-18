@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,10 +15,10 @@ export class FreteService {
     private readonly prisma: PrismaService,
     private readonly ors: OrsService,
     private readonly abastecimentoService: AbastecimentoService,
-  ) {}
+  ) { }
 
   async simular(userId: number, dto: SimularFreteDto) {
-    
+
     const caminhao = await this.prisma.caminhao.findUnique({
       where: { userId },
     });
@@ -34,13 +35,12 @@ export class FreteService {
       );
     }
 
-    
     const rota = await this.ors.calcularRota(
-  dto.origem,
-  dto.destino,
-  dto.paradasIntermediarias,
-);
-    
+      dto.origem,
+      dto.destino,
+      dto.paradasIntermediarias,
+    );
+
     let consumoMedioKmL: number;
 
     if (dto.consumoMedioKmLOverride && dto.consumoMedioKmLOverride > 0) {
@@ -57,31 +57,35 @@ export class FreteService {
       consumoMedioKmL = mediaResult.mediaConsumo;
     }
 
-    
-    const distanciaTotal = dto.retornoVazio
-      ? rota.distanciaKm * 2
-      : rota.distanciaKm;
+    const distanciaIda = rota.distanciaKm;
 
     const pedagioBase = dto.pedagiosManual ?? 0;
-    const pedagiosTotal = dto.retornoVazio
-    ? pedagioBase * 2
-    : pedagioBase;
+    const pedagiosTotal = dto.retornoVazio ? pedagioBase * 2 : pedagioBase;
 
-    
-    const litrosNecessarios = parseFloat(
-      (distanciaTotal / consumoMedioKmL).toFixed(2),
-    );
-    const custoCombustivel = parseFloat(
-      (litrosNecessarios * dto.precoCombustivel).toFixed(2),
-    );
+    const agora = new Date();
+    const versaoAtual = await this.prisma.versaoAntt.findFirst({
+      where: {
+        vigenteDesde: { lte: agora },
+        OR: [
+          { vigenteAte: null },
+          { vigenteAte: { gte: agora } },
+        ],
+      },
+      orderBy: { vigenteDesde: 'desc' },
+    });
 
-    
+    if (!versaoAtual) {
+      throw new NotFoundException('Nenhuma tabela ANTT vigente encontrada.');
+    }
+
     const tabelaAntt = await this.prisma.tabelaAntt.findFirst({
       where: {
+        versaoId: versaoAtual.id,
         numeroEixos: caminhao.numeroEixos,
         tipoCarga: dto.tipoCarga,
-        distanciaMin: { lte: distanciaTotal },
-        distanciaMax: { gte: distanciaTotal },
+        altoDesempenho: dto.altoDesempenho ?? false,
+        distanciaMin: { lte: distanciaIda },
+        distanciaMax: { gte: distanciaIda },
       },
     });
 
@@ -91,19 +95,34 @@ export class FreteService {
       );
     }
 
-    const valorMinimoAntt = parseFloat(
-      (tabelaAntt.valorPorKm * distanciaTotal).toFixed(2),
+    const ccd = tabelaAntt.valorPorKm;
+    const cc = tabelaAntt.cc ?? 0;
+
+    const pisoIda = distanciaIda * ccd + cc;
+    const pisoRetorno = dto.retornoVazio
+      ? distanciaIda * ccd * 0.92
+      : 0;
+
+    const valorMinimoAntt = parseFloat((pisoIda + pisoRetorno).toFixed(2));
+
+    const distanciaTotal = dto.retornoVazio
+      ? distanciaIda * 2
+      : distanciaIda;
+
+    const litrosNecessarios = parseFloat(
+      (distanciaTotal / consumoMedioKmL).toFixed(2),
+    );
+    const custoCombustivel = parseFloat(
+      (litrosNecessarios * dto.precoCombustivel).toFixed(2),
     );
 
-    
-    const custoTotal = custoCombustivel + pedagiosTotal;
+    const custoOperacional = custoCombustivel + pedagiosTotal;
     const valorLiquidoEstimado = parseFloat(
-      (valorMinimoAntt - custoTotal).toFixed(2),
+      (valorMinimoAntt - custoOperacional).toFixed(2),
     );
 
     const abaixoMinimoAntt = valorLiquidoEstimado < 0;
 
-    
     const simulacao = await this.prisma.simulacaoFrete.create({
       data: {
         origem: dto.origem,
@@ -121,6 +140,7 @@ export class FreteService {
         valorLiquidoEstimado,
         userId,
         caminhaoId: caminhao.id,
+        versaoAnttId: versaoAtual.id,
       },
     });
 
@@ -146,22 +166,39 @@ export class FreteService {
     };
   }
 
-  
-  async historico(userId: number) {
-    return this.prisma.simulacaoFrete.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+  async historico(userId: number, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const [simulacoes, total] = await Promise.all([
+      this.prisma.simulacaoFrete.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.simulacaoFrete.count({ where: { userId } }),
+    ]);
+
+    return {
+      data: simulacoes,
+      total,
+      page,
+      limit,
+      totalPaginas: Math.ceil(total / limit),
+    };
   }
 
-  
   async findOne(userId: number, id: number) {
     const simulacao = await this.prisma.simulacaoFrete.findUnique({
       where: { id },
     });
 
-    if (!simulacao || simulacao.userId !== userId) {
+    if (!simulacao) {
       throw new NotFoundException('Simulação não encontrada.');
+    }
+
+    if (simulacao.userId !== userId) {
+      throw new ForbiddenException('Você não tem permissão para acessar esta simulação.');
     }
 
     return simulacao;

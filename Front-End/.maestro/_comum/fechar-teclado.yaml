@@ -1,0 +1,4 @@
+appId: com.anonymous.rodabem
+---
+- tapOn:
+    point: "92%,92%"
