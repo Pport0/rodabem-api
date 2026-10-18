@@ -2,7 +2,7 @@ import { Toast } from "@/shared/ui/molecules/Toast";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 
-export type ScanSource = "camera" | "library" | "document";
+export type ScanSource = "camera" | "document";
 
 export interface ScanFile {
   uri: string;
@@ -39,18 +39,6 @@ export async function pickScanFile(
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.9,
-    });
-
-    if (result.canceled || !result.assets?.length) return null;
-    const asset = result.assets[0];
-    const name = normalizeFileName(asset.fileName, `${fileNamePrefix}-${Date.now()}.jpg`);
-    return { uri: asset.uri, name, type: resolveMimeType(name, asset.mimeType) };
-  }
-
-  if (source === "library") {
-    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.9,
     });
