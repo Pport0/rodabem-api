@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface RotaResult {
@@ -7,12 +13,24 @@ interface RotaResult {
   duracaoMinutos: number;
 }
 
+const ORS_API_KEY_PLACEHOLDER = 'your-ors-api-key-here';
+
 @Injectable()
-export class OrsService {
+export class OrsService implements OnModuleInit {
   private readonly apiKey: string;
+  private readonly logger = new Logger(OrsService.name);
 
   constructor(private configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('ORS_API_KEY');
+    this.apiKey = this.configService.get<string>('ORS_API_KEY') ?? '';
+  }
+
+  onModuleInit() {
+    if (!this.apiKey || this.apiKey === ORS_API_KEY_PLACEHOLDER) {
+      throw new Error(
+        'ORS_API_KEY não configurada ou com valor de exemplo. ' +
+        'Defina a variável no .env antes de subir a aplicação.',
+      );
+    }
   }
 
   async calcularRota(
@@ -20,7 +38,6 @@ export class OrsService {
     destino: string,
     paradas?: string[],
   ): Promise<RotaResult> {
-    
     const coordOrigem = await this.geocodificar(origem);
     const coordDestino = await this.geocodificar(destino);
 
@@ -28,27 +45,43 @@ export class OrsService {
       ? await Promise.all(paradas.map((p) => this.geocodificar(p)))
       : [];
 
-    
-    const coordinates = [
-      coordOrigem,
-      ...coordParadas,
-      coordDestino,
-    ];
+    const coordinates = [coordOrigem, ...coordParadas, coordDestino];
 
-    
-    const response = await fetch(
-      'https://api.openrouteservice.org/v2/directions/driving-hgv',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: this.apiKey,
+    let response: Response;
+    let data: any;
+
+    try {
+      response = await fetch(
+        'https://api.openrouteservice.org/v2/directions/driving-hgv',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: this.apiKey,
+          },
+          body: JSON.stringify({ coordinates }),
         },
-        body: JSON.stringify({ coordinates }),
-      },
-    );
+      );
+      data = await response.json();
+    } catch (err: unknown) {
+      this.logger.error(
+        'Falha de rede ao calcular rota: ' +
+        (err instanceof Error ? err.message : 'erro desconhecido'),
+      );
+      throw new InternalServerErrorException(
+        'Serviço de rotas indisponível. Tente novamente em instantes.',
+      );
+    }
 
-    const data = await response.json();
+    if (!response.ok) {
+      this.logger.error(
+        'ORS directions retornou HTTP ' + response.status + ': ' +
+        JSON.stringify(data),
+      );
+      throw new InternalServerErrorException(
+        'Serviço de rotas indisponível. Tente novamente em instantes.',
+      );
+    }
 
     if (!data.routes || data.routes.length === 0) {
       throw new BadRequestException(
@@ -67,12 +100,38 @@ export class OrsService {
     };
   }
 
-  
   private async geocodificar(endereco: string): Promise<[number, number]> {
-    const url = `https://api.openrouteservice.org/geocode/search?api_key=${this.apiKey}&text=${encodeURIComponent(endereco)}&boundary.country=BR&size=1`;
+    const url =
+      'https://api.openrouteservice.org/geocode/search' +
+      '?api_key=' + this.apiKey +
+      '&text=' + encodeURIComponent(endereco) +
+      '&boundary.country=BR&size=1';
 
-    const response = await fetch(url);
-    const data = await response.json();
+    let response: Response;
+    let data: any;
+
+    try {
+      response = await fetch(url);
+      data = await response.json();
+    } catch (err: unknown) {
+      this.logger.error(
+        'Falha de rede ao geocodificar "' + endereco + '": ' +
+        (err instanceof Error ? err.message : 'erro desconhecido'),
+      );
+      throw new InternalServerErrorException(
+        'Serviço de rotas indisponível. Tente novamente em instantes.',
+      );
+    }
+
+    if (!response.ok) {
+      this.logger.error(
+        'ORS geocode retornou HTTP ' + response.status +
+        ' para "' + endereco + '": ' + JSON.stringify(data),
+      );
+      throw new InternalServerErrorException(
+        'Serviço de rotas indisponível. Tente novamente em instantes.',
+      );
+    }
 
     if (!data.features || data.features.length === 0) {
       throw new BadRequestException(
