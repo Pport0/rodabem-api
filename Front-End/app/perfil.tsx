@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/authContext";
 import { useUser } from "@/hooks/useUser";
 import { getMeuCaminhao } from "@/services/caminhaoService";
 import { getMeuPerfil, deleteUser } from "@/services/userService";
+import { getInitials } from "@/shared/ui/base/avatar/initials";
 import { Toast } from "@/shared/ui/molecules/Toast";
 import { queryClient } from "@/utils/queryClient";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -92,14 +93,7 @@ export default function Perfil() {
   };
 
   const perfilExibido = perfil ?? user;
-  const initials = perfilExibido?.nome
-    ? perfilExibido.nome
-        .split(" ")
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase()
-    : "U";
+  const initials = getInitials(perfilExibido?.nome);
 
   return (
     <View style={styles.wrapper}>

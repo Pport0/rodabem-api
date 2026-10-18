@@ -17,6 +17,7 @@ import Animated, {
   Easing,
   LinearTransition,
 } from "react-native-reanimated";
+import { getInitials } from "./initials";
 import type { IAvatar } from "./types";
 
 const AnimatedPressable =
@@ -76,17 +77,6 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
           });
         }
       }, [loading, shimmerSpeed]);
-
-      const getInitials = <T extends string>(name?: T): string => {
-        if (!name) return "?";
-        const words = name.trim().split(/\s+/);
-        if (words.length === 1) {
-          return words[0].charAt(0).toUpperCase();
-        }
-        return (
-          words[0].charAt(0) + words[words.length - 1].charAt(0)
-        ).toUpperCase();
-      };
 
       const getBackgroundColor = (): string => {
         if (backgroundColor) return backgroundColor;
@@ -232,7 +222,7 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
                   ]}
                   numberOfLines={1}
                 >
-                  {getInitials(image.name)}
+                  {getInitials(image.name, "?")}
                 </Text>
                 <ShimmerEffect />
               </View>
@@ -305,7 +295,7 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
                 ]}
                 numberOfLines={1}
               >
-                {getInitials(image.name)}
+                {getInitials(image.name, "?")}
               </Text>
             </View>
             {showOnlineIndicator && (
