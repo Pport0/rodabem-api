@@ -25,6 +25,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Usa a mensagem da API (ja em portugues); a do axios ("Request failed with status code 401") nao serve ao usuario.
+function getLoginErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as {
+      response?: { data?: { message?: string | string[] } };
+    };
+    const message = axiosError.response?.data?.message;
+    if (Array.isArray(message) && message.length > 0) return `Falha ao fazer login: ${message[0]}`;
+    if (typeof message === 'string' && message) return `Falha ao fazer login: ${message}`;
+  }
+  return 'Falha ao fazer login. Verifique sua conexão e tente novamente.';
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) { 
   const { show } = useToast();
   const { mutate: loginMutation } = useMutation({
@@ -42,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onError: (error) => {
-      show('Falha ao fazer login' + error.message, { type: 'error',backgroundColor: '#bf0a30' });
+      show(getLoginErrorMessage(error), { type: 'error',backgroundColor: '#bf0a30' });
     },
   });
 

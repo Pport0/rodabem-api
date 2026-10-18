@@ -150,6 +150,53 @@ describe('authContext - login', () => {
       expect(router.push).not.toHaveBeenCalled();
     });
   });
+
+  describe('mensagem de falha legivel (#37)', () => {
+    const erroDaApi = (message: unknown) =>
+      Object.assign(new Error('Request failed with status code 401'), {
+        response: { status: 401, data: { message } },
+      });
+
+    it('deve exibir a mensagem da API, separada do texto fixo', async () => {
+      jest.mocked(signIn).mockRejectedValue(erroDaApi('Credenciais inválidas'));
+      const { result } = await montarAuth();
+
+      result.current.login({ cpfOrPhone: '62999999999', password: 'errada' });
+
+      await waitFor(() =>
+        expect(mockMostrarToast).toHaveBeenCalledWith(
+          'Falha ao fazer login: Credenciais inválidas',
+          expect.objectContaining({ type: 'error' }),
+        ),
+      );
+    });
+
+    it('deve usar a primeira mensagem quando a API devolve uma lista', async () => {
+      jest.mocked(signIn).mockRejectedValue(erroDaApi(['senha deve ser texto', 'outro']));
+      const { result } = await montarAuth();
+
+      result.current.login({ cpfOrPhone: '62999999999', password: 'errada' });
+
+      await waitFor(() =>
+        expect(mockMostrarToast).toHaveBeenCalledWith(
+          'Falha ao fazer login: senha deve ser texto',
+          expect.objectContaining({ type: 'error' }),
+        ),
+      );
+    });
+
+    it('nao deve exibir o texto em ingles do axios quando a API nao manda mensagem', async () => {
+      jest.mocked(signIn).mockRejectedValue(new Error('Network Error'));
+      const { result } = await montarAuth();
+
+      result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
+
+      await waitFor(() => expect(mockMostrarToast).toHaveBeenCalled());
+      const [mensagem] = mockMostrarToast.mock.calls[0];
+      expect(mensagem).toBe('Falha ao fazer login. Verifique sua conexão e tente novamente.');
+      expect(mensagem).not.toMatch(/Network Error|Request failed/);
+    });
+  });
 });
 
 describe('authContext - cadastro', () => {
