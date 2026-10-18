@@ -10,20 +10,37 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AbastecimentoService } from './abastecimento.service';
 import { CreateAbastecimentoDto } from './dto/create-abastecimento.dto';
 import { UpdateAbastecimentoDto } from './dto/update-abastecimento.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { HodometroScanService } from './scan/hodometro-scan.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('abastecimentos')
 export class AbastecimentoController {
-  constructor(private readonly abastecimentoService: AbastecimentoService) {}
+  constructor(
+    private readonly abastecimentoService: AbastecimentoService,
+    private readonly hodometroScanService: HodometroScanService,
+  ) {}
 
   @Post()
   create(@Req() req, @Body() dto: CreateAbastecimentoDto) {
     return this.abastecimentoService.create(req.user.userId, dto);
+  }
+
+  @Post('scan')
+  @UseInterceptors(FileInterceptor('imagem'))
+  async scan(@UploadedFile() file: any) {
+    if (!file) {
+      throw new BadRequestException('Nenhuma imagem enviada.');
+    }
+    return this.hodometroScanService.processarHodometro(file);
   }
 
   @Get()
@@ -36,7 +53,6 @@ export class AbastecimentoController {
     return this.abastecimentoService.calcularMediaConsumo(req.user.userId);
   }
 
-  // Item 15 — relatório por período
   @Get('relatorio')
   relatorio(
     @Req() req,
