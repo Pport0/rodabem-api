@@ -117,8 +117,8 @@ export default function AbastecimentosScreen() {
               <View style={styles.heroText}>
                 <Text style={styles.heroEyebrow}>MEDIA DE CONSUMO</Text>
                 <Text style={styles.heroValue}>
-                  {mediaQuery.data?.mediaConsumo
-                    ? `${mediaQuery.data.mediaConsumo.toFixed(2)} ${mediaQuery.data.unidade}`
+                  {mediaQuery.data?.mediaConsumo != null
+                    ? `${mediaQuery.data.mediaConsumo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${mediaQuery.data.unidade}`
                     : "--"}
                 </Text>
                 <Text style={styles.heroDescription}>
@@ -172,7 +172,7 @@ export default function AbastecimentosScreen() {
               </View>
               <View style={styles.infoPill}>
                 <Text style={styles.infoLabel}>Litros</Text>
-                <Text style={styles.infoText}>{item.totalLitros.toFixed(2)} L</Text>
+                <Text style={styles.infoText}>{item.totalLitros.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L</Text>
               </View>
               <View style={styles.infoPill}>
                 <Text style={styles.infoLabel}>Preco/L</Text>

@@ -1,4 +1,4 @@
-import { User } from "@/@types/user";
+﻿import { User } from "@/@types/user";
 import { api } from "./api";
 
 export async function createUser(userData: {
@@ -15,6 +15,10 @@ export async function createUser(userData: {
 export async function getMeuPerfil(): Promise<User | null> {
   const response = await api.get<User>("/users/me");
   return response.data;
+}
+
+export async function alterarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
+  await api.patch("/users/me/senha", { senhaAtual, novaSenha });
 }
 
 export async function deleteUser(id: number): Promise<{ message: string }> {
