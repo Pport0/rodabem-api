@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ComposicaoVeicular } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrsService } from './ors.service';
 import { SimularFreteDto } from './dto/simular-frete.dto';
@@ -84,6 +85,7 @@ export class FreteService {
         numeroEixos: caminhao.numeroEixos,
         tipoCarga: dto.tipoCarga,
         altoDesempenho: dto.altoDesempenho ?? false,
+        composicaoVeicular: dto.composicaoVeicular ?? ComposicaoVeicular.COM_CARRETA,
         distanciaMin: { lte: distanciaIda },
         distanciaMax: { gte: distanciaIda },
       },
@@ -116,9 +118,8 @@ export class FreteService {
       (litrosNecessarios * dto.precoCombustivel).toFixed(2),
     );
 
-    const custoOperacional = custoCombustivel + pedagiosTotal;
     const valorLiquidoEstimado = parseFloat(
-      (valorMinimoAntt - custoOperacional).toFixed(2),
+      (valorMinimoAntt - custoCombustivel).toFixed(2),
     );
 
     const abaixoMinimoAntt = valorLiquidoEstimado < 0;

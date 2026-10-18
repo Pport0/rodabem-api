@@ -7,6 +7,7 @@
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+
 }
 
 generator client {
@@ -170,6 +171,8 @@ model TabelaAntt {
   cc             Float     @default(0)
   altoDesempenho Boolean   @default(false)
 
+  composicaoVeicular ComposicaoVeicular @default(COM_CARRETA)
+
   @@index([versaoId])
   @@map("tabela_antt")
 }
@@ -224,4 +227,9 @@ model VersaoAntt {
   simulacoes SimulacaoFrete[]
 
   @@map("versoes_antt")
+}
+
+enum ComposicaoVeicular {
+  COM_CARRETA
+  SEM_CARRETA
 }

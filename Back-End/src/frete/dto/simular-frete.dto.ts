@@ -7,7 +7,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { TipoCarga } from '@prisma/client';
+import { ComposicaoVeicular, TipoCarga } from '@prisma/client';
 
 export class SimularFreteDto {
   @IsString()
@@ -28,16 +28,16 @@ export class SimularFreteDto {
   @IsOptional()
   @IsNumber()
   @Min(0.01)
-  consumoMedioKmLOverride?: number; 
+  consumoMedioKmLOverride?: number;
 
   @IsNumber()
   @Min(0.01, { message: 'Preço do combustível deve ser maior que zero.' })
   precoCombustivel: number;
 
-    @IsOptional()
+  @IsOptional()
   @IsNumber()
   @Min(0, { message: 'Valor de pedágios não pode ser negativo.' })
-  pedagiosManual?: number; 
+  pedagiosManual?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -46,4 +46,8 @@ export class SimularFreteDto {
   @IsOptional()
   @IsBoolean()
   altoDesempenho?: boolean;
+
+  @IsOptional()
+  @IsEnum(ComposicaoVeicular, { message: 'Composição veicular inválida.' })
+  composicaoVeicular?: ComposicaoVeicular;
 }
