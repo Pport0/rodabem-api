@@ -1,6 +1,7 @@
 import { TipoCombustivel } from "@/@types/abastecimento";
 import Input from "@/components/input";
 import colors from "@/constants/colors";
+import { StatusLocalizacao, useLocalizacaoAtual } from "@/hooks/useLocalizacaoAtual";
 import {
   createAbastecimento,
   getAbastecimento,
@@ -35,6 +36,13 @@ interface FormErrors {
   quilometragem?: string;
 }
 
+const textoLocalizacao: Partial<Record<StatusLocalizacao, string>> = {
+  buscando: "Obtendo a localização do aparelho...",
+  capturada: "Localização registrada com o abastecimento.",
+  negada: "Localização não autorizada. O abastecimento será salvo sem ela.",
+  indisponivel: "Localização indisponível. O abastecimento será salvo sem ela.",
+};
+
 export default function NovoAbastecimento() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? "light"].primary;
@@ -49,6 +57,8 @@ export default function NovoAbastecimento() {
   const [postoIdentificado, setPostoIdentificado] = useState("");
   const [observacao, setObservacao] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
+  // So no cadastro: na edicao, a posicao atual nao e onde o abastecimento aconteceu.
+  const localizacao = useLocalizacaoAtual(!isEditing);
 
   const abastecimentoQuery = useQuery({
     queryKey: ["abastecimento", id],
@@ -85,6 +95,7 @@ export default function NovoAbastecimento() {
         localDescricao: localDescricao.trim() || undefined,
         postoIdentificado: postoIdentificado.trim() || undefined,
         observacao: observacao.trim() || undefined,
+        ...(!isEditing && localizacao.coordenadas ? localizacao.coordenadas : {}),
       };
 
       if (isEditing && id) {
@@ -235,6 +246,9 @@ export default function NovoAbastecimento() {
                 value={postoIdentificado}
                 onChangeText={setPostoIdentificado}
               />
+              {textoLocalizacao[localizacao.status] && (
+                <Text style={styles.locationText}>{textoLocalizacao[localizacao.status]}</Text>
+              )}
             </View>
 
             <View style={styles.fieldContainer}>
@@ -350,6 +364,10 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     color: "#E53E3E",
+  },
+  locationText: {
+    fontSize: 12,
+    color: "#888",
   },
   previewCard: {
     backgroundColor: "#fff",
