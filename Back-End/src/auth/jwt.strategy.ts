@@ -33,6 +33,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token inválido');
     }
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { tokenVersion: true },
+    });
+
+    if (!user || payload.tokenVersion !== user.tokenVersion) {
+      throw new UnauthorizedException('Sessão encerrada. Faça login novamente.');
+    }
+
     return {
       userId: payload.sub,
       email: payload.email,

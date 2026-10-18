@@ -54,6 +54,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       jti: randomUUID(),
+      tokenVersion: user.tokenVersion,
     };
 
     const token = await this.jwtService.signAsync(payload);
@@ -73,7 +74,6 @@ export class AuthService {
       data: { token },
     });
 
-    
     const setesDiasAtras = new Date();
     setesDiasAtras.setDate(setesDiasAtras.getDate() - 7);
 

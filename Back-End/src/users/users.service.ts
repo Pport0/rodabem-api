@@ -28,7 +28,6 @@ export class UsersService {
     const emailExisting = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (emailExisting) throw new ConflictException('E-mail já cadastrado');
 
-    
     if (dto.telefone) {
       const telefoneExisting = await this.prisma.user.findUnique({
         where: { telefone: dto.telefone },
@@ -185,7 +184,10 @@ export class UsersService {
 
     await this.prisma.user.update({
       where: { id },
-      data: { senhaHash: novaSenhaHash },
+      data: {
+        senhaHash: novaSenhaHash,
+        tokenVersion: { increment: 1 },
+      },
     });
 
     return { message: 'Senha alterada com sucesso.' };
