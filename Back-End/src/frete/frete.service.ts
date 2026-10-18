@@ -36,6 +36,10 @@ export class FreteService {
       );
     }
 
+    if (dto.percentualLucroDesejado !== undefined && dto.percentualLucroDesejado < 0) {
+      throw new BadRequestException('Percentual de lucro não pode ser negativo.');
+    }
+
     const rota = await this.ors.calcularRota(
       dto.origem,
       dto.destino,
@@ -124,6 +128,17 @@ export class FreteService {
 
     const abaixoMinimoAntt = valorLiquidoEstimado < 0;
 
+    const custoTotal = parseFloat((custoCombustivel + pedagiosTotal).toFixed(2));
+    let valorSugerido: number | null = null;
+    let sugeridoAbaixoDoMinimo = false;
+
+    if (dto.percentualLucroDesejado !== undefined) {
+      valorSugerido = parseFloat(
+        (custoTotal * (1 + dto.percentualLucroDesejado / 100)).toFixed(2),
+      );
+      sugeridoAbaixoDoMinimo = valorSugerido < valorMinimoAntt;
+    }
+
     const simulacao = await this.prisma.simulacaoFrete.create({
       data: {
         origem: dto.origem,
@@ -139,6 +154,8 @@ export class FreteService {
         altoDesempenho: dto.altoDesempenho ?? false,
         valorMinimoAntt,
         valorLiquidoEstimado,
+        percentualLucroDesejado: dto.percentualLucroDesejado ?? null,
+        valorSugerido,
         userId,
         caminhaoId: caminhao.id,
         versaoAnttId: versaoAtual.id,
@@ -155,15 +172,21 @@ export class FreteService {
       consumoMedioKmL,
       litrosNecessarios,
       custoCombustivel,
+      custoTotal,
       tipoCarga: dto.tipoCarga,
       retornoVazio: dto.retornoVazio ?? false,
       altoDesempenho: dto.altoDesempenho ?? false,
       valorMinimoAntt,
       valorLiquidoEstimado,
       abaixoMinimoAntt,
-      aviso: abaixoMinimoAntt
-        ? 'O valor mínimo da ANTT não cobre os custos estimados desta viagem.'
-        : null,
+      percentualLucroDesejado: dto.percentualLucroDesejado ?? null,
+      valorSugerido,
+      sugeridoAbaixoDoMinimo: valorSugerido !== null ? sugeridoAbaixoDoMinimo : null,
+      aviso: (() => {
+        if (abaixoMinimoAntt) return 'O valor mínimo da ANTT não cobre os custos estimados desta viagem.';
+        if (sugeridoAbaixoDoMinimo) return 'O valor sugerido está abaixo do piso mínimo da ANTT.';
+        return null;
+      })(),
     };
   }
 

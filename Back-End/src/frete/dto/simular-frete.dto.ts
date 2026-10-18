@@ -50,4 +50,9 @@ export class SimularFreteDto {
   @IsOptional()
   @IsEnum(ComposicaoVeicular, { message: 'Composição veicular inválida.' })
   composicaoVeicular?: ComposicaoVeicular;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0, { message: 'Percentual de lucro não pode ser negativo.' })
+  percentualLucroDesejado?: number;
 }

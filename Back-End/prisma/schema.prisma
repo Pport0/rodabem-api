@@ -201,6 +201,9 @@ model SimulacaoFrete {
   valorMinimoAntt  Float
   valorLiquidoEstimado Float
 
+  percentualLucroDesejado Float?
+  valorSugerido           Float?
+
   userId     Int
   user       User     @relation(fields: [userId], references: [id])
 
