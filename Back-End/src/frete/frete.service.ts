@@ -57,18 +57,32 @@ export class FreteService {
       consumoMedioKmL = mediaResult.mediaConsumo;
     }
 
-
     const distanciaIda = rota.distanciaKm;
 
     const pedagioBase = dto.pedagiosManual ?? 0;
     const pedagiosTotal = dto.retornoVazio ? pedagioBase * 2 : pedagioBase;
 
+    const agora = new Date();
+    const versaoAtual = await this.prisma.versaoAntt.findFirst({
+      where: {
+        vigenteDesde: { lte: agora },
+        OR: [
+          { vigenteAte: null },
+          { vigenteAte: { gte: agora } },
+        ],
+      },
+      orderBy: { vigenteDesde: 'desc' },
+    });
+
+    if (!versaoAtual) {
+      throw new NotFoundException('Nenhuma tabela ANTT vigente encontrada.');
+    }
 
     const tabelaAntt = await this.prisma.tabelaAntt.findFirst({
       where: {
+        versaoId: versaoAtual.id,
         numeroEixos: caminhao.numeroEixos,
         tipoCarga: dto.tipoCarga,
-
         altoDesempenho: dto.altoDesempenho ?? false,
         distanciaMin: { lte: distanciaIda },
         distanciaMax: { gte: distanciaIda },
@@ -80,7 +94,6 @@ export class FreteService {
         `Não foram encontrados valores da ANTT para ${caminhao.numeroEixos} eixos com carga do tipo ${dto.tipoCarga}.`,
       );
     }
-
 
     const ccd = tabelaAntt.valorPorKm;
     const cc = tabelaAntt.cc ?? 0;
@@ -102,7 +115,6 @@ export class FreteService {
     const custoCombustivel = parseFloat(
       (litrosNecessarios * dto.precoCombustivel).toFixed(2),
     );
-
 
     const custoOperacional = custoCombustivel + pedagiosTotal;
     const valorLiquidoEstimado = parseFloat(
@@ -128,6 +140,7 @@ export class FreteService {
         valorLiquidoEstimado,
         userId,
         caminhaoId: caminhao.id,
+        versaoAnttId: versaoAtual.id,
       },
     });
 
@@ -153,11 +166,26 @@ export class FreteService {
     };
   }
 
-  async historico(userId: number) {
-    return this.prisma.simulacaoFrete.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+  async historico(userId: number, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const [simulacoes, total] = await Promise.all([
+      this.prisma.simulacaoFrete.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.simulacaoFrete.count({ where: { userId } }),
+    ]);
+
+    return {
+      data: simulacoes,
+      total,
+      page,
+      limit,
+      totalPaginas: Math.ceil(total / limit),
+    };
   }
 
   async findOne(userId: number, id: number) {
