@@ -115,6 +115,35 @@ describe('Tela de frete - padrao brasileiro de numeros', () => {
   });
 });
 
+describe('Tela de frete - milhar e arredondamento no padrao brasileiro (#36)', () => {
+  it('deve usar ponto de milhar em litros e virgula com duas casas no consumo', async () => {
+    jest.mocked(simularFrete).mockResolvedValue({
+      ...simulacao,
+      distanciaKm: 12345.67,
+      litrosNecessarios: 1234.5,
+      consumoMedioKmL: 2.456,
+    } as never);
+
+    await montarTela();
+    await preencherObrigatorios();
+    await simular();
+
+    await waitFor(() => expect(screen.getByText('ULTIMA SIMULACAO')).toBeTruthy());
+
+    expect(screen.getByText('12.345,7 km')).toBeTruthy();
+    expect(screen.getByText('1.234,50 L')).toBeTruthy();
+    expect(screen.getByText('2,46 km/L')).toBeTruthy();
+  });
+
+  it('deve exibir distancia redonda do historico com uma casa decimal', async () => {
+    await montarTela([{ ...itemHistorico, distanciaKm: 2000 }]);
+
+    await waitFor(() => expect(screen.getByText('Anapolis, GO')).toBeTruthy());
+
+    expect(screen.getByText('2.000,0 km')).toBeTruthy();
+  });
+});
+
 describe('Tela de frete - validacao do formulario', () => {
   it('deve recusar a simulacao sem origem, destino e preco do combustivel', async () => {
     await montarTela();

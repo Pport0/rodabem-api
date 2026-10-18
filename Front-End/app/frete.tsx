@@ -34,6 +34,14 @@ function formatCurrency(value: number) {
   });
 }
 
+// Padrao brasileiro (RNF-03): virgula decimal e ponto de milhar; toFixed usa sempre ponto.
+function formatNumber(value: number, fractionDigits: number) {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  });
+}
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("pt-BR");
 }
@@ -58,7 +66,7 @@ function HistoryCard({ item, primaryColor }: { item: HistoricoFreteItem; primary
         </Text>
       </View>
       <View style={styles.historyMetaRow}>
-        <Text style={styles.historyMeta}>{item.distanciaKm.toFixed(1)} km</Text>
+        <Text style={styles.historyMeta}>{formatNumber(item.distanciaKm, 1)} km</Text>
         <Text style={styles.historyMeta}>{formatCurrency(item.valorMinimoAntt)} ANTT</Text>
         <Text style={styles.historyMeta}>{formatDate(item.createdAt)}</Text>
       </View>
@@ -109,7 +117,7 @@ export default function FreteScreen() {
   const summary = useMemo(() => {
     if (!latestResult) return null;
     return [
-      { label: "Distancia", value: `${latestResult.distanciaKm.toFixed(1)} km` },
+      { label: "Distancia", value: `${formatNumber(latestResult.distanciaKm, 1)} km` },
       { label: "Duracao", value: durationLabel(latestResult.duracaoMinutos) },
       { label: "Combustivel", value: formatCurrency(latestResult.custoCombustivel) },
       { label: "Pedagios", value: formatCurrency(latestResult.pedagiosEstimados) },
@@ -318,11 +326,11 @@ export default function FreteScreen() {
           </View>
           <View style={styles.detailLine}>
             <Text style={styles.detailLabel}>Litros necessarios</Text>
-            <Text style={styles.detailValue}>{latestResult.litrosNecessarios.toFixed(2)} L</Text>
+            <Text style={styles.detailValue}>{formatNumber(latestResult.litrosNecessarios, 2)} L</Text>
           </View>
           <View style={styles.detailLine}>
             <Text style={styles.detailLabel}>Consumo usado</Text>
-            <Text style={styles.detailValue}>{latestResult.consumoMedioKmL.toFixed(2)} km/L</Text>
+            <Text style={styles.detailValue}>{formatNumber(latestResult.consumoMedioKmL, 2)} km/L</Text>
           </View>
 
           {!!latestResult.aviso && <Text style={styles.warningText}>{latestResult.aviso}</Text>}

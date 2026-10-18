@@ -1,6 +1,7 @@
 import colors from '@/constants/colors';
 import { useAuth } from '@/contexts/authContext';
 import { useUser } from '@/hooks/useUser';
+import { getInitials } from '@/shared/ui/base/avatar/initials';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -19,9 +20,7 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
     setTimeout(() => router.push(path as any), 50);
   };
 
-  const initials = user?.nome
-    ? user.nome.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
-    : 'U';
+  const initials = getInitials(user?.nome);
 
   return (
     <View style={styles.container}>

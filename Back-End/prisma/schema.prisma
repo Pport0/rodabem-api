@@ -148,6 +148,8 @@ enum TipoCarga {
   GRANEL_LIQUIDO
   FRIGORIFICADA
   CONTEINER
+  GRANEL_PRESSURIZADO  
+  NEOGRANEL  
   PERIGOSA_GERAL
   PERIGOSA_CONTEINERIZADA
   PERIGOSA_FRIGORIFICADA
@@ -156,16 +158,19 @@ enum TipoCarga {
 }
 
 model TabelaAntt {
-  id          Int      @id @default(autoincrement())
-  numeroEixos Int
-  tipoCarga   TipoCarga
-  distanciaMin Int
-  distanciaMax Int
-  valorPorKm  Float
-  cc           Float     @default(0)
-  altoDesempenho Boolean @default(false)
-  atualizadoEm DateTime
+  id          Int        @id @default(autoincrement())
+  versaoId    Int
+  versao      VersaoAntt @relation(fields: [versaoId], references: [id])
 
+  numeroEixos    Int
+  tipoCarga      TipoCarga
+  distanciaMin   Int
+  distanciaMax   Int
+  valorPorKm     Float
+  cc             Float     @default(0)
+  altoDesempenho Boolean   @default(false)
+
+  @@index([versaoId])
   @@map("tabela_antt")
 }
 
@@ -198,8 +203,25 @@ model SimulacaoFrete {
 
   createdAt  DateTime @default(now())
 
+   versaoAnttId Int
+  versaoAntt   VersaoAntt @relation(fields: [versaoAnttId], references: [id])
+
   @@index([userId])
   @@index([caminhaoId])
+  @@index([versaoAnttId])
 
   @@map("simulacoes_frete")
+}
+
+model VersaoAntt {
+  id           Int              @id @default(autoincrement())
+  resolucao    String           @unique
+  vigenteDesde DateTime
+  vigenteAte   DateTime?
+  criadoEm     DateTime         @default(now())
+
+  tabela     TabelaAntt[]
+  simulacoes SimulacaoFrete[]
+
+  @@map("versoes_antt")
 }
