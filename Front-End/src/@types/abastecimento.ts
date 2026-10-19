@@ -41,3 +41,13 @@ export interface MediaConsumoResponse {
   totalAbastecimentos: number;
   totalTrechosCalculados?: number;
 }
+
+export interface PostoProximo {
+  nome: string;
+  distanciaMetros: number;
+}
+
+export interface PostosProximosResponse {
+  postos: PostoProximo[];
+  mensagem: string | null;
+}

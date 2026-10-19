@@ -2,6 +2,7 @@ import {
   Abastecimento,
   CreateAbastecimentoDto,
   MediaConsumoResponse,
+  PostosProximosResponse,
   UpdateAbastecimentoDto,
 } from "@/@types/abastecimento";
 import { HodometroScanResponse } from "@/@types/scan";
@@ -38,6 +39,17 @@ export async function deleteAbastecimento(id: number): Promise<void> {
 
 export async function getMediaConsumo(): Promise<MediaConsumoResponse> {
   const response = await api.get<MediaConsumoResponse>("/abastecimentos/media-consumo");
+  return response.data;
+}
+
+// Sugestao de posto pela posicao do aparelho (#30). O back responde 200 mesmo quando o mapa falha.
+export async function getPostosProximos(coordenadas: {
+  latitude: number;
+  longitude: number;
+}): Promise<PostosProximosResponse> {
+  const response = await api.get<PostosProximosResponse>("/abastecimentos/postos-proximos", {
+    params: coordenadas,
+  });
   return response.data;
 }
 
