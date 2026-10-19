@@ -1,4 +1,4 @@
-import { HistoricoFreteItem, TipoCarga } from "@/@types/frete";
+import { ComposicaoVeicular, HistoricoFreteItem, SimularFreteDto, TipoCarga } from "@/@types/frete";
 import Input from "@/components/input";
 import colors from "@/constants/colors";
 import { getHistoricoFrete, simularFrete } from "@/services/freteService";
@@ -27,6 +27,37 @@ const loadOptions: { value: TipoCarga; label: string }[] = [
   { value: "CONTEINER", label: "Container" },
 ];
 
+const composicaoOptions: { value: ComposicaoVeicular; label: string }[] = [
+  { value: "COM_CARRETA", label: "Com carreta" },
+  { value: "SEM_CARRETA", label: "Somente cavalo (sem carreta)" },
+];
+
+const AVISO_SEM_CARRETA = "Sem carreta, a ANTT só tem valores para 4 eixos ou mais.";
+
+// Entrada no padrao brasileiro (RNF-03): "1.234,5" -> 1234.5; sem virgula, o ponto e decimal.
+function parsePtBrNumber(value: string): number {
+  const normalized = value.trim();
+  if (!normalized) return Number.NaN;
+  return Number(normalized.includes(",")
+    ? normalized.replace(/\./g, "").replace(",", ".")
+    : normalized);
+}
+
+function getErrorMessage(error: any): string {
+  const message = error?.response?.data?.message || "Nao foi possivel calcular o frete.";
+  return Array.isArray(message) ? message[0] : message;
+}
+
+// O 404 do back traz o tipo de carga como codigo (ex.: GRANEL_SOLIDO); troca pelo nome da tela
+// e, sem carreta, explica a restricao de eixos.
+function getTabelaAnttMessage(error: any, payload: SimularFreteDto): string | null {
+  if (error?.response?.status !== 404) return null;
+  const label = loadOptions.find((option) => option.value === payload.tipoCarga)?.label;
+  let message = getErrorMessage(error);
+  if (label) message = message.replace(payload.tipoCarga, label.toLowerCase());
+  return payload.composicaoVeicular === "SEM_CARRETA" ? `${message} ${AVISO_SEM_CARRETA}` : message;
+}
+
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
     style: "currency",
@@ -40,6 +71,10 @@ function formatNumber(value: number, fractionDigits: number) {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   });
+}
+
+function formatPercent(value: number) {
+  return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 }
 
 function formatDate(value: string) {
@@ -87,6 +122,9 @@ export default function FreteScreen() {
   const [pedagiosManual, setPedagiosManual] = useState("");
   const [retornoVazio, setRetornoVazio] = useState(false);
   const [altoDesempenho, setAltoDesempenho] = useState(false);
+  const [composicao, setComposicao] = useState<ComposicaoVeicular>("COM_CARRETA");
+  const [lucro, setLucro] = useState("");
+  const [erroTabelaAntt, setErroTabelaAntt] = useState<string | null>(null);
 
   const historicoQuery = useQuery({
     queryKey: ["historico-frete"],
@@ -95,6 +133,7 @@ export default function FreteScreen() {
 
   const simulationMutation = useMutation({
     mutationFn: simularFrete,
+    onMutate: () => setErroTabelaAntt(null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["historico-frete"] });
       Toast.show("Simulacao realizada com sucesso.", {
@@ -102,10 +141,10 @@ export default function FreteScreen() {
         backgroundColor: "#10B981",
       });
     },
-    onError: (error: any) => {
-      const message =
-        error?.response?.data?.message || "Nao foi possivel calcular o frete.";
-      Toast.show(Array.isArray(message) ? message[0] : message, {
+    onError: (error: any, payload) => {
+      const tabelaMessage = getTabelaAnttMessage(error, payload);
+      setErroTabelaAntt(tabelaMessage);
+      Toast.show(tabelaMessage ?? getErrorMessage(error), {
         type: "error",
         backgroundColor: "#E53E3E",
       });
@@ -150,6 +189,8 @@ export default function FreteScreen() {
         : undefined,
       retornoVazio,
       altoDesempenho,
+      composicaoVeicular: composicao,
+      percentualLucroDesejado: lucro.trim() ? parsePtBrNumber(lucro) : undefined,
     });
   };
 
@@ -251,6 +292,38 @@ export default function FreteScreen() {
           />
         </View>
 
+        <Text style={[styles.groupLabel, { color: primaryColor }]}>COMPOSIÇÃO</Text>
+        <View style={styles.chipsRow}>
+          {composicaoOptions.map((option) => {
+            const active = option.value === composicao;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.chip,
+                  active && { backgroundColor: primaryColor, borderColor: primaryColor },
+                ]}
+                onPress={() => setComposicao(option.value)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {composicao === "SEM_CARRETA" && <Text style={styles.switchSubtitle}>{AVISO_SEM_CARRETA}</Text>}
+
+        <View style={styles.fieldContainer}>
+          <Text style={styles.label}>LUCRO DESEJADO (%)</Text>
+          <Input
+            placeholder="Ex: 20"
+            value={lucro}
+            onChangeText={(text) => setLucro(text.replace(/[^0-9.,]/g, ""))}
+            keyboardType="decimal-pad"
+          />
+          <Text style={styles.switchSubtitle}>Opcional. Calcula um valor sugerido de cobrança sobre os custos.</Text>
+        </View>
+
         <View style={styles.switchRow}>
           <View style={styles.switchTextGroup}>
             <Text style={styles.switchTitle}>Retorno vazio</Text>
@@ -320,9 +393,28 @@ export default function FreteScreen() {
             ))}
           </View>
 
-          <View style={styles.detailLine}>
-            <Text style={styles.detailLabel}>Valor minimo ANTT</Text>
-            <Text style={styles.detailValue}>{formatCurrency(latestResult.valorMinimoAntt)}</Text>
+          <View style={styles.valuesBox}>
+            <View style={styles.detailLine}>
+              {/* Rotulo conferido pelo fluxo Maestro frete/simula-e-mostra-o-resultado. */}
+              <Text style={styles.detailLabel}>Valor minimo ANTT</Text>
+              <Text style={styles.detailValue}>{formatCurrency(latestResult.valorMinimoAntt)}</Text>
+            </View>
+            {typeof latestResult.custoTotal === "number" && (
+              <View style={styles.detailLine}>
+                <Text style={styles.detailLabel}>Custos estimados (combustível + pedágios)</Text>
+                <Text style={styles.detailValue}>{formatCurrency(latestResult.custoTotal)}</Text>
+              </View>
+            )}
+            {latestResult.valorSugerido !== null && latestResult.valorSugerido !== undefined && (
+              <View style={styles.detailLine}>
+                <Text style={[styles.detailLabel, styles.suggestedLabel]}>
+                  Valor sugerido ({formatPercent(latestResult.percentualLucroDesejado ?? 0)} de lucro)
+                </Text>
+                <Text style={[styles.suggestedValue, { color: primaryColor }]}>
+                  {formatCurrency(latestResult.valorSugerido)}
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.detailLine}>
             <Text style={styles.detailLabel}>Litros necessarios</Text>
@@ -333,7 +425,19 @@ export default function FreteScreen() {
             <Text style={styles.detailValue}>{formatNumber(latestResult.consumoMedioKmL, 2)} km/L</Text>
           </View>
 
-          {!!latestResult.aviso && <Text style={styles.warningText}>{latestResult.aviso}</Text>}
+          {!!latestResult.aviso && (
+            <View style={styles.warningBox}>
+              <Ionicons name="warning-outline" size={18} color="#B91C1C" />
+              <Text style={styles.warningText}>{latestResult.aviso}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {!latestResult && !!erroTabelaAntt && (
+        <View style={styles.warningBox}>
+          <Ionicons name="alert-circle-outline" size={18} color="#B91C1C" />
+          <Text style={styles.warningText}>{erroTabelaAntt}</Text>
         </View>
       )}
 
@@ -550,10 +654,35 @@ const styles = StyleSheet.create({
     color: "#222",
   },
   warningText: {
-    color: "#E53E3E",
+    flex: 1,
+    color: "#B91C1C",
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "600",
+  },
+  warningBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 14,
+    padding: 12,
+  },
+  valuesBox: {
+    backgroundColor: "#f8f8f8",
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+  },
+  suggestedLabel: {
+    fontWeight: "700",
+    color: "#222",
+  },
+  suggestedValue: {
+    fontSize: 16,
+    fontWeight: "700",
   },
   historySection: {
     gap: 12,
