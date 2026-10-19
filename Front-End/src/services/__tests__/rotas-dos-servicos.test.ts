@@ -1,5 +1,5 @@
 import { api } from '../api';
-import { signOut } from '../authService';
+import { forgotPassword, resetPassword, signOut } from '../authService';
 import { deleteCaminhao, updateCaminhao } from '../caminhaoService';
 import { deleteDocumento, updateDocumento } from '../documentoService';
 import { getHistoricoFrete, simularFrete } from '../freteService';
@@ -18,6 +18,23 @@ describe('Auth', () => {
     await signOut();
 
     expect(api.post).toHaveBeenCalledWith('/auth/logout');
+  });
+
+  it('deve pedir a recuperacao de senha pelo POST /auth/forgot-password', async () => {
+    jest.mocked(api.post).mockResolvedValue({ data: { message: 'generica' } } as never);
+
+    await expect(forgotPassword('gabriel@example.com')).resolves.toEqual({ message: 'generica' });
+    expect(api.post).toHaveBeenCalledWith('/auth/forgot-password', { email: 'gabriel@example.com' });
+  });
+
+  it('deve concluir a recuperacao pelo POST /auth/reset-password', async () => {
+    jest.mocked(api.post).mockResolvedValue({ data: { message: 'ok' } } as never);
+
+    await expect(resetPassword('token-uuid', '123456')).resolves.toEqual({ message: 'ok' });
+    expect(api.post).toHaveBeenCalledWith('/auth/reset-password', {
+      token: 'token-uuid',
+      novaSenha: '123456',
+    });
   });
 });
 
