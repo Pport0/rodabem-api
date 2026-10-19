@@ -119,6 +119,25 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
+    // Mesmas regras de unicidade do cadastro; sem isso o @unique do banco estoura como 500.
+    if (dto.email && dto.email !== user.email) {
+      const emailExisting = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
+      if (emailExisting && emailExisting.id !== id) {
+        throw new ConflictException('E-mail já cadastrado');
+      }
+    }
+
+    if (dto.telefone && dto.telefone !== user.telefone) {
+      const telefoneExisting = await this.prisma.user.findUnique({
+        where: { telefone: dto.telefone },
+      });
+      if (telefoneExisting && telefoneExisting.id !== id) {
+        throw new ConflictException('Telefone já cadastrado');
+      }
+    }
+
     const updated = await this.prisma.user.update({
       where: { id },
       data: dto,

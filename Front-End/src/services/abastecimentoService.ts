@@ -4,6 +4,7 @@ import {
   MediaConsumoResponse,
   UpdateAbastecimentoDto,
 } from "@/@types/abastecimento";
+import { HodometroScanResponse } from "@/@types/scan";
 import { api } from "./api";
 
 export async function getAbastecimentos(): Promise<Abastecimento[]> {
@@ -37,5 +38,26 @@ export async function deleteAbastecimento(id: number): Promise<void> {
 
 export async function getMediaConsumo(): Promise<MediaConsumoResponse> {
   const response = await api.get<MediaConsumoResponse>("/abastecimentos/media-consumo");
+  return response.data;
+}
+
+export async function scanHodometro(file: {
+  uri: string;
+  name: string;
+  type: string;
+}): Promise<HodometroScanResponse> {
+  const formData = new FormData();
+  formData.append("imagem", {
+    uri: file.uri,
+    name: file.name,
+    type: file.type,
+  } as any);
+
+  const response = await api.post<HodometroScanResponse>("/abastecimentos/scan", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
   return response.data;
 }
