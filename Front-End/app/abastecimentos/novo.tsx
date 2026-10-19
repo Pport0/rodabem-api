@@ -1,11 +1,13 @@
 import { TipoCombustivel } from "@/@types/abastecimento";
 import Input from "@/components/input";
 import colors from "@/constants/colors";
+import { StatusLocalizacao, useLocalizacaoAtual } from "@/hooks/useLocalizacaoAtual";
 import {
   createAbastecimento,
   getAbastecimento,
   updateAbastecimento,
   scanHodometro,
+  getPostosProximos,
 } from "@/services/abastecimentoService";
 import { Toast } from "@/shared/ui/molecules/Toast";
 import { queryClient } from "@/utils/queryClient";
@@ -38,6 +40,15 @@ interface FormErrors {
   quilometragem?: string;
 }
 
+const textoLocalizacao: Partial<Record<StatusLocalizacao, string>> = {
+  buscando: "Obtendo a localização do aparelho...",
+  capturada: "Localização registrada com o abastecimento.",
+  negada: "Localização não autorizada. O abastecimento será salvo sem ela.",
+  indisponivel: "Localização indisponível. O abastecimento será salvo sem ela.",
+};
+
+const MENSAGEM_FALHA_POSTOS = "Não foi possível buscar postos próximos agora.";
+
 function parsePtBrNumber(value: string): number {
   const normalized = value.trim();
   if (!normalized) return Number.NaN;
@@ -62,6 +73,20 @@ export default function NovoAbastecimento() {
   const [postoIdentificado, setPostoIdentificado] = useState("");
   const [observacao, setObservacao] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
+  // So no cadastro: na edicao, a posicao atual nao e onde o abastecimento aconteceu.
+  const localizacao = useLocalizacaoAtual(!isEditing);
+
+  // Sugestao de posto (#30): so com a posicao em maos; a falha nunca bloqueia o cadastro.
+  const postosQuery = useQuery({
+    queryKey: ["postos-proximos", localizacao.coordenadas?.latitude, localizacao.coordenadas?.longitude],
+    queryFn: () => getPostosProximos(localizacao.coordenadas!),
+    enabled: !isEditing && !!localizacao.coordenadas,
+    retry: false,
+  });
+  const postosSugeridos = postosQuery.data?.postos ?? [];
+  const mensagemPostos = postosQuery.isError
+    ? MENSAGEM_FALHA_POSTOS
+    : postosQuery.data?.mensagem ?? null;
 
   const abastecimentoQuery = useQuery({
     queryKey: ["abastecimento", id],
@@ -98,6 +123,7 @@ export default function NovoAbastecimento() {
         localDescricao: localDescricao.trim() || undefined,
         postoIdentificado: postoIdentificado.trim() || undefined,
         observacao: observacao.trim() || undefined,
+        ...(!isEditing && localizacao.coordenadas ? localizacao.coordenadas : {}),
       };
 
       if (isEditing && id) {
@@ -297,6 +323,41 @@ export default function NovoAbastecimento() {
                 value={postoIdentificado}
                 onChangeText={setPostoIdentificado}
               />
+              {textoLocalizacao[localizacao.status] && (
+                <Text style={styles.locationText}>{textoLocalizacao[localizacao.status]}</Text>
+              )}
+              {postosQuery.isFetching && (
+                <Text style={styles.locationText}>Buscando postos próximos...</Text>
+              )}
+              {postosSugeridos.length > 0 && (
+                <View style={styles.postosContainer}>
+                  <Text style={styles.locationText}>Postos perto de você (toque para preencher):</Text>
+                  <View style={styles.chipsRow}>
+                    {postosSugeridos.map((posto) => {
+                      const ativo = posto.nome === postoIdentificado;
+                      return (
+                        <TouchableOpacity
+                          key={`${posto.nome}-${posto.distanciaMetros}`}
+                          style={[
+                            styles.chip,
+                            ativo && { backgroundColor: primaryColor, borderColor: primaryColor },
+                          ]}
+                          onPress={() => setPostoIdentificado(posto.nome)}
+                          activeOpacity={0.85}
+                          accessibilityLabel={`Usar ${posto.nome}`}
+                        >
+                          <Text style={[styles.chipText, ativo && styles.chipTextActive]}>
+                            {posto.nome} · {posto.distanciaMetros.toLocaleString("pt-BR")} m
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+              {!postosQuery.isFetching && !!mensagemPostos && (
+                <Text style={styles.locationText}>{mensagemPostos}</Text>
+              )}
             </View>
 
             <View style={styles.fieldContainer}>
@@ -412,6 +473,13 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     color: "#E53E3E",
+  },
+  locationText: {
+    fontSize: 12,
+    color: "#888",
+  },
+  postosContainer: {
+    gap: 8,
   },
   previewCard: {
     backgroundColor: "#fff",

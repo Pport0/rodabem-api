@@ -20,6 +20,8 @@ import { CreateAbastecimentoDto } from './dto/create-abastecimento.dto';
 import { UpdateAbastecimentoDto } from './dto/update-abastecimento.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { HodometroScanService } from './scan/hodometro-scan.service';
+import { PostosProximosService } from './postos/postos-proximos.service';
+import { PostosProximosQueryDto } from './dto/postos-proximos-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('abastecimentos')
@@ -27,6 +29,7 @@ export class AbastecimentoController {
   constructor(
     private readonly abastecimentoService: AbastecimentoService,
     private readonly hodometroScanService: HodometroScanService,
+    private readonly postosProximosService: PostosProximosService,
   ) {}
 
   @Post()
@@ -60,6 +63,12 @@ export class AbastecimentoController {
     @Query('dataFim') dataFim: string,
   ) {
     return this.abastecimentoService.relatorio(req.user.userId, dataInicio, dataFim);
+  }
+
+  // Antes de ':id', senao o ParseIntPipe captura "postos-proximos" como id.
+  @Get('postos-proximos')
+  postosProximos(@Query() query: PostosProximosQueryDto) {
+    return this.postosProximosService.buscar(query.latitude, query.longitude);
   }
 
   @Get(':id')
