@@ -1,4 +1,5 @@
 import { api } from '../api';
+import { signOut } from '../authService';
 import { deleteCaminhao, updateCaminhao } from '../caminhaoService';
 import { deleteDocumento, updateDocumento } from '../documentoService';
 import { getHistoricoFrete, simularFrete } from '../freteService';
@@ -9,6 +10,16 @@ jest.mock('../api', () => ({
 }));
 
 beforeEach(() => jest.clearAllMocks());
+
+describe('Auth', () => {
+  it('deve encerrar a sessao no servidor pelo POST /auth/logout', async () => {
+    jest.mocked(api.post).mockResolvedValue({ data: { message: 'ok' } } as never);
+
+    await signOut();
+
+    expect(api.post).toHaveBeenCalledWith('/auth/logout');
+  });
+});
 
 describe('Caminhao', () => {
   it('deve editar o caminhao do usuario autenticado, sem informar identificador', async () => {
