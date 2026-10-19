@@ -5,6 +5,7 @@ import {
   getAbastecimento,
   getAbastecimentos,
   getMediaConsumo,
+  getPostosProximos,
   scanHodometro,
   updateAbastecimento,
 } from '../abastecimentoService';
@@ -91,4 +92,14 @@ it('deve enviar a foto do hodometro no campo "imagem" da rota de scan', async ()
   expect(anexar).toHaveBeenCalledWith('imagem', arquivo);
   expect(config.headers['Content-Type']).toBe('multipart/form-data');
   anexar.mockRestore();
+});
+
+it('deve buscar os postos proximos pela posicao, na rota propria', async () => {
+  const resposta = { postos: [{ nome: 'Petrobrás', distanciaMetros: 857 }], mensagem: null };
+  jest.mocked(api.get).mockResolvedValue({ data: resposta } as any);
+
+  await expect(getPostosProximos({ latitude: -16.3281, longitude: -48.9526 })).resolves.toEqual(resposta);
+  expect(api.get).toHaveBeenCalledWith('/abastecimentos/postos-proximos', {
+    params: { latitude: -16.3281, longitude: -48.9526 },
+  });
 });

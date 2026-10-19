@@ -32,7 +32,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O RodaBem usa a sua localização para registrar onde cada abastecimento foi feito e sugerir o posto em que você está."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

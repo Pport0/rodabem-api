@@ -669,4 +669,37 @@ describe('Fluxo de abastecimento (e2e)', () => {
     });
   });
 
+  // So validacao e autenticacao: a consulta ao ORS e coberta no teste unitario do servico.
+  describe('GET /abastecimentos/postos-proximos', () => {
+    it('deve exigir autenticacao', async () => {
+      await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=-16.3&longitude=-48.9')
+        .expect(401);
+    });
+
+    it('nao deve ser confundida com a consulta por identificador', async () => {
+      const { token } = await registerAndLogin(app, '700070');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=abc&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(resposta.body.message).toEqual(['Latitude deve ser um número.']);
+    });
+
+    it('deve recusar latitude fora da faixa', async () => {
+      const { token } = await registerAndLogin(app, '700071');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=91&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(resposta.body.message).toEqual([
+        'Latitude deve estar entre -90 e 90.',
+      ]);
+    });
+  });
+
 });
