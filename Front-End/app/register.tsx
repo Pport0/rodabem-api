@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/authContext";
 import Button from "@/shared/ui/base/button";
 import { maskCpf } from "@/utils/maskCpf";
 import { maskPhone } from "@/utils/maskPhone";
+import { validateEmail } from "@/utils/userValidation";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import { Dimensions, ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
@@ -48,11 +49,9 @@ export default function Register() {
     if (telefoneDigits && telefoneDigits.length < 10) {
       newErrors.telefone = 'Telefone inválido';
     }
-    const emailValue = email.trim();
-    if (!emailValue) {
-      newErrors.email = 'Email é obrigatório';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
-      newErrors.email = 'Email inválido';
+    const emailError = validateEmail(email);
+    if (emailError) {
+      newErrors.email = emailError;
     }
     if (!senha) {
       newErrors.senha = 'Senha é obrigatória';

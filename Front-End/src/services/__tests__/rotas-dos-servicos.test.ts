@@ -2,7 +2,7 @@ import { api } from '../api';
 import { deleteCaminhao, updateCaminhao } from '../caminhaoService';
 import { deleteDocumento, updateDocumento } from '../documentoService';
 import { getHistoricoFrete, simularFrete } from '../freteService';
-import { createUser, deleteUser } from '../userService';
+import { createUser, deleteUser, updateUser } from '../userService';
 
 jest.mock('../api', () => ({
   api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), patch: jest.fn(), delete: jest.fn() },
@@ -77,6 +77,14 @@ describe('Usuario', () => {
     await createUser({ nome: 'Gabriel', cpf: '52998224725', senha: '123456' } as never);
 
     expect(api.post).toHaveBeenCalledWith('/users', expect.objectContaining({ nome: 'Gabriel' }));
+  });
+
+  it('deve editar os dados pelo identificador do usuario', async () => {
+    const dados = { nome: 'Gabriel', email: 'gabriel@example.com', telefone: null };
+    jest.mocked(api.put).mockResolvedValue({ data: { id: 4, ...dados } } as never);
+
+    await expect(updateUser(4, dados)).resolves.toMatchObject({ id: 4, nome: 'Gabriel' });
+    expect(api.put).toHaveBeenCalledWith('/users/4', dados);
   });
 
   it('deve excluir a conta pelo identificador do usuario', async () => {
