@@ -271,6 +271,77 @@ describe('UsersService', () => {
 
       expect(prisma.user.update.mock.calls[0][0].data).toEqual({ nome: 'Novo' });
     });
+
+    describe('e-mail e telefone de outra conta', () => {
+      const atual = {
+        id: userId,
+        email: 'atual@example.com',
+        telefone: '62999990000',
+      };
+
+      it('deve recusar e-mail que ja pertence a outro usuario, sem gravar', async () => {
+        prisma.user.findUnique
+          .mockResolvedValueOnce(atual)
+          .mockResolvedValueOnce({ id: 2, email: 'outro@example.com' });
+
+        await expect(
+          service.update(userId, { email: 'outro@example.com' }),
+        ).rejects.toThrow(new ConflictException('E-mail já cadastrado'));
+        expect(prisma.user.findUnique).toHaveBeenLastCalledWith({
+          where: { email: 'outro@example.com' },
+        });
+        expect(prisma.user.update).not.toHaveBeenCalled();
+      });
+
+      it('deve recusar telefone que ja pertence a outro usuario, sem gravar', async () => {
+        prisma.user.findUnique
+          .mockResolvedValueOnce(atual)
+          .mockResolvedValueOnce({ id: 2, telefone: '62988887777' });
+
+        await expect(
+          service.update(userId, { telefone: '62988887777' }),
+        ).rejects.toThrow(new ConflictException('Telefone já cadastrado'));
+        expect(prisma.user.findUnique).toHaveBeenLastCalledWith({
+          where: { telefone: '62988887777' },
+        });
+        expect(prisma.user.update).not.toHaveBeenCalled();
+      });
+
+      it('deve aceitar reenviar o proprio e-mail e telefone sem consultar outra conta', async () => {
+        prisma.user.findUnique.mockResolvedValueOnce(atual);
+        prisma.user.update.mockResolvedValue(atual);
+
+        await service.update(userId, {
+          nome: 'Novo',
+          email: atual.email,
+          telefone: atual.telefone,
+        });
+
+        expect(prisma.user.findUnique).toHaveBeenCalledTimes(1);
+        expect(prisma.user.update).toHaveBeenCalled();
+      });
+
+      it('deve gravar e-mail e telefone novos que ninguem usa', async () => {
+        prisma.user.findUnique
+          .mockResolvedValueOnce(atual)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null);
+        prisma.user.update.mockResolvedValue({
+          ...atual,
+          email: 'novo@example.com',
+        });
+
+        await service.update(userId, {
+          email: 'novo@example.com',
+          telefone: '62977776666',
+        });
+
+        expect(prisma.user.update.mock.calls[0][0].data).toEqual({
+          email: 'novo@example.com',
+          telefone: '62977776666',
+        });
+      });
+    });
   });
 
 });
