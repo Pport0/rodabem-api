@@ -169,6 +169,8 @@ export class AuthService {
         <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
         <p>Clique no link abaixo para criar uma nova senha. O link é válido por <strong>30 minutos</strong>.</p>
         <p><a href="${link}">${link}</a></p>
+        <p>Se o link não abrir, toque em <strong>"Já tenho o código"</strong> no aplicativo e cole este código:</p>
+        <p><strong>${token}</strong></p>
         <p>Se você não solicitou isso, ignore este e-mail.</p>
       `,
     });

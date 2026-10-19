@@ -73,6 +73,7 @@ function RootLayoutNav() {
                 <Stack.Screen name="login" options={{ headerShown: true, header: () => <Header /> }} />
                 <Stack.Screen name="register" options={{ headerShown: true, header: () => <Header /> }} />
                 <Stack.Screen name="forgotPassword" options={{ headerShown: true, header: () => <Header /> }} />
+                <Stack.Screen name="reset-password" options={{ headerShown: true, header: () => <Header title="Redefinir Senha" /> }} />
                 <Stack.Screen name="alterarSenha" options={{ headerShown: true, header: () => <Header title="Alterar Senha" /> }} />
                 <Stack.Screen name="editarPerfil" options={{ headerShown: true, header: () => <Header title="Editar Perfil" /> }} />
                 <Stack.Screen name="caminhoes/novo" options={{ headerShown: true, header: () => <Header title="Novo Caminhão" /> }} />

@@ -6,6 +6,9 @@ import ForgotPassword from '../forgotPassword';
 import Index from '../index';
 import NotFoundScreen from '../+not-found';
 
+// A tela de recuperacao passou a chamar a API (#28); como nas demais suites, o servico e substituido.
+jest.mock('@/services/authService', () => ({ forgotPassword: jest.fn() }));
+
 jest.mock('expo-router', () => {
   const { Text } = require('react-native');
   return {
