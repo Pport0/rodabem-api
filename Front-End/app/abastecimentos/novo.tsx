@@ -5,11 +5,14 @@ import {
   createAbastecimento,
   getAbastecimento,
   updateAbastecimento,
+  scanHodometro,
 } from "@/services/abastecimentoService";
 import { Toast } from "@/shared/ui/molecules/Toast";
 import { queryClient } from "@/utils/queryClient";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import { pickScanFile } from "@/utils/scanFile";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -52,6 +55,8 @@ export default function NovoAbastecimento() {
   const [precoPorLitro, setPrecoPorLitro] = useState("");
   const [totalLitros, setTotalLitros] = useState("");
   const [quilometragem, setQuilometragem] = useState("");
+  const [lendoHodometro, setLendoHodometro] = useState(false);
+  const [scanMessage, setScanMessage] = useState("");
   const [tipoCombustivel, setTipoCombustivel] = useState<TipoCombustivel>("DIESEL_S10");
   const [localDescricao, setLocalDescricao] = useState("");
   const [postoIdentificado, setPostoIdentificado] = useState("");
@@ -144,6 +149,30 @@ export default function NovoAbastecimento() {
     mutation.mutate();
   };
 
+  // OCR e so apoio (#31): preenche o campo para revisao, nunca salva direto.
+  const lerHodometro = async () => {
+    try {
+      const file = await pickScanFile("camera", "hodometro");
+      if (!file) return;
+
+      setLendoHodometro(true);
+      const result = await scanHodometro(file);
+      if (result.quilometragem !== null) {
+        setQuilometragem(String(Math.round(result.quilometragem)));
+      }
+      setScanMessage(`${result.mensagem} | Confianca: ${result.confianca.toUpperCase()}`);
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || "Nao foi possivel ler o hodometro. Digite a quilometragem.";
+      Toast.show(Array.isArray(message) ? message[0] : message, {
+        type: "error",
+        backgroundColor: "#E53E3E",
+      });
+    } finally {
+      setLendoHodometro(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -216,12 +245,35 @@ export default function NovoAbastecimento() {
 
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>QUILOMETRAGEM *</Text>
-              <Input
-                placeholder="Ex: 182350"
-                value={quilometragem}
-                onChangeText={(text) => setQuilometragem(text.replace(/\D/g, ""))}
-                keyboardType="numeric"
-              />
+              <View style={styles.kmRow}>
+                <View style={styles.flex1}>
+                  <Input
+                    placeholder="Ex: 182350"
+                    value={quilometragem}
+                    onChangeText={(text) => setQuilometragem(text.replace(/\D/g, ""))}
+                    keyboardType="numeric"
+                  />
+                </View>
+                {!isEditing && (
+                  <TouchableOpacity
+                    style={[styles.scanButton, { backgroundColor: primaryColor }]}
+                    onPress={lerHodometro}
+                    disabled={lendoHodometro}
+                    activeOpacity={0.85}
+                    accessibilityLabel="Ler hodômetro"
+                  >
+                    {lendoHodometro ? (
+                      <ActivityIndicator color="#fff" testID="lendo-hodometro" />
+                    ) : (
+                      <>
+                        <Ionicons name="camera-outline" size={18} color="#fff" />
+                        <Text style={styles.scanButtonText}>Ler hodômetro</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+              {!!scanMessage && <Text style={styles.scanText}>{scanMessage}</Text>}
               {errors.quilometragem && <Text style={styles.errorText}>{errors.quilometragem}</Text>}
             </View>
 
@@ -397,5 +449,32 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  kmRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  flex1: {
+    flex: 1,
+  },
+  scanButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 52,
+    minWidth: 150,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+  },
+  scanButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  scanText: {
+    fontSize: 12,
+    color: "#666",
   },
 });

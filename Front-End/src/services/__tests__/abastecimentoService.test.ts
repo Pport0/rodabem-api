@@ -5,6 +5,7 @@ import {
   getAbastecimento,
   getAbastecimentos,
   getMediaConsumo,
+  scanHodometro,
   updateAbastecimento,
 } from '../abastecimentoService';
 
@@ -73,4 +74,21 @@ it('deve buscar a media de consumo numa rota propria, e nao derivar da lista', a
 
   await expect(getMediaConsumo()).resolves.toMatchObject({ mediaConsumo: 3.2 });
   expect(api.get).toHaveBeenCalledWith('/abastecimentos/media-consumo');
+});
+
+it('deve enviar a foto do hodometro no campo "imagem" da rota de scan', async () => {
+  const resposta = { quilometragem: 182350, confianca: 'media', mensagem: 'ok' };
+  jest.mocked(api.post).mockResolvedValue({ data: resposta } as any);
+  const arquivo = { uri: 'file:///hodometro.jpg', name: 'hodometro.jpg', type: 'image/jpeg' };
+  // No React Native o FormData aceita {uri, name, type}; o do Node converteria em texto, por isso o spy.
+  const anexar = jest.spyOn(FormData.prototype, 'append');
+
+  await expect(scanHodometro(arquivo)).resolves.toEqual(resposta);
+
+  const [rota, corpo, config] = jest.mocked(api.post).mock.calls[0] as any[];
+  expect(rota).toBe('/abastecimentos/scan');
+  expect(corpo).toBeInstanceOf(FormData);
+  expect(anexar).toHaveBeenCalledWith('imagem', arquivo);
+  expect(config.headers['Content-Type']).toBe('multipart/form-data');
+  anexar.mockRestore();
 });
