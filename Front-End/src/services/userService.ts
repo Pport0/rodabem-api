@@ -17,6 +17,14 @@ export async function getMeuPerfil(): Promise<User | null> {
   return response.data;
 }
 
+export async function updateUser(
+  id: number,
+  userData: { nome: string; email: string; telefone: string | null },
+): Promise<User> {
+  const response = await api.put<User>(`/users/${id}`, userData);
+  return response.data;
+}
+
 export async function alterarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
   await api.patch("/users/me/senha", { senhaAtual, novaSenha });
 }
