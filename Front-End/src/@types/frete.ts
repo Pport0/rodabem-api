@@ -6,6 +6,8 @@ export type TipoCarga =
   | "PERIGOSA"
   | "CONTEINER";
 
+export type ComposicaoVeicular = "COM_CARRETA" | "SEM_CARRETA";
+
 export interface SimularFreteDto {
   origem: string;
   destino: string;
@@ -16,6 +18,8 @@ export interface SimularFreteDto {
   pedagiosManual?: number;
   retornoVazio?: boolean;
   altoDesempenho?: boolean;
+  composicaoVeicular?: ComposicaoVeicular;
+  percentualLucroDesejado?: number;
 }
 
 export interface SimulacaoFreteResponse {
@@ -34,6 +38,10 @@ export interface SimulacaoFreteResponse {
   valorMinimoAntt: number;
   valorLiquidoEstimado: number;
   abaixoMinimoAntt: boolean;
+  custoTotal: number;
+  percentualLucroDesejado: number | null;
+  valorSugerido: number | null;
+  sugeridoAbaixoDoMinimo: boolean | null;
   aviso: string | null;
 }
 
