@@ -1,10 +1,10 @@
 import Button from "@/shared/ui/base/button";
 import Input from "@/components/input";
 import colors from "@/constants/colors";
+import { encerrarSessaoLocal, voltarAoInicio } from "@/services/sessao";
 import { alterarSenha } from "@/services/userService";
 import { useToast } from "@/shared/ui/molecules/Toast";
 import { useMutation } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { useState } from "react";
 import { Dimensions, ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
 
@@ -19,9 +19,10 @@ export default function AlterarSenha() {
 
   const mutation = useMutation({
     mutationFn: () => alterarSenha(senhaAtual, novaSenha),
-    onSuccess: () => {
-      show("Senha alterada com sucesso", { type: "success", backgroundColor: "#10B981" });
-      router.back();
+    // A troca de senha invalida o token em uso (#10): sem POST /auth/logout, so limpa o aparelho e leva ao login.
+    onSuccess: async () => {
+      await encerrarSessaoLocal();
+      voltarAoInicio("senha-alterada");
     },
     onError: () => show("Não foi possível alterar a senha. Verifique sua senha atual e tente novamente.", { type: "error", backgroundColor: "#bf0a30" }),
   });
