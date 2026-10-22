@@ -10,6 +10,7 @@ export async function clearDatabase(prisma: PrismaService) {
   await prisma.tokenBlackList.deleteMany();
   await prisma.user.deleteMany();
   await prisma.tabelaAntt.deleteMany();
+  await prisma.versaoAntt.deleteMany();
 }
 
 export function buildValidCpf(seed: string): string {
@@ -82,3 +83,12 @@ export function createTruck(
       ...overrides,
     });
 }
+
+export const semLimiteDeRequisicoes = {
+  increment: async () => ({
+    totalHits: 1,
+    timeToExpire: 60,
+    isBlocked: false,
+    timeToBlockExpire: 0,
+  }),
+};

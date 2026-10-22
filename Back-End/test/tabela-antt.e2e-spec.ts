@@ -65,13 +65,58 @@ describe('Tabela da ANTT distribuida (e2e)', () => {
     expect(invalidas).toEqual([]);
   });
 
+  describe('vigencia das versoes publicadas', () => {
+    it('deve haver exatamente uma versao vigente', async () => {
+      const agora = new Date();
+
+      const vigentes = await prisma.versaoAntt.findMany({
+        where: {
+          vigenteDesde: { lte: agora },
+          OR: [{ vigenteAte: null }, { vigenteAte: { gte: agora } }],
+        },
+        select: { resolucao: true },
+      });
+
+      expect(vigentes).toHaveLength(1);
+    });
+
+    it('nenhuma versao publicada deve ter coeficiente zerado ou negativo', async () => {
+      const invalidas = await prisma.tabelaAntt.findMany({
+        where: { OR: [{ valorPorKm: { lte: 0 } }, { cc: { lt: 0 } }] },
+        select: { versaoId: true, numeroEixos: true, tipoCarga: true },
+      });
+
+      expect(invalidas).toEqual([]);
+    });
+
+    it('toda versao publicada deve ter coeficiente', async () => {
+      const versoes = await prisma.versaoAntt.findMany({ select: { id: true, resolucao: true } });
+      const vazias: string[] = [];
+
+      for (const versao of versoes) {
+        const quantas = await prisma.tabelaAntt.count({ where: { versaoId: versao.id } });
+        if (quantas === 0) vazias.push(versao.resolucao);
+      }
+
+      expect(vazias).toEqual([]);
+    });
+  });
+
   it('nao deve ter combinacao de eixos e tipo de carga repetida', async () => {
     const todas = await prisma.tabelaAntt.findMany({
-      select: { numeroEixos: true, tipoCarga: true, distanciaMin: true, distanciaMax: true },
+      select: {
+        numeroEixos: true,
+        tipoCarga: true,
+        distanciaMin: true,
+        distanciaMax: true,
+        altoDesempenho: true,
+        composicaoVeicular: true,
+      },
     });
 
     const chaves = todas.map(
-      (f) => `${f.numeroEixos}|${f.tipoCarga}|${f.distanciaMin}-${f.distanciaMax}`,
+      (f) =>
+        `${f.composicaoVeicular}|${f.altoDesempenho}|${f.numeroEixos}|${f.tipoCarga}|${f.distanciaMin}-${f.distanciaMax}`,
     );
 
     expect(chaves).toHaveLength(new Set(chaves).size);

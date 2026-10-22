@@ -46,7 +46,7 @@ describe('authContext - login', () => {
     result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
 
     await waitFor(() =>
-      expect(SecureStore.setItem).toHaveBeenCalledWith(CHAVE_TOKEN, 'jwt-token'),
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith(CHAVE_TOKEN, 'jwt-token'),
     );
   });
 
@@ -57,7 +57,7 @@ describe('authContext - login', () => {
     result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
 
     await waitFor(() =>
-      expect(SecureStore.setItem).toHaveBeenCalledWith(
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
         CHAVE_USUARIO,
         JSON.stringify(usuarioAutenticado.user),
       ),
@@ -97,7 +97,7 @@ describe('authContext - login', () => {
       result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
 
       await waitFor(() => expect(mockMostrarToast).toHaveBeenCalled());
-      expect(SecureStore.setItem).not.toHaveBeenCalled();
+      expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
     });
 
     it('nao deve navegar quando a resposta nao traz access_token', async () => {
@@ -146,12 +146,12 @@ describe('authContext - login', () => {
       result.current.login({ cpfOrPhone: '62999999999', password: 'errada' });
 
       await waitFor(() => expect(mockMostrarToast).toHaveBeenCalled());
-      expect(SecureStore.setItem).not.toHaveBeenCalled();
+      expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
       expect(router.push).not.toHaveBeenCalled();
     });
   });
 
-  describe('mensagem de falha legivel (#37)', () => {
+  describe('mensagem de falha legivel', () => {
     const erroDaApi = (message: unknown) =>
       Object.assign(new Error('Request failed with status code 401'), {
         response: { status: 401, data: { message } },
@@ -247,7 +247,7 @@ describe('authContext - cadastro', () => {
     result.current.signUp(novoUsuario);
 
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/login'));
-    expect(SecureStore.setItem).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
   it('deve exibir mensagem de erro quando o cadastro falha', async () => {
@@ -284,12 +284,13 @@ describe('authContext - logout', () => {
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(CHAVE_TOKEN);
   });
 
-  it('deve redirecionar para a tela inicial', async () => {
+  it('deve redirecionar para a tela inicial sem deixar volta para a area autenticada', async () => {
     const { result } = await montarAuth();
 
-    result.current.logout();
+    await result.current.logout();
 
-    expect(router.push).toHaveBeenCalledWith('/');
+    expect(router.replace).toHaveBeenCalledWith('/');
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('o logout deve apagar tambem os dados do usuario', async () => {

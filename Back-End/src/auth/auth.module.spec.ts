@@ -116,13 +116,16 @@ describe('AuthModule', () => {
       await mod.close();
     });
 
-    it('o segredo do ConfigService e o de process.env devem coincidir', async () => {
+    it('deve usar apenas o segredo do ConfigService, ignorando process.env', async () => {
       const mod = await compilarCom(envValido);
       const jwt = mod.get(JwtService);
 
       const token = jwt.sign({ sub: 1 });
 
-      expect(() => jwt.verify(token, { secret: SEGREDO_DE_PROCESSO })).not.toThrow();
+      expect(() => jwt.verify(token, { secret: SEGREDO_DE_PROCESSO })).toThrow();
+      expect(jwt.verify(token, { secret: envValido.JWT_SECRET })).toMatchObject({
+        sub: 1,
+      });
 
       await mod.close();
     });

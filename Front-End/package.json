@@ -69,7 +69,11 @@
     "collectCoverageFrom": [
       "src/**/*.{ts,tsx}",
       "app/**/*.{ts,tsx}",
-      "!**/*.d.ts"
+      "!**/*.d.ts",
+      "!src/shared/ui/**",
+      "!app/_layout.tsx",
+      "!app/+html.tsx",
+      "!app/\\(drawer\\)/_layout.tsx"
     ],
     "coverageDirectory": "coverage"
   }

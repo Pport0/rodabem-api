@@ -89,13 +89,32 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "allowJs": true
+          }
+        }
+      ]
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!main.ts",
+      "!users/dto/update-user.dto.ts"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "transformIgnorePatterns": [
+      "node_modules/(?!(file-type|strtok3|token-types|uint8array-extras|@tokenizer/inflate|@borewit/text-codec)/)"
+    ],
+    "testEnvironmentOptions": {
+      "customExportConditions": [
+        "node",
+        "module-sync",
+        "default"
+      ]
+    }
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

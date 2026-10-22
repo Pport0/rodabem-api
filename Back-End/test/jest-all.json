@@ -1,11 +1,36 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
   "rootDir": "..",
   "testEnvironment": "node",
   "testRegex": "\\.(spec|e2e-spec)\\.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "allowJs": true
+        }
+      }
+    ]
   },
-  "collectCoverageFrom": ["src/**/*.(t|j)s"],
-  "coverageDirectory": "coverage"
+  "collectCoverageFrom": [
+    "src/**/*.(t|j)s",
+    "!src/main.ts",
+    "!src/users/dto/update-user.dto.ts"
+  ],
+  "coverageDirectory": "coverage",
+  "transformIgnorePatterns": [
+    "node_modules/(?!(file-type|strtok3|token-types|uint8array-extras|@tokenizer/inflate|@borewit/text-codec)/)"
+  ],
+  "testEnvironmentOptions": {
+    "customExportConditions": [
+      "node",
+      "module-sync",
+      "default"
+    ]
+  }
 }

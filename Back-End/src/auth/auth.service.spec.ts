@@ -9,6 +9,7 @@ jest.mock('bcrypt', () => ({
 
 jest.mock('../common/utils/crypto.util', () => ({
   decrypt: jest.fn(),
+  createHash: jest.fn((valor: string) => `hash-${valor}`),
 }));
 
 describe('AuthService', () => {
@@ -18,9 +19,11 @@ describe('AuthService', () => {
     user: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
     },
     tokenBlackList: {
       create: jest.fn(),
+      deleteMany: jest.fn(),
     },
   };
 
@@ -68,8 +71,7 @@ describe('AuthService', () => {
 
   it('deve fazer login com cpf e senha validos', async () => {
     prisma.user.findFirst.mockResolvedValue(undefined);
-    prisma.user.findMany.mockResolvedValue([activeUser]);
-    (decrypt as jest.Mock).mockReturnValue('12345678901');
+    prisma.user.findUnique.mockResolvedValue(activeUser);
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
     jwtService.signAsync.mockResolvedValue('jwt-token');
 
@@ -78,8 +80,21 @@ describe('AuthService', () => {
       senha: '123456',
     });
 
-    expect(prisma.user.findMany).toHaveBeenCalled();
     expect(result.access_token).toBe('jwt-token');
+  });
+
+  it('deve encontrar o usuario pelo hash do cpf, sem varrer a tabela', async () => {
+    prisma.user.findFirst.mockResolvedValue(undefined);
+    prisma.user.findUnique.mockResolvedValue(activeUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    jwtService.signAsync.mockResolvedValue('jwt-token');
+
+    await service.login({ cpf: '12345678901', senha: '123456' });
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { cpfHash: 'hash-12345678901' },
+    });
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
   });
 
   it('deve rejeitar login sem cpf e sem telefone', async () => {
@@ -124,10 +139,9 @@ describe('AuthService', () => {
 
     await service.login({ telefone: activeUser.telefone, senha: '123456' });
 
-    expect(jwtService.signAsync).toHaveBeenCalledWith({
-      sub: activeUser.id,
-      email: activeUser.email,
-    });
+    expect(jwtService.signAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: activeUser.id, email: activeUser.email }),
+    );
   });
 
   it('deve registrar token na blacklist no logout', async () => {

@@ -47,4 +47,35 @@ describe('crypto.util', () => {
       expect(createHash(cpf)).not.toContain(cpf);
     });
   });
+
+  describe('a chave nao pode vir do codigo', () => {
+    const carregarCom = (chave?: string) => {
+      const anterior = process.env.CRYPTO_SECRET;
+
+      if (chave === undefined) delete process.env.CRYPTO_SECRET;
+      else process.env.CRYPTO_SECRET = chave;
+
+      try {
+        jest.resetModules();
+        return require('./crypto.util');
+      } finally {
+        if (anterior === undefined) delete process.env.CRYPTO_SECRET;
+        else process.env.CRYPTO_SECRET = anterior;
+      }
+    };
+
+    it('nao deve cifrar quando CRYPTO_SECRET nao esta definida', () => {
+      expect(() => carregarCom(undefined)).toThrow(/CRYPTO_SECRET/);
+    });
+
+    it('nao deve cifrar com chave mais curta que a exigida pelo algoritmo', () => {
+      expect(() => carregarCom('curta-demais')).toThrow(/CRYPTO_SECRET/);
+    });
+
+    it('deve carregar normalmente com uma chave de 32 caracteres', () => {
+      const util = carregarCom('a'.repeat(32));
+
+      expect(util.decrypt(util.encrypt('52998224725'))).toBe('52998224725');
+    });
+  });
 });

@@ -63,6 +63,16 @@ async function espalharSimulacoes(
 
   if (caminhoes.length === 0) throw new Error('nenhum caminhao de carga');
 
+  const versao = await prisma.versaoAntt.findFirst({
+    orderBy: { vigenteDesde: 'desc' },
+  });
+
+  if (!versao) {
+    throw new Error(
+      'nenhuma versao da tabela ANTT no banco. Rode antes: npx prisma db seed',
+    );
+  }
+
   const existentes = await prisma.simulacaoFrete.count({
     where: { user: { email: { endsWith: MARCA } } },
   });
@@ -101,6 +111,7 @@ async function espalharSimulacoes(
         valorLiquidoEstimado: km * 5.1771 + 220.31 - (km / 3.5) * 6.2,
         userId: dono.userId,
         caminhaoId: dono.id,
+        versaoAnttId: versao.id,
       });
     }
 

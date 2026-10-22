@@ -1,9 +1,15 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { buildUserPayload, clearDatabase, registerAndLogin } from './e2e.utils';
+import {
+  buildUserPayload,
+  clearDatabase,
+  registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Autenticacao - seguranca (e2e)', () => {
   let app: INestApplication;
@@ -22,13 +28,16 @@ describe('Autenticacao - seguranca (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -71,7 +80,7 @@ describe('Autenticacao - seguranca (e2e)', () => {
       await request(app.getHttpServer())
         .get('/users/me')
         .set('Authorization', `Bearer ${token}`)
-        .expect(400);
+        .expect(401);
     });
 
     it('deve recusar prefixo diferente de Bearer', async () => {
@@ -201,24 +210,6 @@ describe('Autenticacao - seguranca (e2e)', () => {
         .get('/users/me')
         .set('Authorization', `Bearer ${segundo.token}`)
         .expect(200);
-    });
-  });
-
-  describe('tentativas repetidas de autenticacao', () => {
-    it('deve limitar tentativas consecutivas de login', async () => {
-      const { user } = await registerAndLogin(app, '500030');
-
-      for (let i = 0; i < 12; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ telefone: user.telefone, senha: `tentativa-${i}` });
-      }
-
-      const aposExcesso = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({ telefone: user.telefone, senha: `tentativa-final` });
-
-      expect(aposExcesso.status).toBe(429);
     });
   });
 

@@ -1,10 +1,13 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TipoCarga, TipoCombustivel } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { clearDatabase, createTruck, registerAndLogin } from './e2e.utils';
+import { clearDatabase, createTruck, registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Isolamento entre usuarios (e2e)', () => {
   let app: INestApplication;
@@ -13,13 +16,15 @@ describe('Isolamento entre usuarios (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes).compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -71,6 +76,24 @@ describe('Isolamento entre usuarios (e2e)', () => {
       .expect(403);
   });
 
+  const versaoVigente = async () => {
+    const existente = await prisma.versaoAntt.findFirst({
+      where: { resolucao: 'Res. de teste' },
+    });
+
+    if (existente) return existente.id;
+
+    const criada = await prisma.versaoAntt.create({
+      data: {
+        resolucao: 'Res. de teste',
+        vigenteDesde: new Date(Date.now() - 1000),
+        vigenteAte: null,
+      },
+    });
+
+    return criada.id;
+  };
+
   const simulacaoDe = async (sufixo: string) => {
     const dono = await registerAndLogin(app, sufixo);
     await createTruck(app, dono.token, { numeroEixos: 6 }).expect(201);
@@ -93,6 +116,7 @@ describe('Isolamento entre usuarios (e2e)', () => {
         valorLiquidoEstimado: 5635.58,
         user: { connect: { id: usuario.id } },
         caminhao: { connect: { id: caminhao.id } },
+        versaoAntt: { connect: { id: await versaoVigente() } },
       },
     });
 
@@ -123,6 +147,7 @@ describe('Isolamento entre usuarios (e2e)', () => {
       .set('Authorization', `Bearer ${intruso.token}`)
       .expect(200);
 
-    expect(resposta.body).toEqual([]);
+    expect(resposta.body.data).toEqual([]);
+    expect(resposta.body.total).toBe(0);
   });
 });

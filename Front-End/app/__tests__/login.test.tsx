@@ -1,8 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 
 import Login from '../login';
+
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn(), back: jest.fn() },
+  useLocalSearchParams: jest.fn(() => ({})),
+}));
 
 const mockLogin = jest.fn();
 jest.mock('@/contexts/authContext', () => ({
@@ -69,5 +74,38 @@ describe('Tela de login - envio', () => {
     await fireEvent.press(screen.getByRole('button'));
 
     expect(mockLogin).not.toHaveBeenCalled();
+  });
+});
+
+describe('Tela de login - motivo da volta ao login', () => {
+  const montarCom = async (motivo?: string) => {
+    jest.mocked(useLocalSearchParams).mockReturnValue((motivo ? { motivo } : {}) as never);
+    await render(<Login />);
+  };
+
+  it('deve explicar que a senha foi alterada e pedir para entrar de novo', async () => {
+    await montarCom('senha-alterada');
+
+    expect(
+      screen.getByText('Senha alterada com sucesso. Entre novamente com a nova senha.'),
+    ).toBeTruthy();
+  });
+
+  it('deve explicar que a sessao expirou', async () => {
+    await montarCom('sessao-expirada');
+
+    expect(screen.getByText('Sua sessão expirou. Faça login novamente.')).toBeTruthy();
+  });
+
+  it('nao deve exibir aviso quando o login e aberto sem motivo', async () => {
+    await montarCom();
+
+    expect(screen.queryByText(/Faça login novamente|Entre novamente/)).toBeNull();
+  });
+
+  it('nao deve exibir aviso para motivo desconhecido', async () => {
+    await montarCom('qualquer-coisa');
+
+    expect(screen.queryByText(/Faça login novamente|Entre novamente/)).toBeNull();
   });
 });

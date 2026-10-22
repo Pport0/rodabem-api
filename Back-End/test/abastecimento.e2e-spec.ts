@@ -1,26 +1,44 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TipoCombustivel } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
+import {
+  MENSAGEM_FALHA,
+  MENSAGEM_SEM_POSTOS,
+  PostosProximosService,
+} from '../src/abastecimento/postos/postos-proximos.service';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { clearDatabase, createTruck, registerAndLogin } from './e2e.utils';
+import {
+  clearDatabase,
+  createTruck,
+  registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Fluxo de abastecimento (e2e)', () => {
+  const postosProximos = { buscar: jest.fn() };
+
   let app: INestApplication;
   let prisma: PrismaService;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes)
+      .overrideProvider(PostosProximosService)
+      .useValue(postosProximos)
+      .compile();
 
     app = moduleFixture.createNestApplication();
 
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -31,6 +49,7 @@ describe('Fluxo de abastecimento (e2e)', () => {
   });
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     await clearDatabase(prisma);
   });
 
@@ -173,7 +192,8 @@ describe('Fluxo de abastecimento (e2e)', () => {
 
       const resposta = await abastecer(token, { quilometragem: 4000 }).expect(400);
 
-      expect(resposta.body.message).toMatch(/não pode ser menor que a última registrada/);
+      expect(resposta.body.message).toContain('4000');
+      expect(resposta.body.message).toContain('5000');
     });
 
     it('deve recusar quilometragem igual a ultima registrada', async () => {
@@ -669,4 +689,137 @@ describe('Fluxo de abastecimento (e2e)', () => {
     });
   });
 
+<<<<<<< Updated upstream
+=======
+  // So validacao e autenticacao: a consulta ao ORS e coberta no teste unitario do servico.
+  describe('GET /abastecimentos/postos-proximos', () => {
+    it('deve exigir autenticacao', async () => {
+      await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=-16.3&longitude=-48.9')
+        .expect(401);
+    });
+
+    it('nao deve ser confundida com a consulta por identificador', async () => {
+      const { token } = await registerAndLogin(app, '700070');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=abc&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(resposta.body.message).toEqual(['Latitude deve ser um número.']);
+    });
+
+    it('deve devolver os postos que o servico encontrou', async () => {
+      postosProximos.buscar.mockResolvedValue({
+        postos: [
+          { nome: 'Posto Rota Norte', distanciaMetros: 120 },
+          { nome: 'Posto BR-153', distanciaMetros: 340 },
+        ],
+        mensagem: null,
+      });
+      const { token } = await registerAndLogin(app, '700072');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=-16.3&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.postos).toHaveLength(2);
+      expect(resposta.body.postos[0].nome).toBe('Posto Rota Norte');
+    });
+
+    it('deve repassar as coordenadas recebidas como numero', async () => {
+      postosProximos.buscar.mockResolvedValue({ postos: [], mensagem: null });
+      const { token } = await registerAndLogin(app, '700073');
+
+      await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=-16.3&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(postosProximos.buscar).toHaveBeenCalledWith(-16.3, -48.9);
+    });
+
+    it('deve avisar quando nao ha posto por perto, sem virar erro', async () => {
+      postosProximos.buscar.mockResolvedValue({
+        postos: [],
+        mensagem: MENSAGEM_SEM_POSTOS,
+      });
+      const { token } = await registerAndLogin(app, '700074');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=-16.3&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.postos).toEqual([]);
+      expect(resposta.body.mensagem).toBe(MENSAGEM_SEM_POSTOS);
+    });
+
+    it('falha do servico de postos nao deve virar erro HTTP', async () => {
+      postosProximos.buscar.mockResolvedValue({
+        postos: [],
+        mensagem: MENSAGEM_FALHA,
+      });
+      const { token } = await registerAndLogin(app, '700075');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=-16.3&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(resposta.body.mensagem).toBe(MENSAGEM_FALHA);
+    });
+
+    it('deve exigir a longitude, como exige a latitude', async () => {
+      const { token } = await registerAndLogin(app, '700076');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=-16.3')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(resposta.body.message).toEqual(['Longitude é obrigatória.']);
+    });
+
+    it('deve recusar longitude fora da faixa', async () => {
+      const { token } = await registerAndLogin(app, '700077');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=-16.3&longitude=181')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(resposta.body.message).toEqual([
+        'Longitude deve estar entre -180 e 180.',
+      ]);
+    });
+
+    it('nao deve consultar o servico externo quando a coordenada e invalida', async () => {
+      const { token } = await registerAndLogin(app, '700078');
+
+      await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=91&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(postosProximos.buscar).not.toHaveBeenCalled();
+    });
+
+    it('deve recusar latitude fora da faixa', async () => {
+      const { token } = await registerAndLogin(app, '700071');
+
+      const resposta = await request(app.getHttpServer())
+        .get('/abastecimentos/postos-proximos?latitude=91&longitude=-48.9')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(resposta.body.message).toEqual([
+        'Latitude deve estar entre -90 e 90.',
+      ]);
+    });
+  });
+
+>>>>>>> Stashed changes
 });

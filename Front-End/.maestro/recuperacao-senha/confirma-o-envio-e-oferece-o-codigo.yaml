@@ -1,0 +1,27 @@
+appId: com.anonymous.rodabem
+name: recuperacao de senha - confirma o envio sem revelar se a conta existe
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "ENTRAR"
+- extendedWaitUntil:
+    visible: "Esqueci minha senha"
+    timeout: 30000
+- tapOn: "Esqueci minha senha"
+- extendedWaitUntil:
+    visible: "Digite o e-mail cadastrado"
+    timeout: 20000
+- tapOn: "Digite o e-mail cadastrado"
+- inputText: ${output.email}
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "ENVIAR"
+- extendedWaitUntil:
+    visible: "Se este e-mail estiver cadastrado, você receberá as instruções em breve."
+    timeout: 30000
+- assertVisible: "O link e o código valem por 30 minutos. Confira também a caixa de spam."
+- assertVisible: "ENVIAR NOVAMENTE"
+- tapOn: "JÁ TENHO O CÓDIGO"
+- extendedWaitUntil:
+    visible: "REDEFINIR SENHA"
+    timeout: 20000
+- assertVisible: "Cole aqui o código do e-mail"

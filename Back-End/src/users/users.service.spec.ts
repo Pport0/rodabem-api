@@ -237,7 +237,7 @@ describe('UsersService', () => {
     });
 
 
-    it('deve alterar apenas o campo de senha', async () => {
+    it('nao deve mexer nos dados cadastrais ao trocar a senha', async () => {
       const senhaHash = await bcrypt.hash('senha123', 10);
       prisma.user.findUnique.mockResolvedValue({ id: userId, senhaHash });
       prisma.user.update.mockResolvedValue({ id: userId });
@@ -247,9 +247,28 @@ describe('UsersService', () => {
         novaSenha: 'novaSenha456',
       });
 
-      expect(Object.keys(prisma.user.update.mock.calls[0][0].data)).toEqual([
-        'senhaHash',
-      ]);
+      const { data } = prisma.user.update.mock.calls[0][0];
+
+      expect(data).not.toHaveProperty('nome');
+      expect(data).not.toHaveProperty('email');
+      expect(data).not.toHaveProperty('telefone');
+      expect(data).not.toHaveProperty('status');
+      expect(data).not.toHaveProperty('cpfEncrypted');
+    });
+
+    it('deve encerrar as sessoes existentes ao trocar a senha', async () => {
+      const senhaHash = await bcrypt.hash('senha123', 10);
+      prisma.user.findUnique.mockResolvedValue({ id: userId, senhaHash });
+      prisma.user.update.mockResolvedValue({ id: userId });
+
+      await service.alterarSenha(userId, {
+        senhaAtual: 'senha123',
+        novaSenha: 'novaSenha456',
+      });
+
+      const { data } = prisma.user.update.mock.calls[0][0];
+
+      expect(data.tokenVersion).toEqual({ increment: 1 });
     });
 
     it('deve recusar troca de senha de usuario inexistente', async () => {

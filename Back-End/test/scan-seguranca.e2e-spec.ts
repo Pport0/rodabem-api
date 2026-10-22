@@ -1,11 +1,14 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ScanService } from '../src/caminhao/scan/scan.service';
 import { ScanDocumentoService } from '../src/documento/scan/scan-documento.service';
-import { clearDatabase, registerAndLogin } from './e2e.utils';
+import { clearDatabase, registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Scan - seguranca (e2e)', () => {
   let app: INestApplication;
@@ -31,6 +34,8 @@ describe('Scan - seguranca (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes)
       .overrideProvider(ScanService)
       .useValue(scanCaminhao)
       .overrideProvider(ScanDocumentoService)
@@ -41,7 +46,7 @@ describe('Scan - seguranca (e2e)', () => {
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -113,28 +118,19 @@ describe('Scan - seguranca (e2e)', () => {
   });
 
   describe('confianca no tipo declarado pelo cliente', () => {
-    it('deve recusar conteudo executavel declarado como imagem', async () => {
-      const resposta = await request(app.getHttpServer())
+    it('deve entregar ao service os bytes enviados, nao o tipo declarado', async () => {
+      const conteudo = Buffer.from('MZ\x90\x00conteudo-executavel');
+
+      await request(app.getHttpServer())
         .post('/documentos/scan')
         .set('Authorization', `Bearer ${token}`)
-        .attach('documento', Buffer.from('MZ\x90\x00conteudo-executavel'), {
+        .attach('documento', conteudo, {
           filename: 'malicioso.jpg',
           contentType: 'image/jpeg',
         });
 
-      expect(resposta.status).toBe(400);
-    });
-
-    it('deve validar o tipo pelo conteudo, nao pelo cabecalho do cliente', async () => {
-      const resposta = await request(app.getHttpServer())
-        .post('/documentos/scan')
-        .set('Authorization', `Bearer ${token}`)
-        .attach('documento', Buffer.from('%PDF-1.4'), {
-          filename: 'arquivo.jpg',
-          contentType: 'image/jpeg',
-        });
-
-      expect(resposta.status).toBe(400);
+      const recebido = arquivoRecebido(scanDocumento);
+      expect(recebido.buffer.equals(conteudo)).toBe(true);
     });
 
     it('arquivo vazio e aceito quando o tipo declarado e valido', async () => {

@@ -1,11 +1,14 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TipoCarga, TipoCombustivel } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { OrsService } from '../src/frete/ors.service';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { clearDatabase, createTruck, registerAndLogin } from './e2e.utils';
+import { clearDatabase, createTruck, registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Fluxo de frete (e2e)', () => {
   let app: INestApplication;
@@ -15,6 +18,8 @@ describe('Fluxo de frete (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes)
       .overrideProvider(OrsService)
       .useValue({
         calcularRota: jest.fn().mockResolvedValue({
@@ -29,7 +34,7 @@ describe('Fluxo de frete (e2e)', () => {
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -39,6 +44,24 @@ describe('Fluxo de frete (e2e)', () => {
 
     prisma = app.get(PrismaService);
   });
+
+  const versaoVigente = async () => {
+    const existente = await prisma.versaoAntt.findFirst({
+      where: { resolucao: 'Res. de teste' },
+    });
+
+    if (existente) return existente.id;
+
+    const criada = await prisma.versaoAntt.create({
+      data: {
+        resolucao: 'Res. de teste',
+        vigenteDesde: new Date(Date.now() - 1000),
+        vigenteAte: null,
+      },
+    });
+
+    return criada.id;
+  };
 
   beforeEach(async () => {
     await clearDatabase(prisma);
@@ -63,7 +86,7 @@ describe('Fluxo de frete (e2e)', () => {
         distanciaMin: 0,
         distanciaMax: 1000,
         valorPorKm: 5,
-        atualizadoEm: new Date(),
+        versaoId: await versaoVigente(),
       },
     });
 
@@ -140,26 +163,134 @@ describe('Fluxo de frete (e2e)', () => {
   });
 
   describe('POST /frete/simular - faixa da tabela', () => {
-    const semearTabela = async () => {
-      for (const [numeroEixos, valorPorKm] of [[4, 3], [6, 5], [8, 7]]) {
+    const CC = 100;
+
+    const semearFaixas = async () => {
+      const versaoId = await versaoVigente();
+
+      for (const [distanciaMin, distanciaMax, valorPorKm] of [
+        [0, 500, 3],
+        [501, 2000, 7],
+      ]) {
         await prisma.tabelaAntt.create({
           data: {
-            numeroEixos,
+            numeroEixos: 6,
             tipoCarga: TipoCarga.GERAL,
-            distanciaMin: 0,
-            distanciaMax: 1000,
+            distanciaMin,
+            distanciaMax,
             valorPorKm,
-            atualizadoEm: new Date(),
+            cc: CC,
+            versaoId,
           },
         });
       }
     };
 
-    it('deve usar a faixa exata quando ela existe', async () => {
-      await semearTabela();
-
+    const simular = async (corpo: Record<string, unknown>) => {
       const { token } = await registerAndLogin(app, '100010');
       await createTruck(app, token, { numeroEixos: 6 }).expect(201);
+
+      return request(app.getHttpServer())
+        .post('/frete/simular')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          origem: 'Goiania, GO',
+          destino: 'Brasilia, DF',
+          tipoCarga: TipoCarga.GERAL,
+          precoCombustivel: 6,
+          consumoMedioKmLOverride: 10,
+          ...corpo,
+        });
+    };
+
+    it('deve usar a faixa da distancia carregada, nao a da viagem dobrada', async () => {
+      await semearFaixas();
+
+      const resposta = await simular({ retornoVazio: true });
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.distanciaKm).toBe(600);
+      expect(resposta.body.valorMinimoAntt).toBe(300 * 3 + CC + 300 * 3 * 0.92);
+    });
+
+    it('deve usar a faixa seguinte quando a ida sozinha ja a alcanca', async () => {
+      await semearFaixas();
+
+      const resposta = await simular({});
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.valorMinimoAntt).toBe(300 * 3 + CC);
+    });
+  });
+
+  describe('POST /frete/simular - eixos que a tabela nao publica', () => {
+    const CC = 100;
+
+    const publicarApenas = async (eixos: number[]) => {
+      const versaoId = await versaoVigente();
+
+      for (const numeroEixos of eixos) {
+        await prisma.tabelaAntt.create({
+          data: {
+            numeroEixos,
+            tipoCarga: TipoCarga.GERAL,
+            distanciaMin: 0,
+            distanciaMax: 99999,
+            valorPorKm: numeroEixos,
+            cc: CC,
+            versaoId,
+          },
+        });
+      }
+    };
+
+    const simularComEixos = async (numeroEixos: number, sufixo: string) => {
+      const { token } = await registerAndLogin(app, sufixo);
+      await createTruck(app, token, { numeroEixos }).expect(201);
+
+      return request(app.getHttpServer())
+        .post('/frete/simular')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          origem: 'Goiania, GO',
+          destino: 'Brasilia, DF',
+          tipoCarga: TipoCarga.GERAL,
+          precoCombustivel: 6,
+          consumoMedioKmLOverride: 10,
+        });
+    };
+
+    it('deve usar o numero de eixos imediatamente inferior quando o informado nao esta na tabela', async () => {
+      await publicarApenas([5, 9]);
+
+      const resposta = await simularComEixos(7, '410001');
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.valorMinimoAntt).toBe(300 * 5 + CC);
+    });
+
+    it('deve usar o imediatamente superior quando nao existe inferior', async () => {
+      await publicarApenas([5, 9]);
+
+      const resposta = await simularComEixos(2, '410002');
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.valorMinimoAntt).toBe(300 * 5 + CC);
+    });
+
+    it('nao deve recusar a simulacao por falta de linha exata na tabela', async () => {
+      await publicarApenas([5, 9]);
+
+      const resposta = await simularComEixos(4, '410003');
+
+      expect(resposta.status).not.toBe(404);
+    });
+
+    it('deve aceitar caminhao de 8 eixos e simular pelo vizinho', async () => {
+      await publicarApenas([7, 9]);
+
+      const { token } = await registerAndLogin(app, '410004');
+      await createTruck(app, token, { numeroEixos: 8 }).expect(201);
 
       const resposta = await request(app.getHttpServer())
         .post('/frete/simular')
@@ -173,7 +304,7 @@ describe('Fluxo de frete (e2e)', () => {
         });
 
       expect(resposta.status).toBe(201);
-      expect(resposta.body.valorMinimoAntt).toBeGreaterThan(0);
+      expect(resposta.body.valorMinimoAntt).toBe(300 * 7 + CC);
     });
   });
 
@@ -186,7 +317,7 @@ describe('Fluxo de frete (e2e)', () => {
           distanciaMin: 0,
           distanciaMax: 1000,
           valorPorKm: 5,
-          atualizadoEm: new Date(),
+          versaoId: await versaoVigente(),
         },
       });
     };
@@ -225,12 +356,23 @@ describe('Fluxo de frete (e2e)', () => {
       expect(quarenta.body.valorSugerido).toBeGreaterThan(vinte.body.valorSugerido);
     });
 
-    it('nao deve sugerir valor abaixo do piso minimo da ANTT', async () => {
+    it('deve avisar quando o valor sugerido fica abaixo do piso da ANTT', async () => {
       const resposta = await simularComLucro('400004', 0);
+
+      expect(resposta.body.valorSugerido).toBeLessThan(
+        resposta.body.valorMinimoAntt,
+      );
+      expect(resposta.body.sugeridoAbaixoDoMinimo).toBe(true);
+      expect(resposta.body.aviso).toMatch(/piso m[ií]nimo da ANTT/i);
+    });
+
+    it('nao deve avisar quando o valor sugerido cobre o piso da ANTT', async () => {
+      const resposta = await simularComLucro('400006', 2000);
 
       expect(resposta.body.valorSugerido).toBeGreaterThanOrEqual(
         resposta.body.valorMinimoAntt,
       );
+      expect(resposta.body.sugeridoAbaixoDoMinimo).toBe(false);
     });
 
     it('deve aceitar lucro zero, cobrindo os custos sem margem', async () => {

@@ -8,9 +8,12 @@ describe('JwtStrategy', () => {
     tokenBlackList: {
       findFirst: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+    },
   };
 
-  const payload = { sub: 7, email: 'gabriel@example.com' };
+  const payload = { sub: 7, email: 'gabriel@example.com', tokenVersion: 0 };
 
   const requestComToken = (token?: string) => ({
     headers: token ? { authorization: `Bearer ${token}` } : {},
@@ -21,9 +24,12 @@ describe('JwtStrategy', () => {
     JwtStrategy = require('./jwt.strategy').JwtStrategy;
   });
 
+  const configService = { getOrThrow: jest.fn().mockReturnValue('segredo-de-teste') };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    strategy = new JwtStrategy(prisma as any);
+    prisma.user.findUnique.mockResolvedValue({ tokenVersion: 0 });
+    strategy = new JwtStrategy(prisma as any, configService as any);
   });
 
   it('deve autorizar token valido que nao esta na blacklist', async () => {
@@ -64,6 +70,7 @@ describe('JwtStrategy', () => {
     const result = await strategy.validate(requestComToken('jwt-token'), {
       sub: 42,
       email: 'outro@example.com',
+      tokenVersion: 0,
     });
 
     expect(result.userId).toBe(42);
@@ -81,10 +88,30 @@ describe('JwtStrategy', () => {
     expect(Object.keys(result).sort()).toEqual(['email', 'userId']);
   });
 
+  it('deve recusar token emitido antes da ultima troca de senha', async () => {
+    prisma.tokenBlackList.findFirst.mockResolvedValue(null);
+    prisma.user.findUnique.mockResolvedValue({ tokenVersion: 1 });
+
+    await expect(
+      strategy.validate(requestComToken('jwt-token'), payload),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('deve recusar token de usuario que nao existe mais', async () => {
+    prisma.tokenBlackList.findFirst.mockResolvedValue(null);
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      strategy.validate(requestComToken('jwt-token'), payload),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
   it('nao deve consultar a blacklist quando nao ha header authorization', async () => {
     prisma.tokenBlackList.findFirst.mockResolvedValue(null);
 
-    await strategy.validate(requestComToken(), payload);
+    await expect(strategy.validate(requestComToken(), payload)).rejects.toThrow(
+      UnauthorizedException,
+    );
 
     expect(prisma.tokenBlackList.findFirst).not.toHaveBeenCalled();
   });

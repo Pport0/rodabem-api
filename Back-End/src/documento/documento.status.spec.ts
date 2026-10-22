@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { DocumentoService } from './documento.service';
+import { CloudinaryService } from '../caminhao/scan/cloudinary.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('DocumentoService — status pelo vencimento', () => {
@@ -22,6 +23,10 @@ describe('DocumentoService — status pelo vencimento', () => {
         {
           provide: ConfigService,
           useValue: { get: jest.fn(() => diasAlerta) },
+        },
+        {
+          provide: CloudinaryService,
+          useValue: { uploadFile: jest.fn(), deleteFile: jest.fn() },
         },
       ],
     }).compile();

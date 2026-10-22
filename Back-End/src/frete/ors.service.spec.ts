@@ -1,4 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { OrsService } from './ors.service';
 
 describe('OrsService', () => {
@@ -48,9 +51,12 @@ describe('OrsService', () => {
     it('nao deve vazar excecao crua quando a rede falha', async () => {
       fetchDublado.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
 
-      await expect(
-        service.calcularRota('Goiania, GO', 'Belem, PA'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      const erro = await service
+        .calcularRota('Goiania, GO', 'Belem, PA')
+        .catch((e: unknown) => e);
+
+      expect(erro).toBeInstanceOf(InternalServerErrorException);
+      expect((erro as Error).message).not.toMatch(/ENOTFOUND/);
     });
   });
 
@@ -117,12 +123,24 @@ describe('OrsService', () => {
   });
 
   describe('configuracao', () => {
-    it('deve recusar a chamada quando nao ha chave configurada', async () => {
+    it.each([
+      ['ausente', undefined],
+      ['igual ao valor de exemplo', 'your-ors-api-key-here'],
+    ])('nao deve deixar a aplicacao subir com a chave %s', (_, valor) => {
+      const semChave = new OrsService({ get: () => valor } as never);
+
+      expect(() => semChave.onModuleInit()).toThrow(/ORS_API_KEY/);
+    });
+
+    it('deve deixar a aplicacao subir quando a chave esta configurada', () => {
+      expect(() => service.onModuleInit()).not.toThrow();
+    });
+
+    it('nao deve fazer chamada de saida antes de validar a chave', () => {
       const semChave = new OrsService({ get: () => undefined } as never);
 
-      await expect(
-        semChave.calcularRota('Goiania, GO', 'Belem, PA'),
-      ).rejects.toThrow(/chave|configura/i);
+      expect(() => semChave.onModuleInit()).toThrow();
+      expect(fetchDublado).not.toHaveBeenCalled();
     });
   });
 });
