@@ -1,5 +1,6 @@
 import { User } from '@/@types/user';
 import { signIn, signOut } from '@/services/authService';
+import { encerrarSessaoLocal, voltarAoInicio } from '@/services/sessao';
 import { createUser } from '@/services/userService';
 import { useToast } from '@/shared/ui/molecules/Toast';
 import { UseMutateFunction, useMutation } from '@tanstack/react-query';
@@ -85,11 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signOut();
     } catch {}
-    await Promise.all([
-      SecureStore.deleteItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token'),
-      SecureStore.deleteItemAsync(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user'),
-    ]);
-    router.replace('/');
+    await encerrarSessaoLocal();
+    voltarAoInicio();
   };
 
   return (
