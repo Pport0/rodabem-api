@@ -42,9 +42,6 @@ const interceptorDeResposta = () => {
   return { sucesso: handler.fulfilled, erro: handler.rejected };
 };
 
-const CHAVE_TOKEN = process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token';
-const CHAVE_USUARIO = process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user';
-
 const guardarToken = (valor: string | null) =>
   jest.mocked(SecureStore.getItemAsync).mockResolvedValue(valor as any);
 
