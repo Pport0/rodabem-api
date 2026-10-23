@@ -2,11 +2,22 @@ import colors from "@/constants/colors";
 import Input from "@/components/input";
 import { useAuth } from "@/contexts/authContext";
 import Button from "@/shared/ui/base/button";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Dimensions, Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
 
+// Motivos com que o app traz o usuario de volta ao login depois de encerrar a sessao (#67).
+const MENSAGENS_MOTIVO: Record<string, string> = {
+  'sessao-expirada': 'Sua sessão expirou. Faça login novamente.',
+  'senha-alterada': 'Senha alterada com sucesso. Entre novamente com a nova senha.',
+};
+
 export default function Login() {
+  const { motivo } = useLocalSearchParams<{ motivo?: string }>();
+  const mensagemMotivo =
+    typeof motivo === 'string' && Object.prototype.hasOwnProperty.call(MENSAGENS_MOTIVO, motivo)
+      ? MENSAGENS_MOTIVO[motivo]
+      : undefined;
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
 
@@ -29,6 +40,7 @@ export default function Login() {
       <Text style={styles.title}>Entrar</Text>
       <Text style={styles.subtitle}>Insira suas credenciais para acessar</Text>
     </View>
+    {mensagemMotivo && <Text style={styles.motivoText}>{mensagemMotivo}</Text>}
     <View style={styles.inputContainer}>
       <Text style={styles.label}>
         CPF ou Telefone
@@ -84,6 +96,12 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 13,
     color: '#E53E3E',
+  },
+  motivoText: {
+    fontSize: 15,
+    color: '#2D3748',
+    textAlign: 'center',
+    width: '100%',
   },
   buttonText: {
     color: '#fff',

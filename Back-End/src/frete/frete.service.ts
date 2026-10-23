@@ -18,6 +18,51 @@ export class FreteService {
     private readonly abastecimentoService: AbastecimentoService,
   ) { }
 
+  /**
+   * Busca o coeficiente ANTT para o número de eixos informado.
+   * Quando não há linha exata, aplica o Art. 5º § 5º da Res. 6.076/2026:
+   * usa o eixo imediatamente inferior disponível; sem inferior, o superior.
+   */
+  private async buscarCoeficienteAntt(params: {
+    versaoId: number;
+    numeroEixos: number;
+    tipoCarga: string;
+    altoDesempenho: boolean;
+    composicaoVeicular: ComposicaoVeicular;
+    distanciaKm: number;
+  }) {
+    const base = {
+      versaoId: params.versaoId,
+      tipoCarga: params.tipoCarga as any,
+      altoDesempenho: params.altoDesempenho,
+      composicaoVeicular: params.composicaoVeicular,
+      distanciaMin: { lte: params.distanciaKm },
+      distanciaMax: { gte: params.distanciaKm },
+    };
+
+    // 1. Busca exata
+    const exato = await this.prisma.tabelaAntt.findFirst({
+      where: { ...base, numeroEixos: params.numeroEixos },
+    });
+    if (exato) return { coeficiente: exato, eixosUsados: params.numeroEixos };
+
+    // 2. Eixo imediatamente inferior (maior valor <= numeroEixos - 1)
+    const inferior = await this.prisma.tabelaAntt.findFirst({
+      where: { ...base, numeroEixos: { lt: params.numeroEixos } },
+      orderBy: { numeroEixos: 'desc' },
+    });
+    if (inferior) return { coeficiente: inferior, eixosUsados: inferior.numeroEixos };
+
+    // 3. Eixo imediatamente superior (menor valor >= numeroEixos + 1)
+    const superior = await this.prisma.tabelaAntt.findFirst({
+      where: { ...base, numeroEixos: { gt: params.numeroEixos } },
+      orderBy: { numeroEixos: 'asc' },
+    });
+    if (superior) return { coeficiente: superior, eixosUsados: superior.numeroEixos };
+
+    return null;
+  }
+
   async simular(userId: number, dto: SimularFreteDto) {
 
     const caminhao = await this.prisma.caminhao.findUnique({
@@ -83,23 +128,23 @@ export class FreteService {
       throw new NotFoundException('Nenhuma tabela ANTT vigente encontrada.');
     }
 
-    const tabelaAntt = await this.prisma.tabelaAntt.findFirst({
-      where: {
-        versaoId: versaoAtual.id,
-        numeroEixos: caminhao.numeroEixos,
-        tipoCarga: dto.tipoCarga,
-        altoDesempenho: dto.altoDesempenho ?? false,
-        composicaoVeicular: dto.composicaoVeicular ?? ComposicaoVeicular.COM_CARRETA,
-        distanciaMin: { lte: distanciaIda },
-        distanciaMax: { gte: distanciaIda },
-      },
+    const resultado = await this.buscarCoeficienteAntt({
+      versaoId: versaoAtual.id,
+      numeroEixos: caminhao.numeroEixos,
+      tipoCarga: dto.tipoCarga,
+      altoDesempenho: dto.altoDesempenho ?? false,
+      composicaoVeicular: dto.composicaoVeicular ?? ComposicaoVeicular.COM_CARRETA,
+      distanciaKm: distanciaIda,
     });
 
-    if (!tabelaAntt) {
+    if (!resultado) {
       throw new NotFoundException(
         `Não foram encontrados valores da ANTT para ${caminhao.numeroEixos} eixos com carga do tipo ${dto.tipoCarga}.`,
       );
     }
+
+    const { coeficiente: tabelaAntt, eixosUsados } = resultado;
+    const eixosFallback = eixosUsados !== caminhao.numeroEixos;
 
     const ccd = tabelaAntt.valorPorKm;
     const cc = tabelaAntt.cc ?? 0;
@@ -183,6 +228,8 @@ export class FreteService {
       valorSugerido,
       sugeridoAbaixoDoMinimo: valorSugerido !== null ? sugeridoAbaixoDoMinimo : null,
       aviso: (() => {
+        if (eixosFallback)
+          return `Coeficiente calculado com base em ${eixosUsados} eixos (Art. 5º § 5º Res. 6.076/2026) — tabela ANTT não prevê ${caminhao.numeroEixos} eixos para este tipo de carga.`;
         if (abaixoMinimoAntt) return 'O valor mínimo da ANTT não cobre os custos estimados desta viagem.';
         if (sugeridoAbaixoDoMinimo) return 'O valor sugerido está abaixo do piso mínimo da ANTT.';
         return null;

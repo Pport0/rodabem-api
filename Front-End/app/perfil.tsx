@@ -135,6 +135,17 @@ export default function Perfil() {
           <InfoRow label="Telefone" value={perfilExibido?.telefone} />
           <View style={styles.separator} />
           <InfoRow label="E-mail" value={perfilExibido?.email} />
+          <View style={styles.separator} />
+          <TouchableOpacity
+            style={styles.editTruckLink}
+            onPress={() => router.push("/editarPerfil" as any)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="create-outline" size={16} color={primaryColor} />
+            <Text style={[styles.editTruckLinkText, { color: primaryColor }]}>
+              Editar dados
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Caminhão */}

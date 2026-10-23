@@ -294,6 +294,46 @@ describe('Usuarios (e2e)', () => {
     it('deve exigir autenticacao', async () => {
       await request(app.getHttpServer()).put('/users/1').send({ nome: 'x' }).expect(401);
     });
+
+    it('deve recusar email de outro usuario com 409, e nao 500', async () => {
+      const primeiro = await autenticar('300070');
+      const segundo = await autenticar('300071');
+
+      const resposta = await request(app.getHttpServer())
+        .put(`/users/${primeiro.id}`)
+        .set('Authorization', `Bearer ${primeiro.token}`)
+        .send({ email: segundo.user.email })
+        .expect(409);
+
+      expect(resposta.body.message).toBe('E-mail já cadastrado');
+    });
+
+    it('deve recusar telefone de outro usuario com 409, e nao 500', async () => {
+      const primeiro = await autenticar('300072');
+      const segundo = await autenticar('300073');
+
+      const resposta = await request(app.getHttpServer())
+        .put(`/users/${primeiro.id}`)
+        .set('Authorization', `Bearer ${primeiro.token}`)
+        .send({ telefone: segundo.user.telefone })
+        .expect(409);
+
+      expect(resposta.body.message).toBe('Telefone já cadastrado');
+    });
+
+    it('deve aceitar reenviar o proprio email e telefone', async () => {
+      const { user, token, id } = await autenticar('300074');
+
+      await request(app.getHttpServer())
+        .put(`/users/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          nome: 'Nome Alterado',
+          email: user.email,
+          telefone: user.telefone,
+        })
+        .expect(200);
+    });
   });
 
   describe('DELETE /users/:id', () => {

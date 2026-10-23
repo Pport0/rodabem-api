@@ -1,14 +1,42 @@
 import { api } from '../api';
+import { forgotPassword, resetPassword, signOut } from '../authService';
 import { deleteCaminhao, updateCaminhao } from '../caminhaoService';
 import { deleteDocumento, updateDocumento } from '../documentoService';
 import { getHistoricoFrete, simularFrete } from '../freteService';
-import { createUser, deleteUser } from '../userService';
+import { createUser, deleteUser, updateUser } from '../userService';
 
 jest.mock('../api', () => ({
   api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), patch: jest.fn(), delete: jest.fn() },
 }));
 
 beforeEach(() => jest.clearAllMocks());
+
+describe('Auth', () => {
+  it('deve encerrar a sessao no servidor pelo POST /auth/logout', async () => {
+    jest.mocked(api.post).mockResolvedValue({ data: { message: 'ok' } } as never);
+
+    await signOut();
+
+    expect(api.post).toHaveBeenCalledWith('/auth/logout');
+  });
+
+  it('deve pedir a recuperacao de senha pelo POST /auth/forgot-password', async () => {
+    jest.mocked(api.post).mockResolvedValue({ data: { message: 'generica' } } as never);
+
+    await expect(forgotPassword('gabriel@example.com')).resolves.toEqual({ message: 'generica' });
+    expect(api.post).toHaveBeenCalledWith('/auth/forgot-password', { email: 'gabriel@example.com' });
+  });
+
+  it('deve concluir a recuperacao pelo POST /auth/reset-password', async () => {
+    jest.mocked(api.post).mockResolvedValue({ data: { message: 'ok' } } as never);
+
+    await expect(resetPassword('token-uuid', '123456')).resolves.toEqual({ message: 'ok' });
+    expect(api.post).toHaveBeenCalledWith('/auth/reset-password', {
+      token: 'token-uuid',
+      novaSenha: '123456',
+    });
+  });
+});
 
 describe('Caminhao', () => {
   it('deve editar o caminhao do usuario autenticado, sem informar identificador', async () => {
@@ -77,6 +105,14 @@ describe('Usuario', () => {
     await createUser({ nome: 'Gabriel', cpf: '52998224725', senha: '123456' } as never);
 
     expect(api.post).toHaveBeenCalledWith('/users', expect.objectContaining({ nome: 'Gabriel' }));
+  });
+
+  it('deve editar os dados pelo identificador do usuario', async () => {
+    const dados = { nome: 'Gabriel', email: 'gabriel@example.com', telefone: null };
+    jest.mocked(api.put).mockResolvedValue({ data: { id: 4, ...dados } } as never);
+
+    await expect(updateUser(4, dados)).resolves.toMatchObject({ id: 4, nome: 'Gabriel' });
+    expect(api.put).toHaveBeenCalledWith('/users/4', dados);
   });
 
   it('deve excluir a conta pelo identificador do usuario', async () => {

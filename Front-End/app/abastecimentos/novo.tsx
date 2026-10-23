@@ -1,15 +1,20 @@
 import { TipoCombustivel } from "@/@types/abastecimento";
 import Input from "@/components/input";
 import colors from "@/constants/colors";
+import { StatusLocalizacao, useLocalizacaoAtual } from "@/hooks/useLocalizacaoAtual";
 import {
   createAbastecimento,
   getAbastecimento,
   updateAbastecimento,
+  scanHodometro,
+  getPostosProximos,
 } from "@/services/abastecimentoService";
 import { Toast } from "@/shared/ui/molecules/Toast";
 import { queryClient } from "@/utils/queryClient";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import { pickScanFile } from "@/utils/scanFile";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -35,6 +40,15 @@ interface FormErrors {
   quilometragem?: string;
 }
 
+const textoLocalizacao: Partial<Record<StatusLocalizacao, string>> = {
+  buscando: "Obtendo a localização do aparelho...",
+  capturada: "Localização registrada com o abastecimento.",
+  negada: "Localização não autorizada. O abastecimento será salvo sem ela.",
+  indisponivel: "Localização indisponível. O abastecimento será salvo sem ela.",
+};
+
+const MENSAGEM_FALHA_POSTOS = "Não foi possível buscar postos próximos agora.";
+
 function parsePtBrNumber(value: string): number {
   const normalized = value.trim();
   if (!normalized) return Number.NaN;
@@ -52,11 +66,27 @@ export default function NovoAbastecimento() {
   const [precoPorLitro, setPrecoPorLitro] = useState("");
   const [totalLitros, setTotalLitros] = useState("");
   const [quilometragem, setQuilometragem] = useState("");
+  const [lendoHodometro, setLendoHodometro] = useState(false);
+  const [scanMessage, setScanMessage] = useState("");
   const [tipoCombustivel, setTipoCombustivel] = useState<TipoCombustivel>("DIESEL_S10");
   const [localDescricao, setLocalDescricao] = useState("");
   const [postoIdentificado, setPostoIdentificado] = useState("");
   const [observacao, setObservacao] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
+  // So no cadastro: na edicao, a posicao atual nao e onde o abastecimento aconteceu.
+  const localizacao = useLocalizacaoAtual(!isEditing);
+
+  // Sugestao de posto (#30): so com a posicao em maos; a falha nunca bloqueia o cadastro.
+  const postosQuery = useQuery({
+    queryKey: ["postos-proximos", localizacao.coordenadas?.latitude, localizacao.coordenadas?.longitude],
+    queryFn: () => getPostosProximos(localizacao.coordenadas!),
+    enabled: !isEditing && !!localizacao.coordenadas,
+    retry: false,
+  });
+  const postosSugeridos = postosQuery.data?.postos ?? [];
+  const mensagemPostos = postosQuery.isError
+    ? MENSAGEM_FALHA_POSTOS
+    : postosQuery.data?.mensagem ?? null;
 
   const abastecimentoQuery = useQuery({
     queryKey: ["abastecimento", id],
@@ -93,6 +123,7 @@ export default function NovoAbastecimento() {
         localDescricao: localDescricao.trim() || undefined,
         postoIdentificado: postoIdentificado.trim() || undefined,
         observacao: observacao.trim() || undefined,
+        ...(!isEditing && localizacao.coordenadas ? localizacao.coordenadas : {}),
       };
 
       if (isEditing && id) {
@@ -142,6 +173,30 @@ export default function NovoAbastecimento() {
   const handleSubmit = () => {
     if (!validate()) return;
     mutation.mutate();
+  };
+
+  // OCR e so apoio (#31): preenche o campo para revisao, nunca salva direto.
+  const lerHodometro = async () => {
+    try {
+      const file = await pickScanFile("camera", "hodometro");
+      if (!file) return;
+
+      setLendoHodometro(true);
+      const result = await scanHodometro(file);
+      if (result.quilometragem !== null) {
+        setQuilometragem(String(Math.round(result.quilometragem)));
+      }
+      setScanMessage(`${result.mensagem} | Confianca: ${result.confianca.toUpperCase()}`);
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || "Nao foi possivel ler o hodometro. Digite a quilometragem.";
+      Toast.show(Array.isArray(message) ? message[0] : message, {
+        type: "error",
+        backgroundColor: "#E53E3E",
+      });
+    } finally {
+      setLendoHodometro(false);
+    }
   };
 
   return (
@@ -216,12 +271,35 @@ export default function NovoAbastecimento() {
 
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>QUILOMETRAGEM *</Text>
-              <Input
-                placeholder="Ex: 182350"
-                value={quilometragem}
-                onChangeText={(text) => setQuilometragem(text.replace(/\D/g, ""))}
-                keyboardType="numeric"
-              />
+              <View style={styles.kmRow}>
+                <View style={styles.flex1}>
+                  <Input
+                    placeholder="Ex: 182350"
+                    value={quilometragem}
+                    onChangeText={(text) => setQuilometragem(text.replace(/\D/g, ""))}
+                    keyboardType="numeric"
+                  />
+                </View>
+                {!isEditing && (
+                  <TouchableOpacity
+                    style={[styles.scanButton, { backgroundColor: primaryColor }]}
+                    onPress={lerHodometro}
+                    disabled={lendoHodometro}
+                    activeOpacity={0.85}
+                    accessibilityLabel="Ler hodômetro"
+                  >
+                    {lendoHodometro ? (
+                      <ActivityIndicator color="#fff" testID="lendo-hodometro" />
+                    ) : (
+                      <>
+                        <Ionicons name="camera-outline" size={18} color="#fff" />
+                        <Text style={styles.scanButtonText}>Ler hodômetro</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+              {!!scanMessage && <Text style={styles.scanText}>{scanMessage}</Text>}
               {errors.quilometragem && <Text style={styles.errorText}>{errors.quilometragem}</Text>}
             </View>
 
@@ -245,6 +323,41 @@ export default function NovoAbastecimento() {
                 value={postoIdentificado}
                 onChangeText={setPostoIdentificado}
               />
+              {textoLocalizacao[localizacao.status] && (
+                <Text style={styles.locationText}>{textoLocalizacao[localizacao.status]}</Text>
+              )}
+              {postosQuery.isFetching && (
+                <Text style={styles.locationText}>Buscando postos próximos...</Text>
+              )}
+              {postosSugeridos.length > 0 && (
+                <View style={styles.postosContainer}>
+                  <Text style={styles.locationText}>Postos perto de você (toque para preencher):</Text>
+                  <View style={styles.chipsRow}>
+                    {postosSugeridos.map((posto) => {
+                      const ativo = posto.nome === postoIdentificado;
+                      return (
+                        <TouchableOpacity
+                          key={`${posto.nome}-${posto.distanciaMetros}`}
+                          style={[
+                            styles.chip,
+                            ativo && { backgroundColor: primaryColor, borderColor: primaryColor },
+                          ]}
+                          onPress={() => setPostoIdentificado(posto.nome)}
+                          activeOpacity={0.85}
+                          accessibilityLabel={`Usar ${posto.nome}`}
+                        >
+                          <Text style={[styles.chipText, ativo && styles.chipTextActive]}>
+                            {posto.nome} · {posto.distanciaMetros.toLocaleString("pt-BR")} m
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+              {!postosQuery.isFetching && !!mensagemPostos && (
+                <Text style={styles.locationText}>{mensagemPostos}</Text>
+              )}
             </View>
 
             <View style={styles.fieldContainer}>
@@ -361,6 +474,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#E53E3E",
   },
+  locationText: {
+    fontSize: 12,
+    color: "#888",
+  },
+  postosContainer: {
+    gap: 8,
+  },
   previewCard: {
     backgroundColor: "#fff",
     borderRadius: 18,
@@ -397,5 +517,32 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  kmRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  flex1: {
+    flex: 1,
+  },
+  scanButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 52,
+    minWidth: 150,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+  },
+  scanButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  scanText: {
+    fontSize: 12,
+    color: "#666",
   },
 });

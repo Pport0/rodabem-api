@@ -31,3 +31,9 @@ export interface DocumentoScanResponse {
   confianca: 'alta' | 'media' | 'baixa';
   mensagem: string;
 }
+
+export interface HodometroScanResponse {
+  quilometragem: number | null;
+  confianca: 'media' | 'baixa';
+  mensagem: string;
+}

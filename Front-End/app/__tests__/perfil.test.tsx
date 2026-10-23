@@ -136,6 +136,14 @@ describe('Tela de perfil - navegacao', () => {
 
     expect(router.push).toHaveBeenCalledWith('/caminhoes/editar');
   });
+
+  it('deve levar a edicao dos dados pessoais', async () => {
+    await montarTela();
+
+    await fireEvent.press(screen.getByText('Editar dados'));
+
+    expect(router.push).toHaveBeenCalledWith('/editarPerfil');
+  });
 });
 
 describe('Tela de perfil - alterar senha', () => {

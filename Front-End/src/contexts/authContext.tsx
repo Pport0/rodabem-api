@@ -1,5 +1,6 @@
 import { User } from '@/@types/user';
-import { signIn } from '@/services/authService';
+import { signIn, signOut } from '@/services/authService';
+import { encerrarSessaoLocal, voltarAoInicio } from '@/services/sessao';
 import { createUser } from '@/services/userService';
 import { useToast } from '@/shared/ui/molecules/Toast';
 import { UseMutateFunction, useMutation } from '@tanstack/react-query';
@@ -81,11 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const logout = async () => {
-    await Promise.all([
-      SecureStore.deleteItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token'),
-      SecureStore.deleteItemAsync(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user'),
-    ]);
-    router.replace('/');
+    // Invalida o token no servidor enquanto ele ainda esta gravado; se falhar (sem rede, token ja expirado), encerra a sessao local mesmo assim.
+    try {
+      await signOut();
+    } catch {}
+    await encerrarSessaoLocal();
+    voltarAoInicio();
   };
 
   return (

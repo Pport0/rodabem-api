@@ -689,8 +689,6 @@ describe('Fluxo de abastecimento (e2e)', () => {
     });
   });
 
-<<<<<<< Updated upstream
-=======
   // So validacao e autenticacao: a consulta ao ORS e coberta no teste unitario do servico.
   describe('GET /abastecimentos/postos-proximos', () => {
     it('deve exigir autenticacao', async () => {
@@ -821,5 +819,4 @@ describe('Fluxo de abastecimento (e2e)', () => {
     });
   });
 
->>>>>>> Stashed changes
 });
