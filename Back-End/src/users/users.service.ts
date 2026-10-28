@@ -106,37 +106,6 @@ export class UsersService {
     return { ...resto, cpf };
   }
 
-  async findAll(params: { page?: number; limit?: number; nome?: string; status?: string }) {
-    const page = params.page || 1;
-    const limit = params.limit || 10;
-    const skip = (page - 1) * limit;
-
-    const where: any = {};
-    if (params.nome) where.nome = { contains: params.nome, mode: 'insensitive' };
-    if (params.status !== undefined) where.status = params.status === 'true';
-
-    const [users, total] = await Promise.all([
-      this.prisma.user.findMany({
-        where,
-        skip,
-        take: Number(limit),
-        select: {
-          id: true,
-          nome: true,
-          email: true,
-          telefone: true,
-          avatarUrl: true,
-          status: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.user.count({ where }),
-    ]);
-
-    return { data: users, total, page, limit };
-  }
-
   async update(
     id: number,
     dto: Partial<{ nome: string; email: string; telefone: string; avatarUrl: string }>,

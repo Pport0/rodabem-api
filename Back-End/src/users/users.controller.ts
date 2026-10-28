@@ -6,7 +6,6 @@ import {
   Delete,
   Body,
   Param,
-  Query,
   UseGuards,
   ParseIntPipe,
   Req,
@@ -41,18 +40,6 @@ export class UsersController {
       this.termosService.termoPendente(req.user.userId),
     ]);
     return { ...user, termoPendente: pendente };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get()
-  findAll(
-    @Req() req,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('nome') nome?: string,
-    @Query('status') status?: string,
-  ) {
-    return this.usersService.findAll({ page, limit, nome, status });
   }
 
   @UseGuards(JwtAuthGuard)

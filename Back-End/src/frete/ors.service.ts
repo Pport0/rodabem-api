@@ -14,6 +14,7 @@ interface RotaResult {
 }
 
 const ORS_API_KEY_PLACEHOLDER = 'your-ors-api-key-here';
+const ORS_TIMEOUT_MS = 12_000;
 
 @Injectable()
 export class OrsService implements OnModuleInit {
@@ -60,6 +61,7 @@ export class OrsService implements OnModuleInit {
             Authorization: this.apiKey,
           },
           body: JSON.stringify({ coordinates }),
+          signal: AbortSignal.timeout(ORS_TIMEOUT_MS),
         },
       );
       data = await response.json();
@@ -111,7 +113,7 @@ export class OrsService implements OnModuleInit {
     let data: any;
 
     try {
-      response = await fetch(url);
+      response = await fetch(url, { signal: AbortSignal.timeout(ORS_TIMEOUT_MS) });
       data = await response.json();
     } catch (err: unknown) {
       this.logger.error(
