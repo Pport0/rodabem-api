@@ -10,27 +10,30 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { createHash } from '../common/utils/crypto.util';
 import { isValidCPF } from './validators/cpf.validator';
 import { CryptoService } from '../crypto/crypto.service';
+import { TermosService } from '../termos/termos.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
     private cryptoService: CryptoService,
+    private termosService: TermosService,
   ) {}
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto & { termoVersao: string }, ip?: string, userAgent?: string) {
     if (!isValidCPF(dto.cpf)) {
       throw new BadRequestException('CPF inválido.');
     }
 
     const cpfHash = createHash(dto.cpf);
-
-    const existing = await this.prisma.user.findUnique({ where: { cpfHash } });
-    if (existing) throw new ConflictException('CPF já cadastrado');
-
     const emailNormalizado = dto.email.toLowerCase().trim();
 
-    const emailExisting = await this.prisma.user.findUnique({ where: { email: emailNormalizado } });
+    const [existing, emailExisting] = await Promise.all([
+      this.prisma.user.findUnique({ where: { cpfHash } }),
+      this.prisma.user.findUnique({ where: { email: emailNormalizado } }),
+    ]);
+
+    if (existing) throw new ConflictException('CPF já cadastrado');
     if (emailExisting) throw new ConflictException('E-mail já cadastrado');
 
     if (dto.telefone) {
@@ -40,18 +43,38 @@ export class UsersService {
       if (telefoneExisting) throw new ConflictException('Telefone já cadastrado');
     }
 
+    const vigente = await this.termosService.vigente();
+    if (vigente.versao !== dto.termoVersao) {
+      throw new BadRequestException(
+        `Aceite a versão vigente do termo: "${vigente.versao}".`,
+      );
+    }
+
     const senhaHash = await bcrypt.hash(dto.senha, 10);
     const cpfEncrypted = this.cryptoService.encrypt(dto.cpf);
 
-    const user = await this.prisma.user.create({
-      data: {
-        nome: dto.nome,
-        email: emailNormalizado,
-        senhaHash,
-        cpfEncrypted,
-        cpfHash,
-        telefone: dto.telefone,
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const novoUser = await tx.user.create({
+        data: {
+          nome: dto.nome,
+          email: emailNormalizado,
+          senhaHash,
+          cpfEncrypted,
+          cpfHash,
+          telefone: dto.telefone,
+        },
+      });
+
+      await tx.aceiteTermo.create({
+        data: {
+          userId: novoUser.id,
+          termoId: vigente.id,
+          ip,
+          userAgent,
+        },
+      });
+
+      return novoUser;
     });
 
     const { senhaHash: _, cpfEncrypted: __, cpfHash: ___, ...result } = user;

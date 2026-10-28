@@ -12,6 +12,7 @@ import { JwtStrategy } from './jwt.strategy';
     UsersModule,
 
     JwtModule.registerAsync({
+      global: true,         
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const secret = configService.get<string>('JWT_SECRET');
@@ -32,4 +33,4 @@ import { JwtStrategy } from './jwt.strategy';
   providers: [AuthService, JwtStrategy],
   exports: [JwtModule],
 })
-export class AuthModule {}
+export class AuthModule { }

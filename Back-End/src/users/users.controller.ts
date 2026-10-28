@@ -17,20 +17,30 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { TermosService } from '../termos/termos.service';
 
 @Controller('users')
 export class UsersController {
-  constructor(private usersService: UsersService) { }
+  constructor(
+    private usersService: UsersService,
+    private termosService: TermosService,
+  ) {}
 
   @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create(@Req() req, @Body() dto: CreateUserDto) {
+    const ip = req.ip as string | undefined;
+    const userAgent = req.headers['user-agent'] as string | undefined;
+    return this.usersService.create(dto, ip, userAgent);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  me(@Req() req) {
-    return this.usersService.findById(req.user.userId);
+  async me(@Req() req) {
+    const [user, pendente] = await Promise.all([
+      this.usersService.findById(req.user.userId),
+      this.termosService.termoPendente(req.user.userId),
+    ]);
+    return { ...user, termoPendente: pendente };
   }
 
   @UseGuards(JwtAuthGuard)

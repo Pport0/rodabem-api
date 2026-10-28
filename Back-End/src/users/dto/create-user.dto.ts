@@ -22,4 +22,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   telefone?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  termoVersao: string;
 }
