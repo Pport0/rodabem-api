@@ -23,7 +23,6 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {
-    
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST'),
       port: Number(this.configService.get<string>('SMTP_PORT') ?? 587),
@@ -57,19 +56,11 @@ export class AuthService {
       });
     }
 
-    if (!user) {
-      throw new UnauthorizedException('Credenciais inválidas');
-    }
-
-    if (!user.status) {
-      throw new UnauthorizedException('Usuário inativo');
-    }
+    if (!user) throw new UnauthorizedException('Credenciais inválidas');
+    if (!user.status) throw new UnauthorizedException('Usuário inativo');
 
     const senhaValida = await bcrypt.compare(senha, user.senhaHash);
-
-    if (!senhaValida) {
-      throw new UnauthorizedException('Credenciais inválidas');
-    }
+    if (!senhaValida) throw new UnauthorizedException('Credenciais inválidas');
 
     const payload = {
       sub: user.id,
@@ -82,41 +73,29 @@ export class AuthService {
 
     return {
       access_token: token,
-      user: {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-      },
+      user: { id: user.id, nome: user.nome, email: user.email },
     };
   }
 
   async logout(token: string) {
-    await this.prisma.tokenBlackList.create({
-      data: { token },
-    });
+    await this.prisma.tokenBlackList.create({ data: { token } });
 
     const setesDiasAtras = new Date();
     setesDiasAtras.setDate(setesDiasAtras.getDate() - 7);
 
     await this.prisma.tokenBlackList.deleteMany({
-      where: {
-        createdAt: { lt: setesDiasAtras },
-      },
+      where: { createdAt: { lt: setesDiasAtras } },
     });
 
-    return {
-      message: 'Logout realizado com sucesso',
-    };
+    return { message: 'Logout realizado com sucesso' };
   }
 
   async solicitarRecuperacaoSenha(email: string) {
-    
     const resposta = {
       message: 'Se este e-mail estiver cadastrado, você receberá as instruções em breve.',
     };
 
     const emailNormalizado = email.toLowerCase().trim();
-
     const user = await this.prisma.user.findUnique({ where: { email: emailNormalizado } });
     if (!user) return resposta;
 
@@ -124,14 +103,12 @@ export class AuthService {
     const codigoHash = await bcrypt.hash(codigo, 10);
     const expiresAt = new Date(Date.now() + EXPIRACAO_MINUTOS * 60 * 1000);
 
-    await this.prisma.$transaction([
-      this.prisma.passwordResetToken.deleteMany({
-        where: { userId: user.id },
-      }),
-      this.prisma.passwordResetToken.create({
-        data: { userId: user.id, codigoHash, expiresAt },
-      }),
-    ]);
+    
+    await this.prisma.passwordResetToken.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, codigoHash, expiresAt },
+      update: { codigoHash, expiresAt, tentativas: 0 },
+    });
 
     setImmediate(() => {
       this.enviarEmailRecuperacao(emailNormalizado, user.nome, codigo).catch((err) => {
@@ -150,7 +127,6 @@ export class AuthService {
     }
 
     const ERRO_GENERICO = 'Código inválido ou expirado.';
-   
     const emailNormalizado = email.toLowerCase().trim();
 
     const user = await this.prisma.user.findUnique({ where: { email: emailNormalizado } });
@@ -158,6 +134,7 @@ export class AuthService {
 
     const registro = await this.prisma.passwordResetToken.findFirst({
       where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!registro || registro.expiresAt < new Date()) {
@@ -167,7 +144,6 @@ export class AuthService {
       throw new BadRequestException(ERRO_GENERICO);
     }
 
-    
     if (registro.tentativas >= MAX_TENTATIVAS) {
       await this.prisma.passwordResetToken.delete({ where: { id: registro.id } });
       throw new BadRequestException(ERRO_GENERICO);
@@ -176,14 +152,12 @@ export class AuthService {
     const codigoValido = await bcrypt.compare(codigo, registro.codigoHash);
 
     if (!codigoValido) {
-      
       const atualizado = await this.prisma.passwordResetToken.updateMany({
-        where: { id: registro.id, tentativas: registro.tentativas }, 
+        where: { id: registro.id, tentativas: registro.tentativas },
         data: { tentativas: { increment: 1 } },
       });
 
       if (atualizado.count === 0) {
-        
         throw new BadRequestException(ERRO_GENERICO);
       }
 
@@ -197,19 +171,26 @@ export class AuthService {
 
     const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
 
-    await this.prisma.$transaction([
-      
-      this.prisma.passwordResetToken.deleteMany({
-        where: { userId: user.id },
-      }),
-      this.prisma.user.update({
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      const deletado = await tx.passwordResetToken.deleteMany({
+        where: { id: registro.id },
+      });
+
+      if (deletado.count === 0) {
+        return null;
+      }
+
+      await tx.user.update({
         where: { id: user.id },
-        data: {
-          senhaHash: novaSenhaHash,
-          tokenVersion: { increment: 1 }, 
-        },
-      }),
-    ]);
+        data: { senhaHash: novaSenhaHash, tokenVersion: { increment: 1 } },
+      });
+
+      return true;
+    });
+
+    if (!resultado) {
+      throw new BadRequestException(ERRO_GENERICO);
+    }
 
     return { message: 'Senha redefinida com sucesso. Faça login novamente.' };
   }
