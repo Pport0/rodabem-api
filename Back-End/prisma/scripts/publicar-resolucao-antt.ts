@@ -400,6 +400,18 @@ async function main() {
     return;
   }
 
+  // ── Trava 3: VIGENTE_DESDE deve ser posterior à versão mais recente ────────
+  const maisRecente = await prisma.versaoAntt.findFirst({
+    orderBy: { vigenteDesde: 'desc' },
+  });
+
+  if (maisRecente && VIGENTE_DESDE <= maisRecente.vigenteDesde) {
+    throw new Error(
+      `❌ VIGENTE_DESDE (${VIGENTE_DESDE.toISOString().slice(0, 10)}) não é posterior ao início da versão mais recente\n` +
+      `   ${maisRecente.resolucao} (${maisRecente.vigenteDesde.toISOString().slice(0, 10)}). Confira a data no texto da resolução.`,
+    );
+  }
+
   // ── Trava 2: cobertura >= versão vigente ──────────────────────────────────
   const versaoAtual = await prisma.versaoAntt.findFirst({
     where: {
@@ -421,14 +433,6 @@ async function main() {
         `Se for intencional, rode com: ALLOW_SMALLER=1 npx ts-node prisma/scripts/publicar-resolucao-antt.ts`,
       );
     }
-  }
-
-  // ── Trava 3: VIGENTE_DESDE deve ser posterior ao início da versão vigente ──
-  if (versaoAtual && VIGENTE_DESDE <= versaoAtual.vigenteDesde) {
-    throw new Error(
-      `❌ VIGENTE_DESDE (${VIGENTE_DESDE.toISOString().slice(0, 10)}) não é posterior ao início da versão vigente\n` +
-      `   ${versaoAtual.resolucao} (${versaoAtual.vigenteDesde.toISOString().slice(0, 10)}). Confira a data no texto da resolução.`,
-    );
   }
 
   // ── Trava 4: tudo em uma única transação ──────────────────────────────────
