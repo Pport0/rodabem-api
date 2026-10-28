@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -24,6 +25,7 @@ export class AuthController {
     return this.authService.logout(token);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @Post('forgot-password')
   forgotPassword(@Body('email') email: string) {
     if (!email) {
@@ -32,14 +34,16 @@ export class AuthController {
     return this.authService.solicitarRecuperacaoSenha(email);
   }
 
+  
   @Post('reset-password')
   resetPassword(
-    @Body('token') token: string,
+    @Body('email') email: string,
+    @Body('codigo') codigo: string,
     @Body('novaSenha') novaSenha: string,
   ) {
-    if (!token || !novaSenha) {
-      throw new BadRequestException('Token e nova senha são obrigatórios.');
+    if (!email || !codigo || !novaSenha) {
+      throw new BadRequestException('E-mail, código e nova senha são obrigatórios.');
     }
-    return this.authService.concluirRecuperacaoSenha(token, novaSenha);
+    return this.authService.concluirRecuperacaoSenha(email, codigo, novaSenha);
   }
 }

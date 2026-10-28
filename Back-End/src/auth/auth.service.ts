@@ -1,19 +1,39 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomInt } from 'crypto';
 import * as nodemailer from 'nodemailer';
+import { Transporter } from 'nodemailer';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { createHash } from '../common/utils/crypto.util';
 
+const MAX_TENTATIVAS = 5;
+const EXPIRACAO_MINUTOS = 30;
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly transporter: Transporter;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get<string>('SMTP_HOST'),
+      port: Number(this.configService.get<string>('SMTP_PORT') ?? 587),
+      secure: this.configService.get<string>('SMTP_SECURE') === 'true',
+      auth: {
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASS'),
+      },
+    });
+  }
 
   async login(data: LoginDto) {
     const { cpf, telefone, senha } = data;
@@ -95,51 +115,98 @@ export class AuthService {
       message: 'Se este e-mail estiver cadastrado, você receberá as instruções em breve.',
     };
 
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const emailNormalizado = email.toLowerCase().trim();
+
+    const user = await this.prisma.user.findUnique({ where: { email: emailNormalizado } });
     if (!user) return resposta;
 
-    await this.prisma.passwordResetToken.updateMany({
-      where: { userId: user.id, usedAt: null },
-      data: { usedAt: new Date() },
+    const codigo = String(randomInt(0, 100_000_000)).padStart(8, '0');
+    const codigoHash = await bcrypt.hash(codigo, 10);
+    const expiresAt = new Date(Date.now() + EXPIRACAO_MINUTOS * 60 * 1000);
+
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id },
+      }),
+      this.prisma.passwordResetToken.create({
+        data: { userId: user.id, codigoHash, expiresAt },
+      }),
+    ]);
+
+    setImmediate(() => {
+      this.enviarEmailRecuperacao(emailNormalizado, user.nome, codigo).catch((err) => {
+        this.logger.error(
+          `Falha ao enviar e-mail de recuperação para ${emailNormalizado}: ${err?.message ?? err}`,
+        );
+      });
     });
-
-    const token = randomUUID();
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
-
-    await this.prisma.passwordResetToken.create({
-      data: { userId: user.id, token, expiresAt },
-    });
-
-    await this.enviarEmailRecuperacao(email, user.nome, token);
 
     return resposta;
   }
 
-  async concluirRecuperacaoSenha(token: string, novaSenha: string) {
+  async concluirRecuperacaoSenha(email: string, codigo: string, novaSenha: string) {
     if (!novaSenha || novaSenha.length < 6) {
       throw new BadRequestException('A nova senha deve ter pelo menos 6 caracteres.');
     }
 
-    const registro = await this.prisma.passwordResetToken.findUnique({
-      where: { token },
+    const ERRO_GENERICO = 'Código inválido ou expirado.';
+   
+    const emailNormalizado = email.toLowerCase().trim();
+
+    const user = await this.prisma.user.findUnique({ where: { email: emailNormalizado } });
+    if (!user) throw new BadRequestException(ERRO_GENERICO);
+
+    const registro = await this.prisma.passwordResetToken.findFirst({
+      where: { userId: user.id },
     });
 
-    if (!registro || registro.usedAt || registro.expiresAt < new Date()) {
-      throw new BadRequestException('Token inválido ou expirado.');
+    if (!registro || registro.expiresAt < new Date()) {
+      if (registro) {
+        await this.prisma.passwordResetToken.delete({ where: { id: registro.id } });
+      }
+      throw new BadRequestException(ERRO_GENERICO);
+    }
+
+    
+    if (registro.tentativas >= MAX_TENTATIVAS) {
+      await this.prisma.passwordResetToken.delete({ where: { id: registro.id } });
+      throw new BadRequestException(ERRO_GENERICO);
+    }
+
+    const codigoValido = await bcrypt.compare(codigo, registro.codigoHash);
+
+    if (!codigoValido) {
+      
+      const atualizado = await this.prisma.passwordResetToken.updateMany({
+        where: { id: registro.id, tentativas: registro.tentativas }, 
+        data: { tentativas: { increment: 1 } },
+      });
+
+      if (atualizado.count === 0) {
+        
+        throw new BadRequestException(ERRO_GENERICO);
+      }
+
+      const novasTentativas = registro.tentativas + 1;
+      if (novasTentativas >= MAX_TENTATIVAS) {
+        await this.prisma.passwordResetToken.delete({ where: { id: registro.id } });
+      }
+
+      throw new BadRequestException(ERRO_GENERICO);
     }
 
     const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
 
     await this.prisma.$transaction([
-      this.prisma.passwordResetToken.update({
-        where: { token },
-        data: { usedAt: new Date() },
+      
+      this.prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id },
       }),
       this.prisma.user.update({
-        where: { id: registro.userId },
+        where: { id: user.id },
         data: {
           senhaHash: novaSenhaHash,
-          tokenVersion: { increment: 1 },
+          tokenVersion: { increment: 1 }, 
         },
       }),
     ]);
@@ -147,31 +214,17 @@ export class AuthService {
     return { message: 'Senha redefinida com sucesso. Faça login novamente.' };
   }
 
-  private async enviarEmailRecuperacao(email: string, nome: string, token: string) {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT ?? 587),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    const link = `${process.env.APP_URL}/reset-password?token=${token}`;
-
-    await transporter.sendMail({
-      from: `"RodaBem" <${process.env.SMTP_USER}>`,
+  private async enviarEmailRecuperacao(email: string, nome: string, codigo: string) {
+    await this.transporter.sendMail({
+      from: `"RodaBem" <${this.configService.get<string>('SMTP_USER')}>`,
       to: email,
       subject: 'Recuperação de senha — RodaBem',
       html: `
         <p>Olá, ${nome}!</p>
         <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
-        <p>Clique no link abaixo para criar uma nova senha. O link é válido por <strong>30 minutos</strong>.</p>
-        <p><a href="${link}">${link}</a></p>
-        <p>Se o link não abrir, toque em <strong>"Já tenho o código"</strong> no aplicativo e cole este código:</p>
-        <p><strong>${token}</strong></p>
-        <p>Se você não solicitou isso, ignore este e-mail.</p>
+        <p>Use o código abaixo no aplicativo. Ele é válido por <strong>${EXPIRACAO_MINUTOS} minutos</strong>.</p>
+        <h2 style="letter-spacing: 4px; font-size: 32px;">${codigo}</h2>
+        <p>Se você não solicitou isso, ignore este e-mail. Sua senha não será alterada.</p>
       `,
     });
   }

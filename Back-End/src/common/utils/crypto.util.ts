@@ -1,10 +1,9 @@
 import * as crypto from 'crypto';
 
 const algorithm = 'aes-256-cbc';
-const secretKey = process.env.CRYPTO_SECRET || 'default_secret_key_32_chars!!';
 const ivLength = 16;
 
-export function encrypt(text: string): string {
+export function encrypt(text: string, secretKey: string): string {
   const iv = crypto.randomBytes(ivLength);
   const cipher = crypto.createCipheriv(
     algorithm,
@@ -18,7 +17,7 @@ export function encrypt(text: string): string {
   return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
-export function decrypt(text: string): string {
+export function decrypt(text: string, secretKey: string): string {
   const parts = text.split(':');
   const iv = Buffer.from(parts.shift()!, 'hex');
   const encryptedText = Buffer.from(parts.join(':'), 'hex');
@@ -34,6 +33,7 @@ export function decrypt(text: string): string {
 
   return decrypted.toString();
 }
+
 export function createHash(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex');
 }

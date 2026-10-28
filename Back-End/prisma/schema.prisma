@@ -41,6 +41,7 @@ model User {
   abastecimentos Abastecimento[]
   simulacoes SimulacaoFrete[]
   passwordResetTokens PasswordResetToken[]
+  aceitesTermo AceiteTermo[]
 
   @@map("usuarios")
 }
@@ -241,13 +242,41 @@ enum ComposicaoVeicular {
 }
 
 model PasswordResetToken {
-  id        Int       @id @default(autoincrement())
-  userId    Int
-  token     String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  codigoHash String
+  expiresAt  DateTime
+  tentativas Int      @default(0)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model TermoUso {
+  id          Int       @id @default(autoincrement())
+  versao      String    @unique         
+  conteudo    String                     
+  publicadoEm DateTime  @default(now())
+  ativo       Boolean   @default(false)  
+  aceites AceiteTermo[]
+
+  @@map("termos_uso")
+}
+
+model AceiteTermo {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  termoId    Int
+  aceitoEm   DateTime @default(now())
+  ip         String?
+  userAgent  String?
+
+  user  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  termo TermoUso @relation(fields: [termoId], references: [id])
+
+  @@unique([userId, termoId])   
+  @@index([userId])
+  @@map("aceites_termo")
 }

@@ -1,14 +1,16 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { CaminhaoModule } from './caminhao/caminhao.module';
 import { DocumentoModule } from './documento/documento.module';
 import { AbastecimentoModule } from './abastecimento/abastecimento.module';
 import { FreteModule } from './frete/frete.module';
+import { TermosModule } from './termos/termos.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { TermoAceiteMiddleware } from './common/middleware/termo-aceite.middleware';
 
 @Module({
   imports: [
@@ -16,8 +18,8 @@ import { APP_GUARD } from '@nestjs/core';
       isGlobal: true,
     }),
     ThrottlerModule.forRoot([{
-      ttl: 60000,  
-      limit: 10,   
+      ttl: 60000,
+      limit: 10,
     }]),
     PrismaModule,
     UsersModule,
@@ -26,6 +28,7 @@ import { APP_GUARD } from '@nestjs/core';
     DocumentoModule,
     AbastecimentoModule,
     FreteModule,
+    TermosModule,
   ],
   providers: [
     {
@@ -34,4 +37,10 @@ import { APP_GUARD } from '@nestjs/core';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TermoAceiteMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}

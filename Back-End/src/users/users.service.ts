@@ -7,25 +7,33 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { encrypt, createHash, decrypt } from '../common/utils/crypto.util';
+import { createHash } from '../common/utils/crypto.util';
 import { isValidCPF } from './validators/cpf.validator';
-
+import { CryptoService } from '../crypto/crypto.service';
+import { TermosService } from '../termos/termos.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cryptoService: CryptoService,
+    private termosService: TermosService,
+  ) {}
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto & { termoVersao: string }, ip?: string, userAgent?: string) {
     if (!isValidCPF(dto.cpf)) {
       throw new BadRequestException('CPF inválido.');
     }
 
     const cpfHash = createHash(dto.cpf);
+    const emailNormalizado = dto.email.toLowerCase().trim();
 
-    const existing = await this.prisma.user.findUnique({ where: { cpfHash } });
+    const [existing, emailExisting] = await Promise.all([
+      this.prisma.user.findUnique({ where: { cpfHash } }),
+      this.prisma.user.findUnique({ where: { email: emailNormalizado } }),
+    ]);
+
     if (existing) throw new ConflictException('CPF já cadastrado');
-
-    const emailExisting = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (emailExisting) throw new ConflictException('E-mail já cadastrado');
 
     if (dto.telefone) {
@@ -35,18 +43,38 @@ export class UsersService {
       if (telefoneExisting) throw new ConflictException('Telefone já cadastrado');
     }
 
-    const senhaHash = await bcrypt.hash(dto.senha, 10);
-    const cpfEncrypted = encrypt(dto.cpf);
+    const vigente = await this.termosService.vigente();
+    if (vigente.versao !== dto.termoVersao) {
+      throw new BadRequestException(
+        `Aceite a versão vigente do termo: "${vigente.versao}".`,
+      );
+    }
 
-    const user = await this.prisma.user.create({
-      data: {
-        nome: dto.nome,
-        email: dto.email,
-        senhaHash,
-        cpfEncrypted,
-        cpfHash,
-        telefone: dto.telefone,
-      },
+    const senhaHash = await bcrypt.hash(dto.senha, 10);
+    const cpfEncrypted = this.cryptoService.encrypt(dto.cpf);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const novoUser = await tx.user.create({
+        data: {
+          nome: dto.nome,
+          email: emailNormalizado,
+          senhaHash,
+          cpfEncrypted,
+          cpfHash,
+          telefone: dto.telefone,
+        },
+      });
+
+      await tx.aceiteTermo.create({
+        data: {
+          userId: novoUser.id,
+          termoId: vigente.id,
+          ip,
+          userAgent,
+        },
+      });
+
+      return novoUser;
     });
 
     const { senhaHash: _, cpfEncrypted: __, cpfHash: ___, ...result } = user;
@@ -73,12 +101,9 @@ export class UsersService {
     }
 
     const { cpfEncrypted, ...resto } = user;
-    const cpf = cpfEncrypted ? decrypt(cpfEncrypted) : null;
+    const cpf = cpfEncrypted ? this.cryptoService.decrypt(cpfEncrypted) : null;
 
-    return {
-      ...resto,
-      cpf,
-    };
+    return { ...resto, cpf };
   }
 
   async findAll(params: { page?: number; limit?: number; nome?: string; status?: string }) {
@@ -119,10 +144,11 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
-    // Mesmas regras de unicidade do cadastro; sem isso o @unique do banco estoura como 500.
-    if (dto.email && dto.email !== user.email) {
+    const emailNormalizado = dto.email ? dto.email.toLowerCase().trim() : undefined;
+
+    if (emailNormalizado && emailNormalizado !== user.email) {
       const emailExisting = await this.prisma.user.findUnique({
-        where: { email: dto.email },
+        where: { email: emailNormalizado },
       });
       if (emailExisting && emailExisting.id !== id) {
         throw new ConflictException('E-mail já cadastrado');
@@ -140,7 +166,7 @@ export class UsersService {
 
     const updated = await this.prisma.user.update({
       where: { id },
-      data: dto,
+      data: { ...dto, ...(emailNormalizado ? { email: emailNormalizado } : {}) },
       select: {
         id: true,
         nome: true,
@@ -183,10 +209,7 @@ export class UsersService {
     return { message: 'Usuário excluído com sucesso!' };
   }
 
-  async alterarSenha(
-    id: number,
-    dto: { senhaAtual: string; novaSenha: string },
-  ) {
+  async alterarSenha(id: number, dto: { senhaAtual: string; novaSenha: string }) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
@@ -201,13 +224,13 @@ export class UsersService {
 
     const novaSenhaHash = await bcrypt.hash(dto.novaSenha, 10);
 
-    await this.prisma.user.update({
-      where: { id },
-      data: {
-        senhaHash: novaSenhaHash,
-        tokenVersion: { increment: 1 },
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({ where: { userId: id } }),
+      this.prisma.user.update({
+        where: { id },
+        data: { senhaHash: novaSenhaHash, tokenVersion: { increment: 1 } },
+      }),
+    ]);
 
     return { message: 'Senha alterada com sucesso.' };
   }
