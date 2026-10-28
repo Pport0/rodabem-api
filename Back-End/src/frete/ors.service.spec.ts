@@ -48,6 +48,32 @@ describe('OrsService', () => {
       ).rejects.not.toThrow(/endere[cç]o n[aã]o encontrado/i);
     });
 
+    it('nao deve vazar a resposta do servico externo na mensagem ao usuario', async () => {
+      fetchDublado.mockResolvedValue(
+        responder(429, { error: 'Rate limit exceeded', key: 'chave-de-teste' }),
+      );
+
+      const erro = await service
+        .calcularRota('Goiania, GO', 'Belem, PA')
+        .catch((e: Error) => e);
+
+      expect((erro as Error).message).not.toMatch(/Rate limit|chave-de-teste|429/);
+      expect((erro as Error).message).toMatch(/indispon[ií]vel/i);
+    });
+
+    it('deve limitar o tempo de espera da chamada ao servico de rotas', async () => {
+      fetchDublado.mockResolvedValue(responder(200, COORDENADA));
+
+      await service.calcularRota('Goiania, GO', 'Belem, PA').catch(() => undefined);
+
+      const opcoes = fetchDublado.mock.calls.map(([, o]) => o);
+
+      expect(opcoes.length).toBeGreaterThan(0);
+      for (const opcao of opcoes) {
+        expect(opcao?.signal).toBeDefined();
+      }
+    });
+
     it('nao deve vazar excecao crua quando a rede falha', async () => {
       fetchDublado.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
 

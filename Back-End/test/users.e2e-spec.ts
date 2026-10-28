@@ -212,19 +212,17 @@ describe('Usuarios (e2e)', () => {
   });
 
   describe('GET /users', () => {
-    it('deve devolver uma lista paginada de usuarios', async () => {
+    it('nao deve entregar a lista de usuarios a quem esta autenticado', async () => {
       const { token } = await autenticar('300020');
-      await registerAndLogin(app, '300021');
+      const outro = await registerAndLogin(app, '300021');
 
       const resposta = await request(app.getHttpServer())
         .get('/users')
         .query({ page: 1, limit: 50 })
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .set('Authorization', `Bearer ${token}`);
 
-      expect(resposta.body).toHaveProperty('data');
-      expect(Array.isArray(resposta.body.data)).toBe(true);
-      expect(resposta.body.total).toBeGreaterThanOrEqual(2);
+      expect(resposta.status).toBe(403);
+      expect(JSON.stringify(resposta.body)).not.toContain(outro.user.email);
     });
 
     it('deve exigir autenticacao', async () => {

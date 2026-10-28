@@ -45,6 +45,21 @@ describe('Tela de login - conteudo', () => {
 
 describe('Tela de login - envio', () => {
 
+  it('nao deve autenticar duas vezes quando o botao e tocado duas vezes', async () => {
+    await render(<Login />);
+
+    await fireEvent.changeText(
+      screen.getByPlaceholderText(PLACEHOLDER_IDENTIFICADOR),
+      '62999999999',
+    );
+    await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER_SENHA), '123456');
+
+    await fireEvent.press(screen.getByRole('button'));
+    await fireEvent.press(screen.getByRole('button'));
+
+    expect(mockLogin).toHaveBeenCalledTimes(1);
+  });
+
   it('deve autenticar apenas uma vez por toque no botao', async () => {
     await preencherEEnviar('62999999999', '123456');
 

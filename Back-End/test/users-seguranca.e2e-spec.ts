@@ -222,14 +222,14 @@ describe('Usuarios - seguranca (e2e)', () => {
   });
 
   describe('entradas maliciosas', () => {
-    it('deve tratar tentativa de injecao no filtro de nome como texto literal', async () => {
+    it('nao deve executar consulta a partir do filtro de nome, nem deixar a base inconsistente', async () => {
       const { token } = await autenticar('400030');
 
       await request(app.getHttpServer())
         .get('/users')
         .query({ nome: "'; DROP TABLE \"User\"; --" })
         .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .expect(403);
 
       await request(app.getHttpServer())
         .get('/users/me')

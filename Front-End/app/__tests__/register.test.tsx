@@ -227,4 +227,13 @@ describe('Tela de cadastro - envio', () => {
     );
   });
 
+
+  it('nao deve cadastrar duas vezes quando o botao e tocado duas vezes', async () => {
+    await preencher();
+
+    await enviar();
+    await enviar();
+
+    expect(mockSignUp).toHaveBeenCalledTimes(1);
+  });
 });
