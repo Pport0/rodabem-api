@@ -241,13 +241,14 @@ enum ComposicaoVeicular {
 }
 
 model PasswordResetToken {
-  id        Int       @id @default(autoincrement())
-  userId    Int
-  token     String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  codigoHash String
+  expiresAt  DateTime
+  tentativas Int      @default(0)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("password_reset_tokens")
 }

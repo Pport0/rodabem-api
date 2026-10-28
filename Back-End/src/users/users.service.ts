@@ -7,13 +7,16 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { encrypt, createHash, decrypt } from '../common/utils/crypto.util';
+import { createHash } from '../common/utils/crypto.util';
 import { isValidCPF } from './validators/cpf.validator';
-
+import { CryptoService } from '../crypto/crypto.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cryptoService: CryptoService,
+  ) {}
 
   async create(dto: CreateUserDto) {
     if (!isValidCPF(dto.cpf)) {
@@ -25,7 +28,9 @@ export class UsersService {
     const existing = await this.prisma.user.findUnique({ where: { cpfHash } });
     if (existing) throw new ConflictException('CPF já cadastrado');
 
-    const emailExisting = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const emailNormalizado = dto.email.toLowerCase().trim();
+
+    const emailExisting = await this.prisma.user.findUnique({ where: { email: emailNormalizado } });
     if (emailExisting) throw new ConflictException('E-mail já cadastrado');
 
     if (dto.telefone) {
@@ -36,12 +41,12 @@ export class UsersService {
     }
 
     const senhaHash = await bcrypt.hash(dto.senha, 10);
-    const cpfEncrypted = encrypt(dto.cpf);
+    const cpfEncrypted = this.cryptoService.encrypt(dto.cpf);
 
     const user = await this.prisma.user.create({
       data: {
         nome: dto.nome,
-        email: dto.email,
+        email: emailNormalizado,
         senhaHash,
         cpfEncrypted,
         cpfHash,
@@ -73,12 +78,9 @@ export class UsersService {
     }
 
     const { cpfEncrypted, ...resto } = user;
-    const cpf = cpfEncrypted ? decrypt(cpfEncrypted) : null;
+    const cpf = cpfEncrypted ? this.cryptoService.decrypt(cpfEncrypted) : null;
 
-    return {
-      ...resto,
-      cpf,
-    };
+    return { ...resto, cpf };
   }
 
   async findAll(params: { page?: number; limit?: number; nome?: string; status?: string }) {
@@ -119,10 +121,11 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
-    // Mesmas regras de unicidade do cadastro; sem isso o @unique do banco estoura como 500.
-    if (dto.email && dto.email !== user.email) {
+    const emailNormalizado = dto.email ? dto.email.toLowerCase().trim() : undefined;
+
+    if (emailNormalizado && emailNormalizado !== user.email) {
       const emailExisting = await this.prisma.user.findUnique({
-        where: { email: dto.email },
+        where: { email: emailNormalizado },
       });
       if (emailExisting && emailExisting.id !== id) {
         throw new ConflictException('E-mail já cadastrado');
@@ -140,7 +143,7 @@ export class UsersService {
 
     const updated = await this.prisma.user.update({
       where: { id },
-      data: dto,
+      data: { ...dto, ...(emailNormalizado ? { email: emailNormalizado } : {}) },
       select: {
         id: true,
         nome: true,
@@ -183,10 +186,7 @@ export class UsersService {
     return { message: 'Usuário excluído com sucesso!' };
   }
 
-  async alterarSenha(
-    id: number,
-    dto: { senhaAtual: string; novaSenha: string },
-  ) {
+  async alterarSenha(id: number, dto: { senhaAtual: string; novaSenha: string }) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
@@ -201,13 +201,13 @@ export class UsersService {
 
     const novaSenhaHash = await bcrypt.hash(dto.novaSenha, 10);
 
-    await this.prisma.user.update({
-      where: { id },
-      data: {
-        senhaHash: novaSenhaHash,
-        tokenVersion: { increment: 1 },
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({ where: { userId: id } }),
+      this.prisma.user.update({
+        where: { id },
+        data: { senhaHash: novaSenhaHash, tokenVersion: { increment: 1 } },
+      }),
+    ]);
 
     return { message: 'Senha alterada com sucesso.' };
   }
