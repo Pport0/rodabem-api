@@ -13,7 +13,11 @@ export class CryptoService implements OnModuleInit {
   }
 
   onModuleInit() {
-    if (!this.secretKey || this.secretKey === CRYPTO_SECRET_PLACEHOLDER) {
+    if (
+      !this.secretKey ||
+      this.secretKey === CRYPTO_SECRET_PLACEHOLDER ||
+      this.secretKey.length < 32
+    ) {
       throw new Error(
         'CRYPTO_SECRET não configurada ou com valor de exemplo. ' +
         'Defina uma chave segura de pelo menos 32 caracteres no .env.',
