@@ -28,13 +28,30 @@ describe('UsersService', () => {
     abastecimento: {
       count: jest.fn(),
     },
+    passwordResetToken: {
+      deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn((operacoes: unknown[]) =>
+      Promise.all(operacoes as Promise<unknown>[]),
+    ),
+  };
+
+  const cryptoService = {
+    encrypt: jest.fn((texto: string) => `cifrado:${texto}`),
+    decrypt: jest.fn((texto: string) => texto.replace('cifrado:', '')),
+  };
+
+  const termosService = {
+    vigente: jest.fn(),
+    registrarAceite: jest.fn(),
+    termoPendente: jest.fn().mockResolvedValue(false),
   };
 
   const userId = 1;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new UsersService(prisma as any);
+    service = new UsersService(prisma as any, cryptoService as any, termosService as any);
   });
 
  

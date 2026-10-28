@@ -114,6 +114,9 @@
         "module-sync",
         "default"
       ]
+    },
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
     }
   },
   "prisma": {

@@ -32,5 +32,11 @@
       "module-sync",
       "default"
     ]
-  }
+  },
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/src/$1"
+  },
+  "setupFiles": [
+    "<rootDir>/test/jest-e2e-setup.ts"
+  ]
 }

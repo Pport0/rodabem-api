@@ -1,34 +1,42 @@
 import { createHash, decrypt, encrypt } from './crypto.util';
 
 describe('crypto.util', () => {
+  const CHAVE = 'a'.repeat(32);
+
   describe('cifragem reversivel', () => {
     it('deve devolver o valor original apos cifrar e decifrar', () => {
       const cpf = '52998224725';
 
-      expect(decrypt(encrypt(cpf))).toBe(cpf);
+      expect(decrypt(encrypt(cpf, CHAVE), CHAVE)).toBe(cpf);
     });
 
     it('nao deve produzir o mesmo texto cifrado para a mesma entrada', () => {
       const cpf = '52998224725';
 
-      const primeiro = encrypt(cpf);
-      const segundo = encrypt(cpf);
+      const primeiro = encrypt(cpf, CHAVE);
+      const segundo = encrypt(cpf, CHAVE);
 
       expect(primeiro).not.toBe(segundo);
-      expect(decrypt(primeiro)).toBe(cpf);
-      expect(decrypt(segundo)).toBe(cpf);
+      expect(decrypt(primeiro, CHAVE)).toBe(cpf);
+      expect(decrypt(segundo, CHAVE)).toBe(cpf);
     });
 
     it('deve recusar texto cifrado corrompido em vez de devolver dado errado', () => {
-      const cifrado = encrypt('52998224725');
+      const cifrado = encrypt('52998224725', CHAVE);
       const [iv, conteudo] = cifrado.split(':');
       const corrompido = `${iv}:${conteudo.slice(0, -2)}ff`;
 
-      expect(() => decrypt(corrompido)).toThrow();
+      expect(() => decrypt(corrompido, CHAVE)).toThrow();
     });
 
     it('deve recusar texto sem o vetor de inicializacao', () => {
-      expect(() => decrypt('semvetordeinicializacao')).toThrow();
+      expect(() => decrypt('semvetordeinicializacao', CHAVE)).toThrow();
+    });
+
+    it('nao deve decifrar com chave diferente da usada para cifrar', () => {
+      const cifrado = encrypt('52998224725', CHAVE);
+
+      expect(() => decrypt(cifrado, 'b'.repeat(32))).toThrow();
     });
   });
 
@@ -45,37 +53,6 @@ describe('crypto.util', () => {
       const cpf = '52998224725';
 
       expect(createHash(cpf)).not.toContain(cpf);
-    });
-  });
-
-  describe('a chave nao pode vir do codigo', () => {
-    const carregarCom = (chave?: string) => {
-      const anterior = process.env.CRYPTO_SECRET;
-
-      if (chave === undefined) delete process.env.CRYPTO_SECRET;
-      else process.env.CRYPTO_SECRET = chave;
-
-      try {
-        jest.resetModules();
-        return require('./crypto.util');
-      } finally {
-        if (anterior === undefined) delete process.env.CRYPTO_SECRET;
-        else process.env.CRYPTO_SECRET = anterior;
-      }
-    };
-
-    it('nao deve cifrar quando CRYPTO_SECRET nao esta definida', () => {
-      expect(() => carregarCom(undefined)).toThrow(/CRYPTO_SECRET/);
-    });
-
-    it('nao deve cifrar com chave mais curta que a exigida pelo algoritmo', () => {
-      expect(() => carregarCom('curta-demais')).toThrow(/CRYPTO_SECRET/);
-    });
-
-    it('deve carregar normalmente com uma chave de 32 caracteres', () => {
-      const util = carregarCom('a'.repeat(32));
-
-      expect(util.decrypt(util.encrypt('52998224725'))).toBe('52998224725');
     });
   });
 });

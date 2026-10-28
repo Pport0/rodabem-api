@@ -89,6 +89,18 @@ describe('Tabela da ANTT distribuida (e2e)', () => {
       expect(invalidas).toEqual([]);
     });
 
+    it('nenhuma versao deve terminar a vigencia antes de comecar', async () => {
+      const versoes = await prisma.versaoAntt.findMany({
+        select: { resolucao: true, vigenteDesde: true, vigenteAte: true },
+      });
+
+      const invertidas = versoes
+        .filter((v) => v.vigenteAte !== null && v.vigenteAte < v.vigenteDesde)
+        .map((v) => v.resolucao);
+
+      expect(invertidas).toEqual([]);
+    });
+
     it('toda versao publicada deve ter coeficiente', async () => {
       const versoes = await prisma.versaoAntt.findMany({ select: { id: true, resolucao: true } });
       const vazias: string[] = [];

@@ -2,15 +2,40 @@ import { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import * as request from 'supertest';
 
+export const VERSAO_TERMO = '1.0';
+
+export async function publicarTermoVigente(prisma: PrismaService) {
+  const termo = await prisma.termoUso.upsert({
+    where: { versao: VERSAO_TERMO },
+    create: {
+      versao: VERSAO_TERMO,
+      conteudo: 'Termo de uso e isencao de responsabilidade para a bancada de testes.',
+      ativo: true,
+    },
+    update: { ativo: true },
+  });
+
+  await prisma.termoUso.updateMany({
+    where: { id: { not: termo.id } },
+    data: { ativo: false },
+  });
+
+  return termo;
+}
+
 export async function clearDatabase(prisma: PrismaService) {
   await prisma.simulacaoFrete.deleteMany();
   await prisma.abastecimento.deleteMany();
   await prisma.documento.deleteMany();
   await prisma.caminhao.deleteMany();
   await prisma.tokenBlackList.deleteMany();
+  await prisma.aceiteTermo.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.termoUso.deleteMany();
   await prisma.tabelaAntt.deleteMany();
   await prisma.versaoAntt.deleteMany();
+
+  await publicarTermoVigente(prisma);
 }
 
 export function buildValidCpf(seed: string): string {
@@ -42,6 +67,7 @@ export function buildUserPayload(suffix: string) {
     senha: '123456',
     cpf: buildValidCpf(suffix),
     telefone: `62999${suffix.padStart(6, '0').slice(0, 6)}`,
+    termoVersao: VERSAO_TERMO,
   };
 }
 

@@ -41,9 +41,20 @@ describe('AuthService', () => {
     status: true,
   };
 
+  const configService = {
+    get: jest.fn((chave: string) => ({
+      SMTP_HOST: 'smtp.exemplo.com',
+      SMTP_PORT: '587',
+      SMTP_SECURE: 'false',
+      SMTP_USER: 'bancada@exemplo.com',
+      SMTP_PASS: 'senha-de-teste',
+      APP_URL: 'http://localhost:3000',
+    })[chave]),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AuthService(prisma as any, jwtService as any);
+    service = new AuthService(prisma as any, jwtService as any, configService as any);
   });
 
   it('deve fazer login com telefone e senha validos', async () => {

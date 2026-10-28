@@ -139,25 +139,35 @@ describe('Fluxo de frete (e2e)', () => {
       .expect(400);
   });
 
-  describe('POST /caminhao - numero de eixos previsto pela ANTT', () => {
-    const EIXOS_DA_ANTT = [2, 3, 4, 5, 6, 7, 9];
-    const FORA_DA_TABELA = [1, 8, 10];
+  describe('POST /caminhao - numero de eixos aceito no cadastro', () => {
+    const EIXOS_DA_TABELA = [2, 3, 4, 5, 6, 7, 9];
+    const EIXOS_FORA_DA_TABELA = [8, 10];
+    const EIXOS_IMPOSSIVEIS = [0, 1, 100];
 
-    it.each(FORA_DA_TABELA)(
-      'deve recusar o cadastro de caminhao com %i eixos, que a ANTT nao preve',
-      async (numeroEixos) => {
-        const { token } = await registerAndLogin(app, `30${numeroEixos}`);
-
-        await createTruck(app, token, { numeroEixos }).expect(400);
-      },
-    );
-
-    it.each(EIXOS_DA_ANTT)(
-      'deve aceitar o cadastro de caminhao com %i eixos, que a ANTT preve',
+    it.each(EIXOS_DA_TABELA)(
+      'deve aceitar caminhao com %i eixos, que a tabela da ANTT publica',
       async (numeroEixos) => {
         const { token } = await registerAndLogin(app, `31${numeroEixos}`);
 
         await createTruck(app, token, { numeroEixos }).expect(201);
+      },
+    );
+
+    it.each(EIXOS_FORA_DA_TABELA)(
+      'deve aceitar caminhao com %i eixos, que existe embora a tabela nao publique',
+      async (numeroEixos) => {
+        const { token } = await registerAndLogin(app, `30${numeroEixos}`);
+
+        await createTruck(app, token, { numeroEixos }).expect(201);
+      },
+    );
+
+    it.each(EIXOS_IMPOSSIVEIS)(
+      'deve recusar caminhao com %i eixos, que nenhum veiculo tem',
+      async (numeroEixos) => {
+        const { token } = await registerAndLogin(app, `32${numeroEixos}`);
+
+        await createTruck(app, token, { numeroEixos }).expect(400);
       },
     );
   });

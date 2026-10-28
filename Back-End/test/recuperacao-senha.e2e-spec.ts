@@ -55,22 +55,32 @@ describe('Recuperacao de senha (e2e)', () => {
     await prisma.$disconnect();
     await app.close();
   });
-
   const pedirRecuperacao = (email: string) =>
     request(app.getHttpServer()).post('/auth/forgot-password').send({ email });
 
-  const redefinir = (token: string, novaSenha: string) =>
+  const redefinir = (email: string, codigo: string, novaSenha: string) =>
     request(app.getHttpServer())
       .post('/auth/reset-password')
-      .send({ token, novaSenha });
+      .send({ email, codigo, novaSenha });
 
-  const tokenGeradoPara = async (email: string) => {
+  const envioPara = (email: string) =>
+    [...mockEnviarEmail.mock.calls]
+      .reverse()
+      .find(([mensagem]) => mensagem?.to === email)?.[0];
+
+  const codigoEnviadoPara = async (email: string) => {
+    for (let tentativa = 0; tentativa < 100; tentativa++) {
+      const mensagem = envioPara(email);
+      const achado = String(mensagem?.html ?? '').match(/\b\d{8}\b/);
+      if (achado) return achado[0];
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    throw new Error(`Nenhum e-mail com codigo foi enviado para ${email}`);
+  };
+
+  const pedidosAtivosDe = async (email: string) => {
     const usuario = await prisma.user.findUnique({ where: { email } });
-    const registro = await prisma.passwordResetToken.findFirst({
-      where: { userId: usuario!.id, usedAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
-    return registro!.token;
+    return prisma.passwordResetToken.count({ where: { userId: usuario!.id } });
   };
 
   describe('nao revelar quem tem conta', () => {
@@ -95,14 +105,25 @@ describe('Recuperacao de senha (e2e)', () => {
       expect(conhecido.body).toEqual(desconhecido.body);
     });
 
-    it('nao deve devolver o token na resposta', async () => {
+    it('nao deve devolver o codigo na resposta', async () => {
       const { user } = await registerAndLogin(app, '600003');
 
       const resposta = await pedirRecuperacao(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
 
-      expect(JSON.stringify(resposta.body)).not.toContain(
-        await tokenGeradoPara(user.email),
-      );
+      expect(JSON.stringify(resposta.body)).not.toContain(codigo);
+    });
+
+    it('deve recusar e-mail inexistente com a mesma mensagem de codigo invalido', async () => {
+      const { user } = await registerAndLogin(app, '600004');
+      await pedirRecuperacao(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
+
+      const semConta = await redefinir('ninguem@example.com', codigo, 'novaSenha789');
+      const codigoErrado = await redefinir(user.email, '00000000', 'novaSenha789');
+
+      expect(semConta.status).toBe(codigoErrado.status);
+      expect(semConta.body.message).toBe(codigoErrado.body.message);
     });
   });
 
@@ -130,35 +151,73 @@ describe('Recuperacao de senha (e2e)', () => {
       expect(desfecho).toBe('respondeu');
     });
 
-    it('deve mandar o token no corpo do e-mail, para quem nao abre o link', async () => {
+    it('deve mandar o codigo no corpo do e-mail, porque e o unico caminho', async () => {
       const { user } = await registerAndLogin(app, '600007');
 
       await pedirRecuperacao(user.email);
 
-      const corpo = JSON.stringify(mockEnviarEmail.mock.calls[0][0]);
-
-      expect(corpo).toContain(await tokenGeradoPara(user.email));
+      expect(await codigoEnviadoPara(user.email)).toMatch(/^\d{8}$/);
     });
 
     it('deve mandar o e-mail para o endereco cadastrado, e so para ele', async () => {
       const { user } = await registerAndLogin(app, '600008');
 
       await pedirRecuperacao(user.email);
+      await codigoEnviadoPara(user.email);
 
       expect(mockEnviarEmail).toHaveBeenCalledTimes(1);
       expect(mockEnviarEmail.mock.calls[0][0].to).toBe(user.email);
     });
   });
 
-  describe('uso concorrente do mesmo token', () => {
-    it('nao deve permitir duas redefinicoes simultaneas com o mesmo token', async () => {
+  describe('formato do codigo', () => {
+    it('deve ter oito digitos, preservando o zero a esquerda', async () => {
+      const { user } = await registerAndLogin(app, '600009');
+
+      await pedirRecuperacao(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
+
+      expect(codigo).toHaveLength(8);
+      expect(codigo).toMatch(/^\d{8}$/);
+    });
+
+    it('nao deve repetir o codigo entre dois pedidos', async () => {
+      const { user } = await registerAndLogin(app, '600010');
+
+      await pedirRecuperacao(user.email);
+      const primeiro = await codigoEnviadoPara(user.email);
+
+      mockEnviarEmail.mockClear();
+      await pedirRecuperacao(user.email);
+      const segundo = await codigoEnviadoPara(user.email);
+
+      expect(segundo).not.toBe(primeiro);
+    });
+
+    it('nao deve guardar o codigo em texto puro no banco', async () => {
+      const { user } = await registerAndLogin(app, '600011');
+
+      await pedirRecuperacao(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
+
+      const usuario = await prisma.user.findUnique({ where: { email: user.email } });
+      const registro = await prisma.passwordResetToken.findFirst({
+        where: { userId: usuario!.id },
+      });
+
+      expect(JSON.stringify(registro)).not.toContain(codigo);
+    });
+  });
+
+  describe('uso concorrente do mesmo codigo', () => {
+    it('nao deve permitir duas redefinicoes simultaneas com o mesmo codigo', async () => {
       const { user } = await registerAndLogin(app, '600030');
       await pedirRecuperacao(user.email);
-      const token = await tokenGeradoPara(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
 
       const [uma, outra] = await Promise.all([
-        redefinir(token, 'primeiraNova123'),
-        redefinir(token, 'segundaNova456'),
+        redefinir(user.email, codigo, 'primeiraNova123'),
+        redefinir(user.email, codigo, 'segundaNova456'),
       ]);
 
       const aceitas = [uma.status, outra.status].filter((s) => s === 201);
@@ -174,24 +233,53 @@ describe('Recuperacao de senha (e2e)', () => {
         pedirRecuperacao(user.email),
       ]);
 
-      const usuario = await prisma.user.findUnique({ where: { email: user.email } });
-      const ativos = await prisma.passwordResetToken.count({
-        where: { userId: usuario!.id, usedAt: null },
-      });
+      expect(await pedidosAtivosDe(user.email)).toBe(1);
+    });
+  });
 
-      expect(ativos).toBe(1);
+  describe('limite de tentativas', () => {
+    it('deve recusar codigo errado sem apagar o pedido em curso', async () => {
+      const { user } = await registerAndLogin(app, '600060');
+      await pedirRecuperacao(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
+
+      await redefinir(user.email, '00000000', 'novaSenha789').expect(400);
+
+      await redefinir(user.email, codigo, 'novaSenha789').expect(201);
+    });
+
+    it('deve invalidar o pedido depois de esgotar as tentativas', async () => {
+      const { user } = await registerAndLogin(app, '600061');
+      await pedirRecuperacao(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
+
+      for (let tentativa = 0; tentativa < 5; tentativa++) {
+        await redefinir(user.email, '00000000', 'novaSenha789').expect(400);
+      }
+
+      await redefinir(user.email, codigo, 'novaSenha789').expect(400);
+      expect(await pedidosAtivosDe(user.email)).toBe(0);
+    });
+
+    it('nao deve contar tentativa quando o codigo esta certo', async () => {
+      const { user } = await registerAndLogin(app, '600062');
+      await pedirRecuperacao(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
+
+      await redefinir(user.email, codigo, 'curta').expect(400);
+      await redefinir(user.email, codigo, 'novaSenha789').expect(201);
     });
   });
 
   describe('isolamento entre contas', () => {
-    it('o token de um usuario nao deve redefinir a senha de outro', async () => {
+    it('o codigo de um usuario nao deve redefinir a senha de outro', async () => {
       const alvo = await registerAndLogin(app, '600040');
       const outro = await registerAndLogin(app, '600041');
 
       await pedirRecuperacao(alvo.user.email);
-      const token = await tokenGeradoPara(alvo.user.email);
+      const codigo = await codigoEnviadoPara(alvo.user.email);
 
-      await redefinir(token, 'novaSenha789').expect(201);
+      await redefinir(outro.user.email, codigo, 'invadida999').expect(400);
 
       await request(app.getHttpServer())
         .post('/auth/login')
@@ -204,7 +292,9 @@ describe('Recuperacao de senha (e2e)', () => {
       const outro = await registerAndLogin(app, '600043');
 
       await pedirRecuperacao(alvo.user.email);
-      await redefinir(await tokenGeradoPara(alvo.user.email), 'novaSenha789').expect(201);
+      const codigo = await codigoEnviadoPara(alvo.user.email);
+
+      await redefinir(alvo.user.email, codigo, 'novaSenha789').expect(201);
 
       await request(app.getHttpServer())
         .get('/users/me')
@@ -218,7 +308,7 @@ describe('Recuperacao de senha (e2e)', () => {
       const { user, token: sessao } = await registerAndLogin(app, '600050');
 
       await pedirRecuperacao(user.email);
-      const tokenPendente = await tokenGeradoPara(user.email);
+      const codigoPendente = await codigoEnviadoPara(user.email);
 
       await request(app.getHttpServer())
         .patch('/users/me/senha')
@@ -226,7 +316,7 @@ describe('Recuperacao de senha (e2e)', () => {
         .send({ senhaAtual: user.senha, novaSenha: 'escolhidaPeloDono1' })
         .expect(200);
 
-      await redefinir(tokenPendente, 'escolhidaPeloInvasor1').expect(400);
+      await redefinir(user.email, codigoPendente, 'escolhidaPeloInvasor1').expect(400);
     });
   });
 
@@ -236,20 +326,20 @@ describe('Recuperacao de senha (e2e)', () => {
 
       await pedirRecuperacao(user.email.toUpperCase());
 
-      expect(mockEnviarEmail).toHaveBeenCalled();
+      expect(await codigoEnviadoPara(user.email)).toMatch(/^\d{8}$/);
     });
 
     it('deve permitir redefinir com o codigo pedido em outra caixa', async () => {
-      const { user } = await registerAndLogin(app, '600006');
+      const { user } = await registerAndLogin(app, '600006b');
 
       await pedirRecuperacao(user.email.toUpperCase());
-      const token = await tokenGeradoPara(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
 
-      await redefinir(token, 'senhaDepoisDoCaixaAlta1').expect(201);
+      await redefinir(user.email.toUpperCase(), codigo, 'senhaDepoisDoCaixaAlta1').expect(201);
     });
 
     it('deve guardar o e-mail em minusculas, qualquer que seja a caixa digitada', async () => {
-      const payload = buildUserPayload('600007');
+      const payload = buildUserPayload('600007b');
       const comMaiusculas = { ...payload, email: payload.email.toUpperCase() };
 
       await request(app.getHttpServer())
@@ -265,11 +355,11 @@ describe('Recuperacao de senha (e2e)', () => {
     });
 
     it('deve recusar cadastro cujo e-mail so difere na caixa de um ja existente', async () => {
-      const payload = buildUserPayload('600008');
+      const payload = buildUserPayload('600008b');
 
       await request(app.getHttpServer()).post('/users').send(payload).expect(201);
 
-      const outro = buildUserPayload('600009');
+      const outro = buildUserPayload('600009b');
       await request(app.getHttpServer())
         .post('/users')
         .send({ ...outro, email: payload.email.toUpperCase() })
@@ -277,51 +367,61 @@ describe('Recuperacao de senha (e2e)', () => {
     });
   });
 
-  describe('validade do token', () => {
-    it('deve recusar token ja utilizado', async () => {
-      const { user } = await registerAndLogin(app, '600010');
+  describe('validade do codigo', () => {
+    it('deve recusar codigo ja utilizado', async () => {
+      const { user } = await registerAndLogin(app, '600012');
       await pedirRecuperacao(user.email);
-      const token = await tokenGeradoPara(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
 
-      await redefinir(token, 'primeiraNova123').expect(201);
-      await redefinir(token, 'segundaNova456').expect(400);
+      await redefinir(user.email, codigo, 'primeiraNova123').expect(201);
+      await redefinir(user.email, codigo, 'segundaNova456').expect(400);
     });
 
-    it('deve recusar token expirado', async () => {
-      const { user } = await registerAndLogin(app, '600011');
+    it('deve recusar codigo expirado', async () => {
+      const { user } = await registerAndLogin(app, '600013');
       await pedirRecuperacao(user.email);
-      const token = await tokenGeradoPara(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
 
-      await prisma.passwordResetToken.update({
-        where: { token },
+      const usuario = await prisma.user.findUnique({ where: { email: user.email } });
+      await prisma.passwordResetToken.updateMany({
+        where: { userId: usuario!.id },
         data: { expiresAt: new Date(Date.now() - 1000) },
       });
 
-      await redefinir(token, 'novaSenha789').expect(400);
+      await redefinir(user.email, codigo, 'novaSenha789').expect(400);
     });
 
-    it('deve invalidar o token anterior quando um novo e pedido', async () => {
-      const { user } = await registerAndLogin(app, '600012');
+    it('deve invalidar o codigo anterior quando um novo e pedido', async () => {
+      const { user } = await registerAndLogin(app, '600014');
 
       await pedirRecuperacao(user.email);
-      const primeiro = await tokenGeradoPara(user.email);
+      const primeiro = await codigoEnviadoPara(user.email);
 
+      mockEnviarEmail.mockClear();
       await pedirRecuperacao(user.email);
+      await codigoEnviadoPara(user.email);
 
-      await redefinir(primeiro, 'novaSenha789').expect(400);
+      await redefinir(user.email, primeiro, 'novaSenha789').expect(400);
     });
 
-    it('deve recusar token inexistente', async () => {
-      await redefinir('token-que-nunca-existiu', 'novaSenha789').expect(400);
+    it('deve recusar codigo que nunca existiu', async () => {
+      const { user } = await registerAndLogin(app, '600015');
+
+      await redefinir(user.email, '12345678', 'novaSenha789').expect(400);
     });
   });
 
   describe('redefinicao', () => {
-    it('deve permitir entrar com a senha nova', async () => {
-      const { user } = await registerAndLogin(app, '600020');
+    const redefinirPara = async (sufixo: string, novaSenha: string) => {
+      const { user, token } = await registerAndLogin(app, sufixo);
       await pedirRecuperacao(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
+      await redefinir(user.email, codigo, novaSenha).expect(201);
+      return { user, token };
+    };
 
-      await redefinir(await tokenGeradoPara(user.email), 'novaSenha789').expect(201);
+    it('deve permitir entrar com a senha nova', async () => {
+      const { user } = await redefinirPara('600020', 'novaSenha789');
 
       await request(app.getHttpServer())
         .post('/auth/login')
@@ -330,10 +430,7 @@ describe('Recuperacao de senha (e2e)', () => {
     });
 
     it('nao deve mais aceitar a senha antiga', async () => {
-      const { user } = await registerAndLogin(app, '600021');
-      await pedirRecuperacao(user.email);
-
-      await redefinir(await tokenGeradoPara(user.email), 'novaSenha789').expect(201);
+      const { user } = await redefinirPara('600021', 'novaSenha789');
 
       await request(app.getHttpServer())
         .post('/auth/login')
@@ -342,10 +439,7 @@ describe('Recuperacao de senha (e2e)', () => {
     });
 
     it('deve encerrar as sessoes abertas antes da redefinicao', async () => {
-      const { user, token: sessaoAntiga } = await registerAndLogin(app, '600022');
-      await pedirRecuperacao(user.email);
-
-      await redefinir(await tokenGeradoPara(user.email), 'novaSenha789').expect(201);
+      const { token: sessaoAntiga } = await redefinirPara('600022', 'novaSenha789');
 
       await request(app.getHttpServer())
         .get('/users/me')
@@ -353,35 +447,45 @@ describe('Recuperacao de senha (e2e)', () => {
         .expect(401);
     });
 
-    it('deve recusar senha nova com menos de seis caracteres', async () => {
-      const { user } = await registerAndLogin(app, '600023');
-      await pedirRecuperacao(user.email);
+    it('deve apagar o pedido depois de redefinir', async () => {
+      const { user } = await redefinirPara('600023', 'novaSenha789');
 
-      await redefinir(await tokenGeradoPara(user.email), 'curta').expect(400);
+      expect(await pedidosAtivosDe(user.email)).toBe(0);
     });
 
-    it('nao deve consumir o token quando a senha nova e recusada', async () => {
+    it('deve recusar senha nova com menos de seis caracteres', async () => {
       const { user } = await registerAndLogin(app, '600024');
       await pedirRecuperacao(user.email);
-      const token = await tokenGeradoPara(user.email);
+      const codigo = await codigoEnviadoPara(user.email);
 
-      await redefinir(token, 'curta').expect(400);
-      await redefinir(token, 'novaSenha789').expect(201);
+      await redefinir(user.email, codigo, 'curta').expect(400);
     });
   });
 
   describe('entrada invalida', () => {
-    it('deve exigir o e-mail', async () => {
+    it('deve exigir o e-mail no pedido de recuperacao', async () => {
       await request(app.getHttpServer())
         .post('/auth/forgot-password')
         .send({})
         .expect(400);
     });
 
-    it('deve exigir token e senha nova', async () => {
+    it('deve exigir e-mail, codigo e senha nova na redefinicao', async () => {
+      const { user } = await registerAndLogin(app, '600025');
+
       await request(app.getHttpServer())
         .post('/auth/reset-password')
-        .send({ token: 'algum-token' })
+        .send({ email: user.email })
+        .expect(400);
+
+      await request(app.getHttpServer())
+        .post('/auth/reset-password')
+        .send({ email: user.email, codigo: '12345678' })
+        .expect(400);
+
+      await request(app.getHttpServer())
+        .post('/auth/reset-password')
+        .send({ codigo: '12345678', novaSenha: 'novaSenha789' })
         .expect(400);
     });
   });

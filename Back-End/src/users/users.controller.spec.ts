@@ -14,6 +14,12 @@ describe('UsersController', () => {
     alterarSenha: jest.fn(),
   };
 
+  const termosService = {
+    vigente: jest.fn(),
+    registrarAceite: jest.fn(),
+    termoPendente: jest.fn().mockResolvedValue(false),
+  };
+
   const autenticadoComo = (userId: number) => ({ user: { userId } });
 
   const guardsDe = (metodo: keyof UsersController) =>
@@ -21,7 +27,7 @@ describe('UsersController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new UsersController(usersService as any);
+    controller = new UsersController(usersService as any, termosService as any);
   });
 
 
