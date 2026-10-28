@@ -47,6 +47,7 @@ export class CreateCaminhaoDto {
 
   @IsOptional()
   @IsInt()
-  @IsIn([2, 3, 4, 5, 6, 7, 9], { message: 'Número de eixos inválido. Valores aceitos: 2, 3, 4, 5, 6, 7, 9.' })
+  @Min(2, { message: 'Número de eixos deve ser pelo menos 2.' })
+  @Max(20, { message: 'Número de eixos deve ser no máximo 20.' })
   numeroEixos?: number;
 }
