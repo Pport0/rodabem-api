@@ -229,7 +229,7 @@ describe('Usuarios - seguranca (e2e)', () => {
         .get('/users')
         .query({ nome: "'; DROP TABLE \"User\"; --" })
         .set('Authorization', `Bearer ${token}`)
-        .expect(403);
+        .expect(404);
 
       await request(app.getHttpServer())
         .get('/users/me')

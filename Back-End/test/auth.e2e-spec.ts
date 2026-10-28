@@ -49,11 +49,11 @@ describe('Fluxo de autenticacao (e2e)', () => {
     const { token } = await registerAndLogin(app, '100001');
 
     await request(app.getHttpServer())
-      .get('/users')
+      .get('/users/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    await request(app.getHttpServer()).get('/users').expect(401);
+    await request(app.getHttpServer()).get('/users/me').expect(401);
 
     await request(app.getHttpServer())
       .post('/auth/logout')
@@ -61,7 +61,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
       .expect(201);
 
     await request(app.getHttpServer())
-      .get('/users')
+      .get('/users/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
   });
@@ -148,7 +148,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
   describe('protecao de rotas', () => {
     it('deve recusar acesso com token malformado', async () => {
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', 'Bearer token-invalido')
         .expect(401);
     });
@@ -157,14 +157,14 @@ describe('Fluxo de autenticacao (e2e)', () => {
       const { token } = await registerAndLogin(app, '100006');
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', token)
         .expect(401);
     });
 
     it('deve recusar acesso com header authorization vazio', async () => {
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', '')
         .expect(401);
     });
@@ -199,7 +199,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
         .expect(201);
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', `Bearer ${segunda.token}`)
         .expect(200);
     });
@@ -224,7 +224,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
       );
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', `Bearer ${expirado}`)
         .expect(401);
     });
@@ -237,7 +237,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
       );
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', `Bearer ${forjado}`)
         .expect(401);
     });
@@ -246,7 +246,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
       const { token } = await registerAndLogin(app, '100010');
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
     });

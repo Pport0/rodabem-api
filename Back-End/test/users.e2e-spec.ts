@@ -212,7 +212,7 @@ describe('Usuarios (e2e)', () => {
   });
 
   describe('GET /users', () => {
-    it('nao deve entregar a lista de usuarios a quem esta autenticado', async () => {
+    it('nao deve existir rota de listagem de usuarios', async () => {
       const { token } = await autenticar('300020');
       const outro = await registerAndLogin(app, '300021');
 
@@ -221,13 +221,10 @@ describe('Usuarios (e2e)', () => {
         .query({ page: 1, limit: 50 })
         .set('Authorization', `Bearer ${token}`);
 
-      expect(resposta.status).toBe(403);
+      expect(resposta.status).toBe(404);
       expect(JSON.stringify(resposta.body)).not.toContain(outro.user.email);
     });
 
-    it('deve exigir autenticacao', async () => {
-      await request(app.getHttpServer()).get('/users').expect(401);
-    });
   });
 
   describe('PUT /users/:id', () => {

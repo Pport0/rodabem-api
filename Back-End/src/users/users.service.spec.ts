@@ -183,65 +183,6 @@ describe('UsersService', () => {
 
   });
 
-  describe('listagem paginada', () => {
-    beforeEach(() => {
-      prisma.user.findMany.mockResolvedValue([]);
-      prisma.user.count.mockResolvedValue(0);
-    });
-
-    it('deve usar pagina 1 e limite 10 por padrao', async () => {
-      const resultado = await service.findAll({});
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: 0, take: 10, where: {} }),
-      );
-      expect(resultado).toEqual({ data: [], total: 0, page: 1, limit: 10 });
-    });
-
-
-    it('deve filtrar por nome sem diferenciar caixa', async () => {
-      await service.findAll({ nome: 'gab' });
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { nome: { contains: 'gab', mode: 'insensitive' } },
-        }),
-      );
-    });
-
-    it('deve converter status "true" em filtro booleano verdadeiro', async () => {
-      await service.findAll({ status: 'true' });
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: true } }),
-      );
-    });
-
-
-
-
-
-
-    it('deve devolver o total mesmo quando a pagina esta vazia', async () => {
-      prisma.user.count.mockResolvedValue(42);
-
-      await expect(service.findAll({ page: 99, limit: 10 })).resolves.toEqual({
-        data: [],
-        total: 42,
-        page: 99,
-        limit: 10,
-      });
-    });
-
-    it('deve tratar pagina e limite recebidos como texto na query', async () => {
-      await service.findAll({ page: '2', limit: '5' } as any);
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: 5, take: 5 }),
-      );
-    });
-  });
-
   describe('ordem das verificacoes na exclusao', () => {
     beforeEach(() => {
       prisma.user.findUnique.mockResolvedValue({ id: userId });
