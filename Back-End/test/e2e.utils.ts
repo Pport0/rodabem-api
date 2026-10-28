@@ -23,7 +23,10 @@ export async function publicarTermoVigente(prisma: PrismaService) {
   return termo;
 }
 
-export async function clearDatabase(prisma: PrismaService) {
+export async function clearDatabase(
+  prisma: PrismaService,
+  opcoes: { comTermoVigente?: boolean } = {},
+) {
   await prisma.simulacaoFrete.deleteMany();
   await prisma.abastecimento.deleteMany();
   await prisma.documento.deleteMany();
@@ -35,7 +38,9 @@ export async function clearDatabase(prisma: PrismaService) {
   await prisma.tabelaAntt.deleteMany();
   await prisma.versaoAntt.deleteMany();
 
-  await publicarTermoVigente(prisma);
+  if (opcoes.comTermoVigente !== false) {
+    await publicarTermoVigente(prisma);
+  }
 }
 
 export function buildValidCpf(seed: string): string {

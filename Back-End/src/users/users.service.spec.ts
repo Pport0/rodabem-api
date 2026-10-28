@@ -31,8 +31,13 @@ describe('UsersService', () => {
     passwordResetToken: {
       deleteMany: jest.fn(),
     },
-    $transaction: jest.fn((operacoes: unknown[]) =>
-      Promise.all(operacoes as Promise<unknown>[]),
+    aceiteTermo: {
+      create: jest.fn(),
+    },
+    $transaction: jest.fn((argumento: unknown) =>
+      typeof argumento === 'function'
+        ? (argumento as (tx: unknown) => Promise<unknown>)(prisma)
+        : Promise.all(argumento as Promise<unknown>[]),
     ),
   };
 
@@ -130,6 +135,31 @@ describe('UsersService', () => {
       ).rejects.toThrow(BadRequestException);
 
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    const cadastroSemConflito = () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      termosService.vigente.mockResolvedValue({ id: 7, versao: '1.0' });
+      return { ...dtoValido, termoVersao: '1.0' } as any;
+    };
+
+    it('nao deve registrar o aceite quando a criacao do usuario falha', async () => {
+      const dto = cadastroSemConflito();
+      prisma.user.create.mockRejectedValue(new Error('banco indisponivel'));
+
+      await expect(service.create(dto)).rejects.toThrow('banco indisponivel');
+
+      expect(prisma.aceiteTermo.create).not.toHaveBeenCalled();
+    });
+
+    it('nao deve concluir o cadastro quando o registro do aceite falha', async () => {
+      const dto = cadastroSemConflito();
+      prisma.user.create.mockResolvedValue({ id: 1, ...dtoValido, senhaHash: 'h', cpfEncrypted: 'c', cpfHash: 'ch' });
+      prisma.aceiteTermo.create.mockRejectedValue(new Error('aceite recusado'));
+
+      await expect(service.create(dto)).rejects.toThrow('aceite recusado');
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
 
