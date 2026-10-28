@@ -3,7 +3,7 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CryptoModule } from '../crypto/crypto.module';
-import { TermosModule } from 'src/termos/termos.module';
+import { TermosModule } from '../termos/termos.module';
 
 @Module({
   imports: [PrismaModule, CryptoModule, TermosModule],
