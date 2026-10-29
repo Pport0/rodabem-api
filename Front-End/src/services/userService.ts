@@ -7,6 +7,7 @@ export async function createUser(userData: {
   cpf?: string;
   telefone?: string;
   senha: string;
+  termoVersao: string;
 }): Promise<User> {
   const response = await api.post<User>("/users", userData);
   return response.data;

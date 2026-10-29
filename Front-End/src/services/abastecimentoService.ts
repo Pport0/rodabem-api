@@ -3,6 +3,7 @@ import {
   CreateAbastecimentoDto,
   MediaConsumoResponse,
   PostosProximosResponse,
+  RelatorioAbastecimentosResponse,
   UpdateAbastecimentoDto,
 } from "@/@types/abastecimento";
 import { HodometroScanResponse } from "@/@types/scan";
@@ -39,6 +40,16 @@ export async function deleteAbastecimento(id: number): Promise<void> {
 
 export async function getMediaConsumo(): Promise<MediaConsumoResponse> {
   const response = await api.get<MediaConsumoResponse>("/abastecimentos/media-consumo");
+  return response.data;
+}
+
+export async function getRelatorioAbastecimentos(periodo: {
+  dataInicio: string;
+  dataFim: string;
+}): Promise<RelatorioAbastecimentosResponse> {
+  const response = await api.get<RelatorioAbastecimentosResponse>("/abastecimentos/relatorio", {
+    params: periodo,
+  });
   return response.data;
 }
 

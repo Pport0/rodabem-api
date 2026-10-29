@@ -42,6 +42,10 @@ export interface SimulacaoFreteResponse {
   percentualLucroDesejado: number | null;
   valorSugerido: number | null;
   sugeridoAbaixoDoMinimo: boolean | null;
+  tabelaAnttReferencia?: {
+    resolucao: string;
+    vigenteDesde: string;
+  };
   aviso: string | null;
 }
 

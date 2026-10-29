@@ -1,5 +1,6 @@
 import { Caminhao, UpdateCaminhaoDto } from '@/@types/caminhao';
 import Input from '@/components/input';
+import { QueryErrorState } from '@/components/queryErrorState';
 import colors from '@/constants/colors';
 import { getMeuCaminhao, updateCaminhao, deleteCaminhao } from '@/services/caminhaoService';
 import { Toast } from '@/shared/ui/molecules/Toast';
@@ -46,7 +47,7 @@ export default function EditarCaminhao() {
   const [numeroEixos, setNumeroEixos] = useState('');
   const [errors, setErrors] = useState<CaminhaoFormErrors>({});
 
-  const { data: caminhao, isLoading } = useQuery<Caminhao | null>({
+  const { data: caminhao, isLoading, isError, refetch } = useQuery<Caminhao | null>({
     queryKey: ['caminhao'],
     queryFn: getMeuCaminhao,
   });
@@ -139,6 +140,17 @@ export default function EditarCaminhao() {
     return (
       <View style={loadingStyles.container}>
         <ActivityIndicator color={primaryColor} size="large" />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={[loadingStyles.container, { padding: 20 }]}>
+        <QueryErrorState
+          message="Não foi possível carregar os dados do caminhão."
+          onRetry={() => { void refetch(); }}
+        />
       </View>
     );
   }

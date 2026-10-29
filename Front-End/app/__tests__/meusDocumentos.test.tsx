@@ -71,4 +71,14 @@ describe('Meus documentos', () => {
 
     expect(router.push).toHaveBeenCalledWith('/documentos/novo');
   });
+
+  it('deve mostrar falha de carregamento e permitir tentar novamente', async () => {
+    jest.mocked(getDocumentos).mockRejectedValueOnce(new Error('Sem conexão'));
+    jest.mocked(getDocumentos).mockResolvedValueOnce([documento({ nome: 'CRLV após retry' })] as never);
+    await montar([]);
+
+    await waitFor(() => expect(screen.getByText('Não foi possível carregar seus documentos.')).toBeTruthy());
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar carregar novamente' }));
+    await waitFor(() => expect(screen.getByText('CRLV após retry')).toBeTruthy());
+  });
 });

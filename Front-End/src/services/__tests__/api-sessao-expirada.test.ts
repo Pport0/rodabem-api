@@ -58,6 +58,19 @@ beforeEach(() => {
 afterEach(() => consoleError.mockRestore());
 
 describe('401 em rota protegida', () => {
+  it('nao deve encerrar sessao nem redirecionar quando ainda nao existe credencial', async () => {
+    memoria.delete(CHAVE_TOKEN);
+    const erro = erroHttp(401, '/documentos/alertas');
+
+    await expect(interceptorDeResposta().erro(erro)).rejects.toBe(erro);
+
+    expect(memoria.has(CHAVE_TOKEN)).toBe(false);
+    expect(memoria.has(CHAVE_USUARIO)).toBe(true);
+    expect(queryClient.clear).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
   it('deve encerrar a sessao local e levar ao login com o aviso de sessao expirada', async () => {
     const erro = erroHttp(401, '/users/me');
 
@@ -83,6 +96,7 @@ describe('401 em rota protegida', () => {
   it('deve voltar a redirecionar se a sessao cair de novo depois de um novo login', async () => {
     await interceptorDeResposta().erro(erroHttp(401, '/caminhoes')).catch(() => {});
     entrarDeNovo();
+    memoria.set(CHAVE_TOKEN, 'jwt-token');
     await interceptorDeResposta().erro(erroHttp(401, '/caminhoes')).catch(() => {});
 
     expect(router.replace).toHaveBeenCalledTimes(2);

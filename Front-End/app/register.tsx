@@ -1,13 +1,16 @@
 import colors from "@/constants/colors";
 import Input from "@/components/input";
 import { useAuth } from "@/contexts/authContext";
+import { getTermoVigente } from "@/services/termosService";
 import Button from "@/shared/ui/base/button";
 import { maskCpf } from "@/utils/maskCpf";
 import { maskPhone } from "@/utils/maskPhone";
 import { validateEmail } from "@/utils/userValidation";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import { useState } from "react";
-import { Dimensions, ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 interface FormErrors {
   nome?: string;
@@ -16,6 +19,7 @@ interface FormErrors {
   senha?: string;
   confirmarSenha?: string;
   email?: string;
+  termo?: string;
 }
 
 export default function Register() {
@@ -29,8 +33,10 @@ export default function Register() {
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
+  const [aceitouTermo, setAceitouTermo] = useState(false);
+  const termoQuery = useQuery({ queryKey: ["termo-vigente"], queryFn: getTermoVigente });
 
-  const { signUp } = useAuth();
+  const { signUp, signUpIsPending } = useAuth();
 
   const isMinLength = senha.length >= 6;
   const hasChars = senha.length > 0;
@@ -68,10 +74,15 @@ export default function Register() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = async () => {
-    if (!validate()) return;
+  const handleRegister = () => {
+    if (signUpIsPending || !validate()) return;
+    if (!aceitouTermo) {
+      setErrors((atual) => ({ ...atual, termo: "Marque a caixa para liberar o cadastro." }));
+      return;
+    }
+    if (!termoQuery.data) return;
     // Vazio vai como undefined: telefone e unico no banco, e "" colidiria entre usuarios sem telefone.
-    await signUp({ cpf: cpf.replace(/\D/g, ''), telefone: telefoneDigits || undefined, senha, email: email.trim(), nome: nome.trim() });
+    signUp({ cpf: cpf.replace(/\D/g, ''), telefone: telefoneDigits || undefined, senha, email: email.trim(), nome: nome.trim(), termoVersao: termoQuery.data.versao });
   };
 
   return (
@@ -175,11 +186,53 @@ export default function Register() {
         )}
       </View>
 
+      <View style={styles.termSection}>
+        {termoQuery.isLoading ? (
+          <ActivityIndicator color={primaryColor} />
+        ) : termoQuery.isError ? (
+          <View style={styles.termLoadError}>
+            <Text style={styles.errorText}>Não foi possível carregar o termo antes de criar sua conta.</Text>
+            <TouchableOpacity onPress={() => { void termoQuery.refetch(); }}>
+              <Text style={[styles.termLink, { color: primaryColor }]}>Tentar carregar novamente</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View style={styles.termRow}>
+              <TouchableOpacity
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: aceitouTermo }}
+                accessibilityLabel="Aceitar Termo de Uso e Isenção de Responsabilidade"
+                style={[styles.termCheckbox, aceitouTermo && { backgroundColor: primaryColor, borderColor: primaryColor }]}
+                onPress={() => {
+                  setAceitouTermo((marcado) => !marcado);
+                  setErrors((atual) => ({ ...atual, termo: undefined }));
+                }}
+              >
+                {aceitouTermo && <Ionicons name="checkmark" size={18} color="#fff" />}
+              </TouchableOpacity>
+              <Text style={styles.termText}>Li e aceito o </Text>
+              <Pressable onPress={() => router.push("/termos")}>
+                <Text style={[styles.termLink, { color: primaryColor }]}>Termo de Uso e Isenção de Responsabilidade</Text>
+              </Pressable>
+            </View>
+            {!aceitouTermo && (
+              <Text style={styles.termHint}>Marque a caixa para liberar o botão CONTINUAR.</Text>
+            )}
+            {errors.termo && <Text style={styles.errorText}>{errors.termo}</Text>}
+          </>
+        )}
+      </View>
+
       <Button
         height={60}
         width={Dimensions.get('window').width - 40}
         backgroundColor={primaryColor}
         onPress={handleRegister}
+        isLoading={signUpIsPending}
+        loadingText="Criando conta..."
+        showLoadingIndicator
+        disabled={signUpIsPending || !aceitouTermo || !termoQuery.data || termoQuery.isLoading}
       >
         <Text style={styles.buttonText}>CONTINUAR</Text>
       </Button>
@@ -225,6 +278,43 @@ const styles = StyleSheet.create({
   passwordHints: {
     gap: 6,
     paddingHorizontal: 2,
+  },
+  termSection: {
+    width: "100%",
+    gap: 6,
+  },
+  termLoadError: {
+    gap: 8,
+  },
+  termRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  termCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: "#777",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 9,
+    backgroundColor: "#fff",
+  },
+  termText: {
+    color: "#333",
+    fontSize: 13,
+  },
+  termLink: {
+    fontSize: 13,
+    fontWeight: "700",
+    textDecorationLine: "underline",
+  },
+  termHint: {
+    color: "#777",
+    fontSize: 12,
+    marginLeft: 33,
   },
   passwordHint: {
     flexDirection: 'row',

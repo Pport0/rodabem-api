@@ -31,7 +31,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(),
 }));
 
-const CAMPO_PRECO = 'Ex: 6.39';
+const CAMPO_PRECO = 'Ex: 6,39';
 const CAMPO_LITROS = 'Ex: 320';
 const CAMPO_KM = 'Ex: 182350';
 const CAMPO_POSTO = 'Ex: Posto Rota Norte';

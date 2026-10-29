@@ -1,6 +1,7 @@
 import { User } from "@/@types/user";
 import Button from "@/shared/ui/base/button";
 import Input from "@/components/input";
+import { QueryErrorState } from "@/components/queryErrorState";
 import colors from "@/constants/colors";
 import { useUser } from "@/hooks/useUser";
 import { getMeuPerfil, updateUser } from "@/services/userService";
@@ -34,10 +35,11 @@ export default function EditarPerfil() {
   const queryClient = useQueryClient();
   const { user } = useUser();
 
-  const { data: perfil } = useQuery<User | null>({
+  const perfilQuery = useQuery<User | null>({
     queryKey: ["perfil"],
     queryFn: () => getMeuPerfil(),
   });
+  const perfil = perfilQuery.data;
 
   const inicial = perfil ?? user;
   const [nome, setNome] = useState(inicial?.nome ?? "");
@@ -96,6 +98,13 @@ export default function EditarPerfil() {
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>EDITAR PERFIL</Text>
       <Text style={styles.subtitle}>Atualize seu nome, e-mail e telefone.</Text>
+      {perfilQuery.isError && (
+        <QueryErrorState
+          compact
+          message="Não foi possível atualizar seus dados do servidor. Você pode tentar novamente."
+          onRetry={() => { void perfilQuery.refetch(); }}
+        />
+      )}
       <View style={styles.field}>
         <Text style={styles.label}>NOME COMPLETO*</Text>
         <Input placeholder="Digite seu nome completo" value={nome} onChangeText={alterar(setNome)} />

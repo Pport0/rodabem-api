@@ -133,12 +133,21 @@ describe('Tela inicial - alerta de vencimento (#29, RNE-11)', () => {
     expect(screen.queryByText('ALERTA')).toBeNull();
   });
 
-  it('nao deve quebrar a tela inicial quando a busca de alertas falha', async () => {
-    jest.mocked(getAlertasVencimento).mockRejectedValue(new Error('Network Error'));
+  it('deve avisar quando nao consegue verificar vencimentos e permitir tentar novamente', async () => {
+    jest.mocked(getAlertasVencimento).mockRejectedValueOnce(new Error('Network Error'));
+    jest.mocked(getAlertasVencimento).mockResolvedValueOnce({
+      alertas: [alerta('CNH', 15)],
+      mensagem: '1 documento vencendo.',
+    });
 
     await montar();
 
     expect(await screen.findByText('MEUS DOCUMENTOS')).toBeTruthy();
     expect(screen.queryByText('ALERTA')).toBeNull();
+    expect(screen.getByText('Não foi possível verificar os vencimentos dos documentos.')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar carregar novamente' }));
+
+    expect(await screen.findByText('CNH vence em 15 dias')).toBeTruthy();
   });
 });

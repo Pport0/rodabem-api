@@ -1,8 +1,9 @@
 import { Abastecimento } from "@/@types/abastecimento";
 import colors from "@/constants/colors";
+import { QueryErrorState } from "@/components/queryErrorState";
 import {
   deleteAbastecimento,
-  getAbastecimentos,
+  getRelatorioAbastecimentos,
   getMediaConsumo,
 } from "@/services/abastecimentoService";
 import { Toast } from "@/shared/ui/molecules/Toast";
@@ -10,7 +11,9 @@ import { queryClient } from "@/utils/queryClient";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
+import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   RefreshControl,
@@ -20,6 +23,19 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+
+function toDateParam(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatMonth(date: Date) {
+  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" })
+    .format(date)
+    .toLocaleUpperCase("pt-BR");
+}
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -48,10 +64,17 @@ function fuelLabel(value: Abastecimento["tipoCombustivel"]) {
 export default function AbastecimentosScreen() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? "light"].primary;
+  const [mesSelecionado, setMesSelecionado] = useState(() => {
+    const agora = new Date();
+    return new Date(agora.getFullYear(), agora.getMonth(), 1);
+  });
+  const dataInicio = toDateParam(mesSelecionado);
+  const dataFim = toDateParam(new Date(mesSelecionado.getFullYear(), mesSelecionado.getMonth() + 1, 0));
+  const tituloMes = formatMonth(mesSelecionado);
 
-  const abastecimentosQuery = useQuery({
-    queryKey: ["abastecimentos"],
-    queryFn: getAbastecimentos,
+  const relatorioQuery = useQuery({
+    queryKey: ["abastecimentos-relatorio", dataInicio],
+    queryFn: () => getRelatorioAbastecimentos({ dataInicio, dataFim }),
   });
 
   const mediaQuery = useQuery({
@@ -63,6 +86,7 @@ export default function AbastecimentosScreen() {
     mutationFn: deleteAbastecimento,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["abastecimentos"] });
+      queryClient.invalidateQueries({ queryKey: ["abastecimentos-relatorio"] });
       queryClient.invalidateQueries({ queryKey: ["media-consumo"] });
       Toast.show("Abastecimento removido com sucesso.", {
         type: "success",
@@ -77,7 +101,7 @@ export default function AbastecimentosScreen() {
     },
   });
 
-  const handleDelete = (item: Abastecimento) => {
+  const handleDelete = (item: Pick<Abastecimento, "id" | "dataAbastecimento">) => {
     Alert.alert(
       "Excluir abastecimento",
       `Deseja remover o registro de ${formatDate(item.dataAbastecimento)}?`,
@@ -92,12 +116,12 @@ export default function AbastecimentosScreen() {
     );
   };
 
-  const isRefreshing = abastecimentosQuery.isRefetching || mediaQuery.isRefetching;
+  const isRefreshing = relatorioQuery.isRefetching || mediaQuery.isRefetching;
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={abastecimentosQuery.data ?? []}
+        data={relatorioQuery.data?.abastecimentos ?? []}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -105,8 +129,8 @@ export default function AbastecimentosScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={() => {
-              abastecimentosQuery.refetch();
-              mediaQuery.refetch();
+              void relatorioQuery.refetch();
+              void mediaQuery.refetch();
             }}
             tintColor={primaryColor}
           />
@@ -115,40 +139,83 @@ export default function AbastecimentosScreen() {
           <View style={styles.headerContent}>
             <View style={[styles.heroCard, { backgroundColor: primaryColor }]}>
               <View style={styles.heroText}>
-                <Text style={styles.heroEyebrow}>MEDIA DE CONSUMO</Text>
+                <Text style={styles.heroEyebrow}>MÉDIA DE CONSUMO GERAL</Text>
                 <Text style={styles.heroValue}>
                   {mediaQuery.data?.mediaConsumo != null
                     ? `${mediaQuery.data.mediaConsumo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${mediaQuery.data.unidade}`
                     : "--"}
                 </Text>
                 <Text style={styles.heroDescription}>
-                  {mediaQuery.data?.mensagem ?? "Acompanhe sua eficiencia por abastecimento."}
+                  Considera todos os abastecimentos registrados.
                 </Text>
               </View>
               <View style={styles.heroIcon}>
                 <Ionicons name="speedometer-outline" size={30} color="#fff" />
               </View>
             </View>
+            {mediaQuery.isError && (
+              <QueryErrorState
+                compact
+                message="Não foi possível carregar a média de consumo."
+                onRetry={() => { void mediaQuery.refetch(); }}
+              />
+            )}
+
+            <View style={styles.monthSelector}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Mês anterior"
+                style={styles.monthArrow}
+                onPress={() => setMesSelecionado((mes) => new Date(mes.getFullYear(), mes.getMonth() - 1, 1))}
+              >
+                <Ionicons name="chevron-back" size={22} color={primaryColor} />
+              </TouchableOpacity>
+              <Text style={styles.monthTitle}>{tituloMes}</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Próximo mês"
+                style={styles.monthArrow}
+                onPress={() => setMesSelecionado((mes) => new Date(mes.getFullYear(), mes.getMonth() + 1, 1))}
+              >
+                <Ionicons name="chevron-forward" size={22} color={primaryColor} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.monthExpenseCard}>
+              <Text style={styles.expenseLabel}>GASTO DO MÊS</Text>
+              {relatorioQuery.isLoading ? (
+                <ActivityIndicator color={primaryColor} />
+              ) : relatorioQuery.isError ? (
+                <Text style={styles.expenseValue}>--</Text>
+              ) : (
+                <Text style={styles.expenseValue}>{formatCurrency(relatorioQuery.data?.totalGasto ?? 0)}</Text>
+              )}
+            </View>
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>HISTORICO DE ABASTECIMENTOS</Text>
+              <Text style={styles.sectionTitle}>{tituloMes}</Text>
               <Text style={styles.sectionSubtitle}>
-                {mediaQuery.data?.totalAbastecimentos ?? 0} registros encontrados
+                {relatorioQuery.data?.totalAbastecimentos ?? 0} registros encontrados
               </Text>
             </View>
           </View>
         }
         ListEmptyComponent={
-          abastecimentosQuery.isLoading ? (
+          relatorioQuery.isLoading ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Carregando abastecimentos...</Text>
             </View>
+          ) : relatorioQuery.isError ? (
+            <QueryErrorState
+              message="Não foi possível carregar o relatório do mês."
+              onRetry={() => { void relatorioQuery.refetch(); }}
+            />
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="water-outline" size={50} color="#d8d8d8" />
-              <Text style={styles.emptyTitle}>Nenhum abastecimento cadastrado</Text>
+              <Text style={styles.emptyTitle}>Nenhum abastecimento em {tituloMes.toLocaleLowerCase("pt-BR")}</Text>
               <Text style={styles.emptySubtitle}>
-                Registre seus abastecimentos para acompanhar consumo e custos.
+                Registre seus abastecimentos para acompanhar os gastos do período.
               </Text>
             </View>
           )
@@ -240,6 +307,47 @@ const styles = StyleSheet.create({
   headerContent: {
     gap: 18,
     marginBottom: 6,
+  },
+  monthSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 48,
+  },
+  monthArrow: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  monthTitle: {
+    flex: 1,
+    textAlign: "center",
+    color: "#333",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+  monthExpenseCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#ececec",
+    padding: 18,
+    gap: 8,
+  },
+  expenseLabel: {
+    color: "#888",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
+  expenseValue: {
+    color: "#1f2937",
+    fontSize: 25,
+    fontWeight: "700",
   },
   heroCard: {
     borderRadius: 24,

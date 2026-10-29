@@ -24,7 +24,7 @@ export default function Login() {
   const [cpfOrPhone, setCpfOrPhone] = useState('');
   const [password, setPassword] = useState(''); 
   const [errors, setErrors] = useState<{ cpfOrPhone?: string; password?: string }>({});
-  const { login } = useAuth();
+  const { login, loginIsPending } = useAuth();
 
   const handleLogin = () => {
     const nextErrors: { cpfOrPhone?: string; password?: string } = {};
@@ -32,6 +32,7 @@ export default function Login() {
     if (!password.trim()) nextErrors.password = 'Informe sua senha.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+    if (loginIsPending) return;
     login({ cpfOrPhone, password });
   }
 
@@ -55,7 +56,17 @@ export default function Login() {
       <Input placeholder="Insira a sua senha" value={password} onChangeText={setPassword} type="password" />
       {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
     </View>
-    <Button borderRadius={10} height={60} width={Dimensions.get('window').width - 40} backgroundColor={primaryColor} onPress={handleLogin}>
+    <Button
+      borderRadius={10}
+      height={60}
+      width={Dimensions.get('window').width - 40}
+      backgroundColor={primaryColor}
+      onPress={handleLogin}
+      isLoading={loginIsPending}
+      loadingText="Entrando..."
+      showLoadingIndicator
+      disabled={loginIsPending}
+    >
       <Text style={styles.buttonText}>Acessar</Text>
     </Button>
     <Pressable onPress={() =>  router.navigate('/forgotPassword')}>

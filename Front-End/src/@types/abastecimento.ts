@@ -42,6 +42,25 @@ export interface MediaConsumoResponse {
   totalTrechosCalculados?: number;
 }
 
+export interface RelatorioAbastecimentosResponse {
+  periodo: { dataInicio: string; dataFim: string };
+  totalAbastecimentos: number;
+  totalLitros: number;
+  totalGasto: number;
+  distanciaPercorrida: number;
+  abastecimentos: Array<Pick<Abastecimento,
+    | "id"
+    | "dataAbastecimento"
+    | "localDescricao"
+    | "postoIdentificado"
+    | "totalLitros"
+    | "valorTotal"
+    | "quilometragem"
+    | "tipoCombustivel"
+    | "precoPorLitro"
+  >>;
+}
+
 export interface PostoProximo {
   nome: string;
   distanciaMetros: number;

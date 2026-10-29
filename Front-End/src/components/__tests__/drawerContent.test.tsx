@@ -24,7 +24,7 @@ const montar = async (user: unknown = { nome: 'Gabriel Silva Souza' }) => {
 
   return render(
     <DrawerContent
-      {...({ navigation: { closeDrawer: fecharGaveta } } as never)}
+      {...({ navigation: { closeDrawer: fecharGaveta } } as any)}
     />,
   );
 };

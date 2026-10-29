@@ -191,7 +191,7 @@ describe('Caminhao - campos opcionais', () => {
     await enviar();
 
     await waitFor(() => expect(createCaminhao).toHaveBeenCalled());
-    const enviado = jest.mocked(createCaminhao).mock.calls[0][0] as Record<string, unknown>;
+    const enviado = jest.mocked(createCaminhao).mock.calls[0][0] as unknown as Record<string, unknown>;
 
     for (const campo of ['marca', 'cor', 'anoFabricacao', 'crv', 'especieTipo', 'chassi']) {
       expect(enviado[campo]).toBeUndefined();

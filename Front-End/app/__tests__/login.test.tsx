@@ -5,8 +5,9 @@ import React from 'react';
 import Login from '../login';
 
 const mockLogin = jest.fn();
+const mockLoginPending = { value: false };
 jest.mock('@/contexts/authContext', () => ({
-  useAuth: () => ({ login: mockLogin, logout: jest.fn(), signUp: jest.fn() }),
+  useAuth: () => ({ login: mockLogin, loginIsPending: mockLoginPending.value, logout: jest.fn(), signUp: jest.fn() }),
 }));
 
 const PLACEHOLDER_IDENTIFICADOR = 'Insira o seu cpf ou telefone';
@@ -44,6 +45,15 @@ describe('Tela de login - conteudo', () => {
 });
 
 describe('Tela de login - envio', () => {
+
+  it('deve desabilitar o botao e indicar processamento durante o login', async () => {
+    mockLoginPending.value = true;
+    await render(<Login />);
+
+    expect(screen.getByRole('button').props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByText('Entrando...')).toBeTruthy();
+    mockLoginPending.value = false;
+  });
 
   it('deve autenticar apenas uma vez por toque no botao', async () => {
     await preencherEEnviar('62999999999', '123456');

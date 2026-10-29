@@ -1,5 +1,6 @@
 import { ComposicaoVeicular, HistoricoFreteItem, SimularFreteDto, TipoCarga } from "@/@types/frete";
 import Input from "@/components/input";
+import { QueryErrorState } from "@/components/queryErrorState";
 import colors from "@/constants/colors";
 import { getHistoricoFrete, simularFrete } from "@/services/freteService";
 import { Toast } from "@/shared/ui/molecules/Toast";
@@ -9,6 +10,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   RefreshControl,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Switch,
@@ -79,6 +81,12 @@ function formatPercent(value: number) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("pt-BR");
+}
+
+function formatReferenceDate(value: string) {
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Date(year, month - 1, day).toLocaleDateString("pt-BR");
 }
 
 function durationLabel(minutes: number) {
@@ -399,6 +407,11 @@ export default function FreteScreen() {
               <Text style={styles.detailLabel}>Valor minimo ANTT</Text>
               <Text style={styles.detailValue}>{formatCurrency(latestResult.valorMinimoAntt)}</Text>
             </View>
+            {latestResult.tabelaAnttReferencia && (
+              <Text style={styles.referenceText}>
+                Referência: {latestResult.tabelaAnttReferencia.resolucao}, vigente desde {formatReferenceDate(latestResult.tabelaAnttReferencia.vigenteDesde)}.
+              </Text>
+            )}
             {typeof latestResult.custoTotal === "number" && (
               <View style={styles.detailLine}>
                 <Text style={styles.detailLabel}>Custos estimados (combustível + pedágios)</Text>
@@ -443,7 +456,14 @@ export default function FreteScreen() {
 
       <View style={styles.historySection}>
         <Text style={styles.sectionTitle}>HISTORICO DE SIMULACOES</Text>
-        {historicoQuery.data?.length ? (
+        {historicoQuery.isLoading ? (
+          <ActivityIndicator style={{ paddingVertical: 20 }} color={primaryColor} />
+        ) : historicoQuery.isError ? (
+          <QueryErrorState
+            message="Não foi possível carregar o histórico de simulações."
+            onRetry={() => { void historicoQuery.refetch(); }}
+          />
+        ) : historicoQuery.data?.length ? (
           historicoQuery.data.map((item) => (
             <HistoryCard key={item.id} item={item} primaryColor={primaryColor} />
           ))
@@ -652,6 +672,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#222",
+  },
+  referenceText: {
+    color: "#6b7280",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: -8,
+    marginBottom: 8,
   },
   warningText: {
     flex: 1,

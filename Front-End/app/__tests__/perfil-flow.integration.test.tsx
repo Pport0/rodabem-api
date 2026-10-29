@@ -104,7 +104,8 @@ describe('Fluxo do perfil', () => {
     await waitFor(() =>
       expect(screen.getAllByText('Gabriel Silva').length).toBeGreaterThan(0),
     );
-    expect(screen.getByText('Nenhum caminhão cadastrado')).toBeTruthy();
+    expect(screen.getByText('Não foi possível carregar os dados do caminhão.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tentar carregar novamente' })).toBeTruthy();
   });
 });
 

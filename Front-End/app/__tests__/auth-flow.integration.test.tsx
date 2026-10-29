@@ -75,9 +75,9 @@ describe('Fluxo de login', () => {
     await preencherLogin('62999999999', '123456');
 
     await waitFor(() =>
-      expect(SecureStore.setItem).toHaveBeenCalledWith(CHAVE_TOKEN, 'jwt-token'),
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith(CHAVE_TOKEN, 'jwt-token'),
     );
-    expect(SecureStore.setItem).toHaveBeenCalledWith(
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
       CHAVE_USUARIO,
       JSON.stringify(usuarioAutenticado.user),
     );
@@ -90,7 +90,7 @@ describe('Fluxo de login', () => {
     await preencherLogin('62999999999', 'senha-errada');
 
     await waitFor(() => expect(mockMostrarToast).toHaveBeenCalled());
-    expect(SecureStore.setItem).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
 });
