@@ -66,8 +66,6 @@ describe('Tela inicial - caminhos para os modulos', () => {
 
     expect(router.push).toHaveBeenCalledWith(destino);
   });
-
-  it.todo('deve avisar na tela inicial quando nao ha caminhao cadastrado');
 });
 
 describe('Tela inicial - alerta de vencimento (#29, RNE-11)', () => {

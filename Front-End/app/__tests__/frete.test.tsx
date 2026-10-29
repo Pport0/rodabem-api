@@ -306,19 +306,6 @@ describe('Tela de frete - resposta do servidor', () => {
   });
 });
 
-describe('Tela de frete - percentual de lucro desejado (RF-14)', () => {
-
-  it.todo('deve oferecer um campo para o percentual de lucro desejado');
-
-  it.todo('deve enviar o percentual informado na simulacao');
-
-  it.todo('deve exibir o valor sugerido de cobranca junto com o piso e os custos');
-
-  it.todo('deve exibir o valor sugerido no padrao brasileiro');
-
-  it.todo('deve avisar quando o valor sugerido fica abaixo do piso da ANTT');
-});
-
 describe('Tela de frete - historico', () => {
   it('deve mostrar o estado vazio quando nao ha simulacao registrada', async () => {
     await montarTela([]);
