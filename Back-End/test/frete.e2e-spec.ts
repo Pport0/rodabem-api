@@ -296,6 +296,16 @@ describe('Fluxo de frete (e2e)', () => {
       expect(resposta.status).not.toBe(404);
     });
 
+    it('o aviso de recuo deve citar a resolucao da versao usada no calculo', async () => {
+      await publicarApenas([7, 9]);
+      const versao = await prisma.versaoAntt.findUnique({ where: { id: await versaoVigente() } });
+
+      const resposta = await simularComEixos(8, '410005');
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.aviso).toContain(versao!.resolucao);
+    });
+
     it('deve aceitar caminhao de 8 eixos e simular pelo vizinho', async () => {
       await publicarApenas([7, 9]);
 
@@ -315,6 +325,73 @@ describe('Fluxo de frete (e2e)', () => {
 
       expect(resposta.status).toBe(201);
       expect(resposta.body.valorMinimoAntt).toBe(300 * 7 + CC);
+    });
+  });
+
+  describe('POST /frete/simular - data de referencia da tabela (RNE-19)', () => {
+    const publicarEixo = async (numeroEixos: number) => {
+      await prisma.tabelaAntt.create({
+        data: {
+          numeroEixos,
+          tipoCarga: TipoCarga.GERAL,
+          distanciaMin: 0,
+          distanciaMax: 99999,
+          valorPorKm: 5,
+          cc: 100,
+          versaoId: await versaoVigente(),
+        },
+      });
+    };
+
+    const simular = async (sufixo: string) => {
+      const { token } = await registerAndLogin(app, sufixo);
+      await createTruck(app, token, { numeroEixos: 6 }).expect(201);
+
+      return request(app.getHttpServer())
+        .post('/frete/simular')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          origem: 'Goiania, GO',
+          destino: 'Brasilia, DF',
+          tipoCarga: TipoCarga.GERAL,
+          precoCombustivel: 6,
+          consumoMedioKmLOverride: 10,
+        });
+    };
+
+    it('deve informar o ato normativo e o inicio da vigencia da tabela usada', async () => {
+      await publicarEixo(6);
+      const versao = await prisma.versaoAntt.findUnique({ where: { id: await versaoVigente() } });
+
+      const resposta = await simular('420001');
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.tabelaAnttReferencia).toEqual({
+        resolucao: versao!.resolucao,
+        vigenteDesde: versao!.vigenteDesde.toISOString(),
+      });
+    });
+
+    it('deve manter a simulacao apontando para a versao que a gerou depois de publicada outra', async () => {
+      await publicarEixo(6);
+      const versaoUsada = await versaoVigente();
+
+      const resposta = await simular('420002');
+
+      await prisma.versaoAntt.update({
+        where: { id: versaoUsada },
+        data: { vigenteAte: new Date() },
+      });
+      await prisma.versaoAntt.create({
+        data: { resolucao: 'Res. posterior de teste', vigenteDesde: new Date(), vigenteAte: null },
+      });
+
+      const gravada = await prisma.simulacaoFrete.findUnique({
+        where: { id: resposta.body.simulacaoId },
+        select: { versaoAnttId: true },
+      });
+
+      expect(gravada!.versaoAnttId).toBe(versaoUsada);
     });
   });
 

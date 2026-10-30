@@ -42,6 +42,10 @@ const simulacao = {
   valorLiquidoEstimado: 5635.58,
   abaixoMinimoAntt: false,
   aviso: null,
+  tabelaAnttReferencia: {
+    resolucao: 'Portaria SUROC nº 22/2026',
+    vigenteDesde: '2026-10-01T00:00:00.000Z',
+  },
 };
 
 const itemHistorico = {
@@ -303,6 +307,34 @@ describe('Tela de frete - resposta do servidor', () => {
     await waitFor(() =>
       expect(screen.getByText('Valor abaixo do piso minimo da ANTT.')).toBeTruthy(),
     );
+  });
+});
+
+describe('Tela de frete - data de referencia da tabela (RNE-19)', () => {
+  it('deve informar de quando sao os valores usados no calculo', async () => {
+    jest.mocked(simularFrete).mockResolvedValue(simulacao as never);
+
+    await montarTela();
+    await preencherObrigatorios();
+    await simular();
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Referência: Portaria SUROC nº 22/2026, vigente desde 01/10/2026.'),
+      ).toBeTruthy(),
+    );
+  });
+
+  it('nao deve inventar referencia quando a resposta nao traz a tabela usada', async () => {
+    const { tabelaAnttReferencia, ...semReferencia } = simulacao;
+    jest.mocked(simularFrete).mockResolvedValue(semReferencia as never);
+
+    await montarTela();
+    await preencherObrigatorios();
+    await simular();
+
+    await waitFor(() => expect(screen.getByText(/6\.471,46/)).toBeTruthy());
+    expect(screen.queryByText(/Referência:/)).toBeNull();
   });
 });
 

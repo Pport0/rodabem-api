@@ -8,6 +8,7 @@ describe('Tabela da ANTT distribuida (e2e)', () => {
 
   const EIXOS_DA_ANTT = [2, 3, 4, 5, 6, 7, 9];
 
+
   const CARGAS_DA_ANTT = [
     'Carga Geral',
     'Carga Granel Pressurizada',
@@ -78,6 +79,23 @@ describe('Tabela da ANTT distribuida (e2e)', () => {
       });
 
       expect(vigentes).toHaveLength(1);
+    });
+
+    it('nao deve haver duas versoes valendo ao mesmo tempo', async () => {
+      const versoes = await prisma.versaoAntt.findMany({
+        select: { resolucao: true, vigenteDesde: true, vigenteAte: true },
+        orderBy: { vigenteDesde: 'asc' },
+      });
+
+      const sobrepostas = versoes
+        .filter((atual, i) => {
+          const anterior = versoes[i - 1];
+          if (!anterior) return false;
+          return anterior.vigenteAte === null || anterior.vigenteAte >= atual.vigenteDesde;
+        })
+        .map((v) => v.resolucao);
+
+      expect(sobrepostas).toEqual([]);
     });
 
     it('nenhuma versao publicada deve ter coeficiente zerado ou negativo', async () => {

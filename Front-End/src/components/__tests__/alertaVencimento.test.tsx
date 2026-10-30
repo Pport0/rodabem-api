@@ -45,10 +45,11 @@ describe('AlertaVencimento', () => {
 
     await montar();
 
-    await waitFor(() => expect(getAlertasVencimento).toHaveBeenCalled());
-
-    expect(
-      screen.queryByText(/nao foi possivel|não foi possível|tente novamente|erro/i),
-    ).not.toBeNull();
+    await waitFor(() =>
+      expect(
+        screen.getByText('Não foi possível verificar os vencimentos dos documentos.'),
+      ).toBeTruthy(),
+    );
+    expect(screen.getByRole('button', { name: 'Tentar carregar novamente' })).toBeTruthy();
   });
 });

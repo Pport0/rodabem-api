@@ -71,6 +71,7 @@
       "src/**/*.{ts,tsx}",
       "app/**/*.{ts,tsx}",
       "!**/*.d.ts",
+      "!src/@types/**",
       "!src/shared/ui/**",
       "!app/_layout.tsx",
       "!app/+html.tsx",

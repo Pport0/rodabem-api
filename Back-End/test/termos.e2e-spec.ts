@@ -225,7 +225,7 @@ describe('Termo de uso e aceite (e2e)', () => {
         .post('/termos/aceite')
         .set('Authorization', `Bearer ${token}`)
         .send({ termoVersao: VERSAO_TERMO })
-        .expect(404);
+        .expect(400);
     });
 
     it('nao deve duplicar o aceite nem mover a data quando repetido', async () => {
