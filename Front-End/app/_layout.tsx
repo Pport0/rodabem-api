@@ -14,13 +14,14 @@ import { ToastProviderWithViewport } from '@/shared/ui/molecules/Toast';
 import { queryClient } from '@/utils/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
+import { getMeuPerfil } from '@/services/userService';
 
 export {
   ErrorBoundary,
 } from 'expo-router';
 
 export const unstable_settings = {
-  initialRouteName: '(drawer)',
+  initialRouteName: 'index',
 };
 
 SplashScreen.preventAutoHideAsync();
@@ -52,13 +53,24 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    const token = SecureStore.getItem(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token');
-    const user = JSON.parse(SecureStore.getItem(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user') || '{}');
-    if (!token || !user?.nome) {
-      router.push('/');
-    } else {
-      router.push('/(drawer)/home');
-    }
+    let ativo = true;
+    const verificarSessao = async () => {
+      const token = await SecureStore.getItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token');
+      const user = JSON.parse(await SecureStore.getItemAsync(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user') || '{}');
+      if (!ativo) return;
+      if (!token || !user?.nome) {
+        router.replace('/');
+        return;
+      }
+      try {
+        const perfil = await getMeuPerfil();
+        if (ativo) router.replace(perfil?.termoPendente ? '/termo-pendente' : '/(drawer)/home');
+      } catch {
+        if (ativo) router.replace('/login');
+      }
+    };
+    void verificarSessao();
+    return () => { ativo = false; };
   }, []);
 
   return (
@@ -72,6 +84,8 @@ function RootLayoutNav() {
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name="login" options={{ headerShown: true, header: () => <Header /> }} />
                 <Stack.Screen name="register" options={{ headerShown: true, header: () => <Header /> }} />
+                <Stack.Screen name="termos" options={{ headerShown: true, header: () => <Header title="Termos de uso" /> }} />
+                <Stack.Screen name="termo-pendente" options={{ headerShown: false, gestureEnabled: false }} />
                 <Stack.Screen name="forgotPassword" options={{ headerShown: true, header: () => <Header /> }} />
                 <Stack.Screen name="reset-password" options={{ headerShown: true, header: () => <Header title="Redefinir Senha" /> }} />
                 <Stack.Screen name="alterarSenha" options={{ headerShown: true, header: () => <Header title="Alterar Senha" /> }} />

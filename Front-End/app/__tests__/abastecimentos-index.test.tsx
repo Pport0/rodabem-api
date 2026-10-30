@@ -67,7 +67,7 @@ const montarTela = async () => {
 };
 
 /** Monta a tela e espera o primeiro registro aparecer na lista. */
-const montarComRegistros = async (registros = [abastecimento], resumo = media) => {
+const montarComRegistros = async (registros: any[] = [abastecimento], resumo: any = media) => {
   jest.mocked(getAbastecimentos).mockResolvedValue(registros as any);
   jest.mocked(getMediaConsumo).mockResolvedValue(resumo as any);
 
@@ -120,6 +120,16 @@ describe('Listagem de abastecimentos - estados da lista', () => {
     expect(
       screen.getByText('Registre seus abastecimentos para acompanhar consumo e custos.'),
     ).toBeTruthy();
+  });
+
+  it('deve informar falha na consulta e permitir recarregar a lista', async () => {
+    jest.mocked(getAbastecimentos).mockRejectedValueOnce(new Error('Sem conexão'));
+    jest.mocked(getAbastecimentos).mockResolvedValueOnce([abastecimento] as any);
+    await montarTela();
+
+    await waitFor(() => expect(screen.getByText('Não foi possível carregar os abastecimentos.')).toBeTruthy());
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar carregar novamente' }));
+    await waitFor(() => expect(screen.getByText('Diesel S10')).toBeTruthy());
   });
 
 

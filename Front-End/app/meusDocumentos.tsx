@@ -1,6 +1,7 @@
 import colors from "@/constants/colors";
 import { Documento } from "@/@types/documento";
 import { DocumentoCard } from "@/components/documentoCard";
+import { QueryErrorState } from "@/components/queryErrorState";
 import { getDocumentos } from "@/services/documentoService";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +21,7 @@ export default function MeusDocumentos() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
 
-  const { data: documentos, isLoading, refetch } = useQuery<Documento[]>({
+  const { data: documentos, isLoading, isError, refetch } = useQuery<Documento[]>({
     queryKey: ['documentos'],
     queryFn: () => getDocumentos(),
   });
@@ -32,6 +33,11 @@ export default function MeusDocumentos() {
           color={primaryColor}
           size="large"
           style={{ marginTop: 60 }}
+        />
+      ) : isError ? (
+        <QueryErrorState
+          message="Não foi possível carregar seus documentos."
+          onRetry={() => { void refetch(); }}
         />
       ) : (
         <FlatList

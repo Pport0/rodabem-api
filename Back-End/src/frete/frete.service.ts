@@ -122,6 +122,7 @@ export class FreteService {
         ],
       },
       orderBy: { vigenteDesde: 'desc' },
+      select: { id: true, resolucao: true, vigenteDesde: true },
     });
 
     if (!versaoAtual) {
@@ -227,9 +228,13 @@ export class FreteService {
       percentualLucroDesejado: dto.percentualLucroDesejado ?? null,
       valorSugerido,
       sugeridoAbaixoDoMinimo: valorSugerido !== null ? sugeridoAbaixoDoMinimo : null,
+      tabelaAnttReferencia: {
+        resolucao: versaoAtual.resolucao,
+        vigenteDesde: versaoAtual.vigenteDesde,
+      },
       aviso: (() => {
         if (eixosFallback)
-          return `Coeficiente calculado com base em ${eixosUsados} eixos (Art. 5º § 5º Res. 6.076/2026) — tabela ANTT não prevê ${caminhao.numeroEixos} eixos para este tipo de carga.`;
+          return `Coeficiente calculado com base em ${eixosUsados} eixos (Art. 5º § 5º ${versaoAtual.resolucao}) — tabela ANTT não prevê ${caminhao.numeroEixos} eixos para este tipo de carga.`;
         if (abaixoMinimoAntt) return 'O valor mínimo da ANTT não cobre os custos estimados desta viagem.';
         if (sugeridoAbaixoDoMinimo) return 'O valor sugerido está abaixo do piso mínimo da ANTT.';
         return null;

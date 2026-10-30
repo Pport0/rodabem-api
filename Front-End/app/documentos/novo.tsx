@@ -1,6 +1,7 @@
 import { CreateDocumentoDto } from "@/@types/documento";
 import { DateField } from "@/components/dateField";
 import Input from "@/components/input";
+import { QueryErrorState } from "@/components/queryErrorState";
 import colors from "@/constants/colors";
 import { getMeuCaminhao } from "@/services/caminhaoService";
 import { createDocumento, scanDocumento } from "@/services/documentoService";
@@ -37,10 +38,11 @@ export default function NovoDocumento() {
   const primaryColor = colors[colorScheme ?? "light"].primary;
 
   const { caminhaoId } = useLocalSearchParams<{ caminhaoId?: string }>();
-  const { data: meuCaminhao } = useQuery({
+  const meuCaminhaoQuery = useQuery({
     queryKey: ["caminhao"],
     queryFn: getMeuCaminhao,
   });
+  const meuCaminhao = meuCaminhaoQuery.data;
 
   const [nome, setNome] = useState("");
   const [numero, setNumero] = useState("");
@@ -169,6 +171,13 @@ export default function NovoDocumento() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {meuCaminhaoQuery.isError && (
+          <QueryErrorState
+            compact
+            message="Não foi possível carregar seu caminhão para vincular o documento."
+            onRetry={() => { void meuCaminhaoQuery.refetch(); }}
+          />
+        )}
         <View style={styles.heroCard}>
           <View style={styles.heroText}>
             <Text style={styles.heroEyebrow}>SCAN DO DOCUMENTO</Text>

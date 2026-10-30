@@ -1,5 +1,6 @@
 import { CreateCaminhaoDto } from "@/@types/caminhao";
 import Input from "@/components/input";
+import { QueryErrorState } from "@/components/queryErrorState";
 import colors from "@/constants/colors";
 import {
   createCaminhao,
@@ -35,7 +36,7 @@ export default function NovoCaminhao() {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? "light"].primary;
 
-  const { data: existingCaminhao, isLoading: isLoadingCaminhao } = useQuery({
+  const { data: existingCaminhao, isLoading: isLoadingCaminhao, isError: caminhaoIsError, refetch: refetchCaminhao } = useQuery({
     queryKey: ["caminhao"],
     queryFn: getMeuCaminhao,
   });
@@ -194,6 +195,17 @@ export default function NovoCaminhao() {
 
     createCaminhaoMutation.mutate(payload);
   };
+
+  if (caminhaoIsError) {
+    return (
+      <View style={[styles.flex, { justifyContent: "center", padding: 20 }]}>
+        <QueryErrorState
+          message="Não foi possível verificar seus dados de caminhão."
+          onRetry={() => { void refetchCaminhao(); }}
+        />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView

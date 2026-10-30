@@ -4,8 +4,9 @@ import React from 'react';
 import Register from '../register';
 
 const mockSignUp = jest.fn();
+const mockSignUpPending = { value: false };
 jest.mock('@/contexts/authContext', () => ({
-  useAuth: () => ({ signUp: mockSignUp, login: jest.fn(), logout: jest.fn() }),
+  useAuth: () => ({ signUp: mockSignUp, signUpIsPending: mockSignUpPending.value, login: jest.fn(), logout: jest.fn() }),
 }));
 
 const CAMPOS = {
@@ -202,6 +203,15 @@ describe('Tela de cadastro - telefone opcional (#47)', () => {
 });
 
 describe('Tela de cadastro - envio', () => {
+
+  it('deve desabilitar o botao e indicar processamento durante o cadastro', async () => {
+    mockSignUpPending.value = true;
+    await render(<Register />);
+
+    expect(screen.getByRole('button').props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByText('Criando conta...')).toBeTruthy();
+    mockSignUpPending.value = false;
+  });
 
   it('deve remover a mascara do CPF e do telefone antes de enviar', async () => {
     await preencher();

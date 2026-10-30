@@ -4,6 +4,14 @@
 
 import '@testing-library/react-native';
 
+// Icons are visual-only in component tests; mock them to avoid loading Expo's font/asset runtime.
+jest.mock('@expo/vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return { __esModule: true, default: ({ name }: { name: string }) => React.createElement(Text, null, name) };
+});
+jest.mock('@expo/vector-icons/FontAwesome', () => ({ __esModule: true, default: { font: {} } }));
+
 // Armazenamento seguro: substituido por um mapa em memoria, para que os testes possam inspecionar e limpar o que foi gravado.
 jest.mock('expo-secure-store', () => {
   const memoria = new Map<string, string>();

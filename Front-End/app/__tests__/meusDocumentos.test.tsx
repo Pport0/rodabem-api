@@ -26,20 +26,6 @@ const documento = (sobrescreve: Record<string, unknown> = {}) => ({
   ...sobrescreve,
 });
 
-const montarComFalha = async () => {
-  jest.mocked(getDocumentos).mockRejectedValue(new Error('Network Error'));
-
-  const cliente = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false, gcTime: 0 } },
-  });
-
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
-  );
-
-  return render(<MeusDocumentos />, { wrapper });
-};
-
 const montar = async (documentos: unknown[] = []) => {
   jest.mocked(getDocumentos).mockResolvedValue(documentos as never);
 
@@ -86,13 +72,13 @@ describe('Meus documentos', () => {
     expect(router.push).toHaveBeenCalledWith('/documentos/novo');
   });
 
-  it('deve avisar que nao conseguiu carregar, em vez de deixar a tela vazia', async () => {
-    await montarComFalha();
+  it('deve mostrar falha de carregamento e permitir tentar novamente', async () => {
+    jest.mocked(getDocumentos).mockRejectedValueOnce(new Error('Sem conexão'));
+    jest.mocked(getDocumentos).mockResolvedValueOnce([documento({ nome: 'CRLV após retry' })] as never);
+    await montar([]);
 
-    await waitFor(() => expect(getDocumentos).toHaveBeenCalled());
-
-    expect(
-      screen.queryByText(/nao foi possivel|não foi possível|tente novamente|erro/i),
-    ).not.toBeNull();
+    await waitFor(() => expect(screen.getByText('Não foi possível carregar seus documentos.')).toBeTruthy());
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar carregar novamente' }));
+    await waitFor(() => expect(screen.getByText('CRLV após retry')).toBeTruthy());
   });
 });

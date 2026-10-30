@@ -1,15 +1,26 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { render, renderHook, screen, waitFor } from '@testing-library/react-native';
+import { Text } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { ReactNode } from 'react';
 
 import { AuthProvider, useAuth } from '../authContext';
 import { signIn } from '@/services/authService';
-import { createUser } from '@/services/userService';
+import { createUser, getMeuPerfil } from '@/services/userService';
 
-jest.mock('@/services/authService', () => ({ signIn: jest.fn() }));
-jest.mock('@/services/userService', () => ({ createUser: jest.fn() }));
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    create: () => ({
+      interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+    }),
+    isAxiosError: (e: unknown) => Boolean(e && typeof e === 'object' && 'isAxiosError' in e),
+  },
+}));
+
+jest.mock('@/services/authService', () => ({ signIn: jest.fn(), signOut: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@/services/userService', () => ({ createUser: jest.fn(), getMeuPerfil: jest.fn() }));
 
 const mockMostrarToast = jest.fn();
 jest.mock('@/shared/ui/molecules/Toast', () => ({
@@ -32,6 +43,26 @@ const montarAuth = async () => {
 
   return renderHook(() => useAuth(), { wrapper });
 };
+
+function AuthConsumerWithoutProvider() {
+  useAuth();
+  return null;
+}
+
+class AuthErrorBoundary extends React.Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    return this.state.error ? <Text>{this.state.error.message}</Text> : this.props.children;
+  }
+}
 
 const usuarioAutenticado = {
   access_token: 'jwt-token',
@@ -66,11 +97,34 @@ describe('authContext - login', () => {
 
   it('deve navegar para a home apos login bem-sucedido', async () => {
     jest.mocked(signIn).mockResolvedValue(usuarioAutenticado as any);
+    jest.mocked(getMeuPerfil).mockResolvedValue({ termoPendente: false } as any);
     const { result } = await montarAuth();
 
     result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/(drawer)/home'));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(drawer)/home'));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('deve levar ao aceite do termo quando o usuario ainda nao aceitou', async () => {
+    jest.mocked(signIn).mockResolvedValue(usuarioAutenticado as any);
+    jest.mocked(getMeuPerfil).mockResolvedValue({ termoPendente: true } as any);
+    const { result } = await montarAuth();
+
+    result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/termo-pendente'));
+  });
+
+  it('nao deve deixar o usuario na area autenticada quando nao consegue verificar o termo', async () => {
+    jest.mocked(signIn).mockResolvedValue(usuarioAutenticado as any);
+    jest.mocked(getMeuPerfil).mockRejectedValue(new Error('Network Error'));
+    const { result } = await montarAuth();
+
+    result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/login'));
+    expect(router.replace).not.toHaveBeenCalledWith('/(drawer)/home');
   });
 
   it('deve exibir mensagem de sucesso ao entrar', async () => {
@@ -149,6 +203,21 @@ describe('authContext - login', () => {
       expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
       expect(router.push).not.toHaveBeenCalled();
     });
+  });
+
+  it('deve ignorar um segundo login enquanto a primeira requisicao esta pendente', async () => {
+    let concluir!: (valor: any) => void;
+    jest.mocked(signIn).mockReturnValue(new Promise((resolve) => { concluir = resolve; }) as any);
+    const { result } = await montarAuth();
+
+    result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
+    result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
+
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(1));
+    expect(signIn).toHaveBeenCalledTimes(1);
+    expect(result.current.loginIsPending).toBe(true);
+    concluir(usuarioAutenticado);
+    await waitFor(() => expect(result.current.loginIsPending).toBe(false));
   });
 
   describe('mensagem de falha legivel', () => {
@@ -247,7 +316,8 @@ describe('authContext - cadastro', () => {
     result.current.signUp(novoUsuario);
 
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/login'));
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(CHAVE_TOKEN, expect.anything());
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(CHAVE_USUARIO, expect.anything());
   });
 
   it('deve exibir mensagem de erro quando o cadastro falha', async () => {
@@ -262,6 +332,21 @@ describe('authContext - cadastro', () => {
         expect.objectContaining({ type: 'error' }),
       ),
     );
+  });
+
+  it('deve ignorar um segundo cadastro enquanto a primeira requisicao esta pendente', async () => {
+    let concluir!: (valor: any) => void;
+    jest.mocked(createUser).mockReturnValue(new Promise((resolve) => { concluir = resolve; }) as any);
+    const { result } = await montarAuth();
+
+    result.current.signUp(novoUsuario);
+    result.current.signUp(novoUsuario);
+
+    await waitFor(() => expect(createUser).toHaveBeenCalledTimes(1));
+    expect(createUser).toHaveBeenCalledTimes(1);
+    expect(result.current.signUpIsPending).toBe(true);
+    concluir({ id: 1 });
+    await waitFor(() => expect(result.current.signUpIsPending).toBe(false));
   });
 
   it('nao deve navegar quando o cadastro falha', async () => {
@@ -281,7 +366,7 @@ describe('authContext - logout', () => {
 
     result.current.logout();
 
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(CHAVE_TOKEN);
+    await waitFor(() => expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(CHAVE_TOKEN));
   });
 
   it('deve redirecionar para a tela inicial sem deixar volta para a area autenticada', async () => {
@@ -289,7 +374,7 @@ describe('authContext - logout', () => {
 
     await result.current.logout();
 
-    expect(router.replace).toHaveBeenCalledWith('/');
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'));
     expect(router.push).not.toHaveBeenCalled();
   });
 
@@ -298,7 +383,7 @@ describe('authContext - logout', () => {
 
     result.current.logout();
 
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(CHAVE_USUARIO);
+    await waitFor(() => expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(CHAVE_USUARIO));
   });
 });
 
@@ -306,9 +391,13 @@ describe('authContext - uso fora do provider', () => {
   it('deve lancar erro ao usar useAuth sem AuthProvider', async () => {
     const silenciar = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    await expect(renderHook(() => useAuth())).rejects.toThrow(
-      'useAuth must be used within AuthProvider',
+    await render(
+      <AuthErrorBoundary>
+        <AuthConsumerWithoutProvider />
+      </AuthErrorBoundary>,
     );
+    expect(screen.getByText('useAuth must be used within AuthProvider')).toBeTruthy();
+    expect(silenciar).toHaveBeenCalled();
 
     silenciar.mockRestore();
   });

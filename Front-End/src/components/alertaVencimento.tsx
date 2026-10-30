@@ -1,5 +1,6 @@
 import { AlertaVencimento as Alerta } from "@/@types/documento";
 import { getAlertasVencimento } from "@/services/documentoService";
+import { QueryErrorState } from "@/components/queryErrorState";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -14,11 +15,21 @@ function descreverPrazo(diasRestantes: number) {
 // RNE-11: alerta de vencimento na tela inicial. A janela e a ordenacao vem do back
 // (GET /documentos/alertas, DIAS_ALERTA_VENCIMENTO); aqui so exibimos.
 export function AlertaVencimento() {
-  const { data } = useQuery({
+  const { data, isError, refetch } = useQuery({
     // Sob ["documentos"] para ser recarregado quando um documento e cadastrado ou editado.
     queryKey: ["documentos", "alertas"],
     queryFn: getAlertasVencimento,
   });
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        compact
+        message="Não foi possível verificar os vencimentos dos documentos."
+        onRetry={() => { void refetch(); }}
+      />
+    );
+  }
 
   const alertas: Alerta[] = data?.alertas ?? [];
   if (alertas.length === 0) return null;

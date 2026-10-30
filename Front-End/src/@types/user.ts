@@ -6,6 +6,7 @@ export interface User {
   token?: string;
   cpf?: string;
   telefone?: string;
+  termoPendente?: boolean;
 }
 
 export interface createUserDto {
@@ -14,4 +15,5 @@ export interface createUserDto {
   cpf?: string;
   telefone?: string;
   senha: string;
+  termoVersao: string;
 } 

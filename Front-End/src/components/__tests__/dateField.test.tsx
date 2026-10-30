@@ -30,7 +30,7 @@ const montar = async (props: Record<string, unknown> = {}) =>
       label="DATA DE EMISSAO"
       value={null}
       onChange={jest.fn()}
-      {...(props as never)}
+      {...(props as any)}
     />,
   );
 

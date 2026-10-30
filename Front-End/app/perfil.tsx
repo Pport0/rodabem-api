@@ -24,6 +24,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { InfoRow } from "@/components/infoRow";
 import { PlacaBadge } from "@/components/placaBadge";
+import { QueryErrorState } from "@/components/queryErrorState";
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "response" in error) {
@@ -44,15 +45,17 @@ export default function Perfil() {
   const { user } = useUser();
   const { logout } = useAuth();
 
-  const { data: perfil } = useQuery<User | null>({
+  const perfilQuery = useQuery<User | null>({
     queryKey: ["perfil"],
     queryFn: () => getMeuPerfil(),
   });
 
-  const { data: caminhao, isLoading } = useQuery<Caminhao | null>({
+  const caminhaoQuery = useQuery<Caminhao | null>({
     queryKey: ["caminhao"],
     queryFn: () => getMeuCaminhao(),
   });
+  const perfil = perfilQuery.data;
+  const caminhao = caminhaoQuery.data;
 
   // ── Mutation: excluir conta ──────────────────────────
   const deleteUserMutation = useMutation({
@@ -128,6 +131,13 @@ export default function Perfil() {
         {/* Dados pessoais */}
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>MEUS DADOS</Text>
+          {perfilQuery.isError && (
+            <QueryErrorState
+              compact
+              message="Não foi possível atualizar os dados do perfil."
+              onRetry={() => { void perfilQuery.refetch(); }}
+            />
+          )}
           <InfoRow label="Nome" value={perfilExibido?.nome} />
           <View style={styles.separator} />
           <InfoRow label="CPF" value={perfilExibido?.cpf} />
@@ -151,10 +161,16 @@ export default function Perfil() {
         {/* Caminhão */}
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>MEU CAMINHÃO</Text>
-          {isLoading ? (
+          {caminhaoQuery.isLoading ? (
             <ActivityIndicator
               color={primaryColor}
               style={{ paddingVertical: 20 }}
+            />
+          ) : caminhaoQuery.isError ? (
+            <QueryErrorState
+              compact
+              message="Não foi possível carregar os dados do caminhão."
+              onRetry={() => { void caminhaoQuery.refetch(); }}
             />
           ) : caminhao ? (
             <>
@@ -220,6 +236,14 @@ export default function Perfil() {
           <Text style={[styles.outlineButtonText, { color: primaryColor }]}>
             ALTERAR SENHA
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.outlineButton, { borderColor: primaryColor }]}
+          onPress={() => router.push("/termos")}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.outlineButtonText, { color: primaryColor }]}>TERMOS DE USO</Text>
         </TouchableOpacity>
 
         {/* ── Zona de perigo ── */}

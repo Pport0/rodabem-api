@@ -1,5 +1,6 @@
 import { TipoCombustivel } from "@/@types/abastecimento";
 import Input from "@/components/input";
+import { QueryErrorState } from "@/components/queryErrorState";
 import colors from "@/constants/colors";
 import { StatusLocalizacao, useLocalizacaoAtual } from "@/hooks/useLocalizacaoAtual";
 import {
@@ -134,6 +135,7 @@ export default function NovoAbastecimento() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["abastecimentos"] });
+      queryClient.invalidateQueries({ queryKey: ["abastecimentos-relatorio"] });
       queryClient.invalidateQueries({ queryKey: ["media-consumo"] });
       Toast.show(
         isEditing ? "Abastecimento atualizado com sucesso." : "Abastecimento cadastrado com sucesso.",
@@ -221,6 +223,11 @@ export default function NovoAbastecimento() {
 
         {abastecimentoQuery.isLoading ? (
           <ActivityIndicator color={primaryColor} style={{ marginTop: 40 }} />
+        ) : isEditing && abastecimentoQuery.isError ? (
+          <QueryErrorState
+            message="Não foi possível carregar o abastecimento para edição."
+            onRetry={() => { void abastecimentoQuery.refetch(); }}
+          />
         ) : (
           <>
             <View style={styles.divider} />
@@ -356,7 +363,15 @@ export default function NovoAbastecimento() {
                 </View>
               )}
               {!postosQuery.isFetching && !!mensagemPostos && (
-                <Text style={styles.locationText}>{mensagemPostos}</Text>
+                postosQuery.isError ? (
+                  <QueryErrorState
+                    compact
+                    message={mensagemPostos}
+                    onRetry={() => { void postosQuery.refetch(); }}
+                  />
+                ) : (
+                  <Text style={styles.locationText}>{mensagemPostos}</Text>
+                )
               )}
             </View>
 

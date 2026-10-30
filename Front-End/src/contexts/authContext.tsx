@@ -1,27 +1,27 @@
-import { User } from '@/@types/user';
 import { signIn, signOut } from '@/services/authService';
 import { encerrarSessaoLocal, voltarAoInicio } from '@/services/sessao';
-import { createUser } from '@/services/userService';
+import { createUser, getMeuPerfil } from '@/services/userService';
+import { guardarAceiteLocal } from '@/services/termosService';
 import { useToast } from '@/shared/ui/molecules/Toast';
-import { UseMutateFunction, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { createContext, ReactNode, useContext } from 'react';
+import { createContext, ReactNode, useContext, useRef } from 'react';
 
 
 interface AuthContextType {
-  login: UseMutateFunction<User, Error, {
-    cpfOrPhone: string;
-    password: string;
-  }, unknown>;
+  login: (credentials: { cpfOrPhone: string; password: string }) => void;
+  loginIsPending: boolean;
   logout: () => void;
-  signUp: UseMutateFunction<User, Error, {
+  signUp: (userData: {
     nome: string;
+    termoVersao: string;
     cpf?: string;
     telefone?: string;
     senha: string;
     email?: string;
-  }, unknown>;
+  }) => void;
+  signUpIsPending: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -41,7 +41,9 @@ function getLoginErrorMessage(error: unknown): string {
 
 export function AuthProvider({ children }: { children: ReactNode }) { 
   const { show } = useToast();
-  const { mutate: loginMutation } = useMutation({
+  const loginInProgress = useRef(false);
+  const signUpInProgress = useRef(false);
+  const { mutate: loginMutation, isPending: loginIsPending } = useMutation({
     mutationFn: async ({ cpfOrPhone, password }: { cpfOrPhone: string, password: string }) => {
       let userData: { cpf?: string; telefone?: string, senha: string } = { senha: password };
       return signIn({ cpf: cpfOrPhone, telefone: cpfOrPhone, senha: password });
@@ -52,7 +54,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await SecureStore.setItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token', token);
         await SecureStore.setItemAsync(process.env.EXPO_PUBLIC_USER_KEY || 'rodabem_user', JSON.stringify(data.user));
         show('Login realizado com sucesso', { type: 'success', backgroundColor: '#10B981' });
-        router.push('/(drawer)/home');
+        try {
+          const perfil = await getMeuPerfil();
+          router.replace(perfil?.termoPendente ? '/termo-pendente' : '/(drawer)/home');
+        } catch {
+          show('Não foi possível verificar o aceite do termo. Tente novamente.', {
+            type: 'error',
+            backgroundColor: '#bf0a30',
+          });
+          router.replace('/login');
+        }
       } else {
         show('Não foi possível concluir o login. Tente novamente.', { type: 'error', backgroundColor: '#bf0a30' });
       }
@@ -60,26 +71,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onError: (error) => {
       show(getLoginErrorMessage(error), { type: 'error',backgroundColor: '#bf0a30' });
     },
+    onSettled: () => {
+      loginInProgress.current = false;
+    },
   });
 
-  const { mutate: signUpMutation } = useMutation({
-    mutationFn: async (userData: { nome: string, cpf?: string; telefone?: string, senha: string, email?: string }) => {
+  const { mutate: signUpMutation, isPending: signUpIsPending } = useMutation({
+    mutationFn: async (userData: { nome: string, cpf?: string; telefone?: string, senha: string, email?: string; termoVersao: string }) => {
       return createUser({
         cpf: userData.cpf,
         telefone: userData.telefone,
         senha: userData.senha,
         email: userData.email,
         nome: userData.nome,
+        termoVersao: userData.termoVersao,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: async (data, userData) => {
+      try {
+        await guardarAceiteLocal(userData.termoVersao, data.id);
+      } catch {
+        // O aceite ja foi registrado pelo servidor; a copia local serve apenas para consulta.
+      }
       show('Usuário criado com sucesso', { type: 'success', backgroundColor: '#10B981' });
       router.push('/login');
     },
     onError: (error) => {
       show('Falha ao criar usuário', { type: 'error',backgroundColor: '#bf0a30' });
     },
+    onSettled: () => {
+      signUpInProgress.current = false;
+    },
   });
+
+  const login = (credentials: { cpfOrPhone: string; password: string }) => {
+    if (loginInProgress.current) return;
+    loginInProgress.current = true;
+    loginMutation(credentials);
+  };
+
+  const signUp = (userData: { nome: string; cpf?: string; telefone?: string; senha: string; email?: string; termoVersao: string }) => {
+    if (signUpInProgress.current) return;
+    signUpInProgress.current = true;
+    signUpMutation(userData);
+  };
 
   const logout = async () => {
     // Invalida o token no servidor enquanto ele ainda esta gravado; se falhar (sem rede, token ja expirado), encerra a sessao local mesmo assim.
@@ -91,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ login: loginMutation, logout, signUp: signUpMutation }}>
+    <AuthContext.Provider value={{ login, loginIsPending, logout, signUp, signUpIsPending }}>
       {children}
     </AuthContext.Provider>
   );
