@@ -14,11 +14,23 @@ describe('AbastecimentoController', () => {
     calcularMediaConsumo: jest.fn(),
   };
 
+  const hodometroScanService = {
+    processarHodometro: jest.fn(),
+  };
+
+  const postosProximosService = {
+    buscar: jest.fn(),
+  };
+
   const autenticadoComo = (userId: number) => ({ user: { userId } });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new AbastecimentoController(abastecimentoService as any);
+    controller = new AbastecimentoController(
+      abastecimentoService as any,
+      hodometroScanService as any,
+      postosProximosService as any,
+    );
   });
 
 

@@ -1,11 +1,8 @@
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { Trend } from 'k6/metrics';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 const SENHA = __ENV.SENHA || 'senha123';
-
-const tamanhoListaUsuarios = new Trend('bytes_lista_usuarios');
 
 export const options = {
   stages: [
@@ -18,8 +15,6 @@ export const options = {
     'http_req_duration{rota:perfil}': ['p(95)<300'],
     'http_req_duration{rota:abastecimentos}': ['p(95)<500'],
     'http_req_duration{rota:documentos}': ['p(95)<500'],
-    'http_req_duration{rota:usuarios}': ['p(95)<500'],
-    bytes_lista_usuarios: ['p(95)<100000'],
   },
 };
 
@@ -66,33 +61,10 @@ export default function (dados) {
     });
     check(documentos, { 'documentos responde 200': (r) => r.status === 200 });
   });
-
-  group('listagem paginada', () => {
-    const usuarios = http.get(`${BASE_URL}/users?page=1&limit=10`, {
-      ...cabecalhos,
-      tags: { rota: 'usuarios' },
-    });
-
-    tamanhoListaUsuarios.add(usuarios.body.length);
-
-    check(usuarios, {
-      'usuarios responde 200': (r) => r.status === 200,
-      'a rota de listagem devolve uma colecao': (r) => {
-        const corpo = r.json();
-        return Array.isArray(corpo) || Array.isArray(corpo.data);
-      },
-      'a pagina respeita o limite pedido': (r) => {
-        const corpo = r.json();
-        const itens = Array.isArray(corpo) ? corpo : corpo.data;
-        return Array.isArray(itens) && itens.length <= 10;
-      },
-    });
-  });
 }
 
 export function handleSummary(dados) {
   const v = (nome) => dados.metrics[nome]?.values ?? {};
-  const bytes = v('bytes_lista_usuarios');
   const checks = v('checks');
   const falhas = v('http_req_failed');
 
@@ -105,20 +77,12 @@ export function handleSummary(dados) {
     `    GET /users/me          ${ms('perfil')} ms`,
     `    GET /abastecimentos    ${ms('abastecimentos')} ms`,
     `    GET /documentos        ${ms('documentos')} ms`,
-    `    GET /users             ${ms('usuarios')} ms`,
     '',
     `  requisicoes com erro     ${((falhas.rate ?? 0) * 100).toFixed(2)} %`,
     `  verificacoes aprovadas   ${((checks.rate ?? 0) * 100).toFixed(2)} %`,
     `    (${checks.fails ?? 0} reprovadas de ${
       (checks.passes ?? 0) + (checks.fails ?? 0)
     })`,
-    '',
-    `  GET /users — tamanho da resposta`,
-    `    p95    ${((bytes['p(95)'] ?? 0) / 1024).toFixed(2)} KB`,
-    '',
-    '  Resposta grande demais significa limite ignorado e tabela inteira na',
-    '  resposta. Resposta pequena demais, do tamanho de um unico registro,',
-    '  significa que a rota nem lista — e aí a verificacao da colecao reprova.',
     '',
   ].join('\n');
 

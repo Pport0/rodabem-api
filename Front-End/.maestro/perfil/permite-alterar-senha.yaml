@@ -1,5 +1,5 @@
 appId: com.anonymous.rodabem
-name: perfil - permite alterar a senha
+name: perfil - alterar a senha encerra a sessao e leva ao login
 ---
 - runScript: ../_comum/identidade.js
 - runFlow: ../_comum/abrir.yaml
@@ -35,5 +35,27 @@ name: perfil - permite alterar a senha
     visibilityPercentage: 30
 - tapOn: "ALTERAR SENHA"
 - extendedWaitUntil:
-    visible: "[Ss]enha atual|NOVA SENHA|Nova senha|Digite a nova senha"
+    visible: "Digite sua senha atual"
     timeout: 20000
+- tapOn: "Digite sua senha atual"
+- inputText: ${output.senha}
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "Digite a nova senha"
+- inputText: "novaSenha456"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "Confirme a nova senha"
+- inputText: "novaSenha456"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "SALVAR NOVA SENHA"
+- extendedWaitUntil:
+    visible: "Senha alterada com sucesso. Entre novamente com a nova senha."
+    timeout: 30000
+- assertVisible: "Insira suas credenciais para acessar"
+- runFlow:
+    file: ../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${output.telefone}
+      SENHA: "novaSenha456"
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000

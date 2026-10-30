@@ -103,6 +103,18 @@ describe('401 em rota protegida', () => {
   });
 });
 
+describe('401 sem sessao em curso', () => {
+  it('nao deve avisar que a sessao expirou quando nao havia credencial guardada', async () => {
+    memoria.clear();
+    const erro = erroHttp(401, '/documentos/alertas');
+
+    await expect(interceptorDeResposta().erro(erro)).rejects.toBe(erro);
+
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
 describe('401 nas rotas de autenticacao', () => {
   it.each(['/auth/login', '/auth/logout', '/auth/forgot-password', '/auth/reset-password'])(
     'nao deve encerrar a sessao nem redirecionar em %s',

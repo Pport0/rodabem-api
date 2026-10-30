@@ -1,13 +1,41 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
-import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import React, { ReactNode } from 'react';
 
 import Register from '../register';
+import { getTermoVigente } from '@/services/termosService';
+
+jest.mock('@/services/termosService', () => ({ getTermoVigente: jest.fn() }));
 
 const mockSignUp = jest.fn();
 const mockSignUpPending = { value: false };
 jest.mock('@/contexts/authContext', () => ({
   useAuth: () => ({ signUp: mockSignUp, signUpIsPending: mockSignUpPending.value, login: jest.fn(), logout: jest.fn() }),
 }));
+
+beforeEach(() => {
+  mockSignUpPending.value = false;
+  jest
+    .mocked(getTermoVigente)
+    .mockResolvedValue({ versao: '1.0', titulo: 'Termo de Uso', conteudo: 'texto' } as never);
+});
+
+const montar = async () => {
+  const cliente = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false, gcTime: 0 } },
+  });
+
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
+  );
+
+  return render(<Register />, { wrapper });
+};
+
+const aceitarTermo = async () => {
+  await waitFor(() => expect(screen.getByRole('checkbox')).toBeTruthy());
+  await fireEvent.press(screen.getByRole('checkbox'));
+};
 
 const CAMPOS = {
   nome: 'Digite aqui o seu nome completo',
@@ -29,7 +57,8 @@ const dadosValidos = {
 
 const preencher = async (valores: Partial<typeof dadosValidos> = {}) => {
   const dados = { ...dadosValidos, ...valores };
-  await render(<Register />);
+  await montar();
+  await aceitarTermo();
 
   for (const chave of Object.keys(CAMPOS) as (keyof typeof CAMPOS)[]) {
     const valor = dados[chave];
@@ -44,7 +73,7 @@ const enviar = async () => {
 
 describe('Tela de cadastro - mascaras', () => {
   it('deve formatar o CPF enquanto o usuario digita', async () => {
-    await render(<Register />);
+    await montar();
 
     await fireEvent.changeText(
       screen.getByPlaceholderText(CAMPOS.cpf),
@@ -57,7 +86,7 @@ describe('Tela de cadastro - mascaras', () => {
   });
 
   it('deve formatar o telefone enquanto o usuario digita', async () => {
-    await render(<Register />);
+    await montar();
 
     await fireEvent.changeText(
       screen.getByPlaceholderText(CAMPOS.telefone),
@@ -159,7 +188,7 @@ describe('Tela de cadastro - validacao', () => {
 
 describe('Tela de cadastro - rotulos', () => {
   it('deve marcar com asterisco somente os campos obrigatorios', async () => {
-    await render(<Register />);
+    await montar();
 
     expect(screen.getByText('TELEFONE')).toBeTruthy();
     expect(screen.queryByText('TELEFONE*')).toBeNull();
@@ -194,7 +223,7 @@ describe('Tela de cadastro - telefone opcional (#47)', () => {
   });
 
   it('deve manter o asterisco nos campos que a RNE-01 define como obrigatorios', async () => {
-    await render(<Register />);
+    await montar();
 
     for (const rotulo of ['NOME COMPLETO*', 'CPF*', 'EMAIL*', 'SENHA DE ACESSO*', 'CONFIRME SUA SENHA*']) {
       expect(screen.getByText(rotulo)).toBeTruthy();
@@ -206,11 +235,10 @@ describe('Tela de cadastro - envio', () => {
 
   it('deve desabilitar o botao e indicar processamento durante o cadastro', async () => {
     mockSignUpPending.value = true;
-    await render(<Register />);
+    await montar();
 
     expect(screen.getByRole('button').props.accessibilityState.disabled).toBe(true);
     expect(screen.getByText('Criando conta...')).toBeTruthy();
-    mockSignUpPending.value = false;
   });
 
   it('deve remover a mascara do CPF e do telefone antes de enviar', async () => {
@@ -237,4 +265,37 @@ describe('Tela de cadastro - envio', () => {
     );
   });
 
+
+  it('nao deve cadastrar de novo enquanto o cadastro em curso nao terminou', async () => {
+    mockSignUpPending.value = true;
+    await preencher();
+
+    await enviar();
+
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
+  it('nao deve cadastrar enquanto o termo nao for aceito', async () => {
+    await montar();
+    await waitFor(() => expect(screen.getByRole('checkbox')).toBeTruthy());
+
+    for (const chave of Object.keys(CAMPOS) as (keyof typeof CAMPOS)[]) {
+      await fireEvent.changeText(
+        screen.getByPlaceholderText(CAMPOS[chave]),
+        dadosValidos[chave],
+      );
+    }
+    await enviar();
+
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
+  it('deve enviar a versao do termo aceita pelo usuario', async () => {
+    await preencher();
+    await enviar();
+
+    expect(mockSignUp).toHaveBeenCalledWith(
+      expect.objectContaining({ termoVersao: '1.0' }),
+    );
+  });
 });

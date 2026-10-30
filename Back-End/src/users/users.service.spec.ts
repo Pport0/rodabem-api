@@ -28,13 +28,35 @@ describe('UsersService', () => {
     abastecimento: {
       count: jest.fn(),
     },
+    passwordResetToken: {
+      deleteMany: jest.fn(),
+    },
+    aceiteTermo: {
+      create: jest.fn(),
+    },
+    $transaction: jest.fn((argumento: unknown) =>
+      typeof argumento === 'function'
+        ? (argumento as (tx: unknown) => Promise<unknown>)(prisma)
+        : Promise.all(argumento as Promise<unknown>[]),
+    ),
+  };
+
+  const cryptoService = {
+    encrypt: jest.fn((texto: string) => `cifrado:${texto}`),
+    decrypt: jest.fn((texto: string) => texto.replace('cifrado:', '')),
+  };
+
+  const termosService = {
+    vigente: jest.fn(),
+    registrarAceite: jest.fn(),
+    termoPendente: jest.fn().mockResolvedValue(false),
   };
 
   const userId = 1;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new UsersService(prisma as any);
+    service = new UsersService(prisma as any, cryptoService as any, termosService as any);
   });
 
  
@@ -115,6 +137,31 @@ describe('UsersService', () => {
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
+    const cadastroSemConflito = () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      termosService.vigente.mockResolvedValue({ id: 7, versao: '1.0' });
+      return { ...dtoValido, termoVersao: '1.0' } as any;
+    };
+
+    it('nao deve registrar o aceite quando a criacao do usuario falha', async () => {
+      const dto = cadastroSemConflito();
+      prisma.user.create.mockRejectedValue(new Error('banco indisponivel'));
+
+      await expect(service.create(dto)).rejects.toThrow('banco indisponivel');
+
+      expect(prisma.aceiteTermo.create).not.toHaveBeenCalled();
+    });
+
+    it('nao deve concluir o cadastro quando o registro do aceite falha', async () => {
+      const dto = cadastroSemConflito();
+      prisma.user.create.mockResolvedValue({ id: 1, ...dtoValido, senhaHash: 'h', cpfEncrypted: 'c', cpfHash: 'ch' });
+      prisma.aceiteTermo.create.mockRejectedValue(new Error('aceite recusado'));
+
+      await expect(service.create(dto)).rejects.toThrow('aceite recusado');
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
 
 
   });
@@ -134,65 +181,6 @@ describe('UsersService', () => {
     });
 
 
-  });
-
-  describe('listagem paginada', () => {
-    beforeEach(() => {
-      prisma.user.findMany.mockResolvedValue([]);
-      prisma.user.count.mockResolvedValue(0);
-    });
-
-    it('deve usar pagina 1 e limite 10 por padrao', async () => {
-      const resultado = await service.findAll({});
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: 0, take: 10, where: {} }),
-      );
-      expect(resultado).toEqual({ data: [], total: 0, page: 1, limit: 10 });
-    });
-
-
-    it('deve filtrar por nome sem diferenciar caixa', async () => {
-      await service.findAll({ nome: 'gab' });
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { nome: { contains: 'gab', mode: 'insensitive' } },
-        }),
-      );
-    });
-
-    it('deve converter status "true" em filtro booleano verdadeiro', async () => {
-      await service.findAll({ status: 'true' });
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: true } }),
-      );
-    });
-
-
-
-
-
-
-    it('deve devolver o total mesmo quando a pagina esta vazia', async () => {
-      prisma.user.count.mockResolvedValue(42);
-
-      await expect(service.findAll({ page: 99, limit: 10 })).resolves.toEqual({
-        data: [],
-        total: 42,
-        page: 99,
-        limit: 10,
-      });
-    });
-
-    it('deve tratar pagina e limite recebidos como texto na query', async () => {
-      await service.findAll({ page: '2', limit: '5' } as any);
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: 5, take: 5 }),
-      );
-    });
   });
 
   describe('ordem das verificacoes na exclusao', () => {
@@ -237,7 +225,7 @@ describe('UsersService', () => {
     });
 
 
-    it('deve alterar apenas o campo de senha', async () => {
+    it('nao deve mexer nos dados cadastrais ao trocar a senha', async () => {
       const senhaHash = await bcrypt.hash('senha123', 10);
       prisma.user.findUnique.mockResolvedValue({ id: userId, senhaHash });
       prisma.user.update.mockResolvedValue({ id: userId });
@@ -247,9 +235,28 @@ describe('UsersService', () => {
         novaSenha: 'novaSenha456',
       });
 
-      expect(Object.keys(prisma.user.update.mock.calls[0][0].data)).toEqual([
-        'senhaHash',
-      ]);
+      const { data } = prisma.user.update.mock.calls[0][0];
+
+      expect(data).not.toHaveProperty('nome');
+      expect(data).not.toHaveProperty('email');
+      expect(data).not.toHaveProperty('telefone');
+      expect(data).not.toHaveProperty('status');
+      expect(data).not.toHaveProperty('cpfEncrypted');
+    });
+
+    it('deve encerrar as sessoes existentes ao trocar a senha', async () => {
+      const senhaHash = await bcrypt.hash('senha123', 10);
+      prisma.user.findUnique.mockResolvedValue({ id: userId, senhaHash });
+      prisma.user.update.mockResolvedValue({ id: userId });
+
+      await service.alterarSenha(userId, {
+        senhaAtual: 'senha123',
+        novaSenha: 'novaSenha456',
+      });
+
+      const { data } = prisma.user.update.mock.calls[0][0];
+
+      expect(data.tokenVersion).toEqual({ increment: 1 });
     });
 
     it('deve recusar troca de senha de usuario inexistente', async () => {

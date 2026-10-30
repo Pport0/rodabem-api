@@ -8,6 +8,7 @@ describe('Tabela da ANTT distribuida (e2e)', () => {
 
   const EIXOS_DA_ANTT = [2, 3, 4, 5, 6, 7, 9];
 
+
   const CARGAS_DA_ANTT = [
     'Carga Geral',
     'Carga Granel Pressurizada',
@@ -65,13 +66,87 @@ describe('Tabela da ANTT distribuida (e2e)', () => {
     expect(invalidas).toEqual([]);
   });
 
+  describe('vigencia das versoes publicadas', () => {
+    it('deve haver exatamente uma versao vigente', async () => {
+      const agora = new Date();
+
+      const vigentes = await prisma.versaoAntt.findMany({
+        where: {
+          vigenteDesde: { lte: agora },
+          OR: [{ vigenteAte: null }, { vigenteAte: { gte: agora } }],
+        },
+        select: { resolucao: true },
+      });
+
+      expect(vigentes).toHaveLength(1);
+    });
+
+    it('nao deve haver duas versoes valendo ao mesmo tempo', async () => {
+      const versoes = await prisma.versaoAntt.findMany({
+        select: { resolucao: true, vigenteDesde: true, vigenteAte: true },
+        orderBy: { vigenteDesde: 'asc' },
+      });
+
+      const sobrepostas = versoes
+        .filter((atual, i) => {
+          const anterior = versoes[i - 1];
+          if (!anterior) return false;
+          return anterior.vigenteAte === null || anterior.vigenteAte >= atual.vigenteDesde;
+        })
+        .map((v) => v.resolucao);
+
+      expect(sobrepostas).toEqual([]);
+    });
+
+    it('nenhuma versao publicada deve ter coeficiente zerado ou negativo', async () => {
+      const invalidas = await prisma.tabelaAntt.findMany({
+        where: { OR: [{ valorPorKm: { lte: 0 } }, { cc: { lt: 0 } }] },
+        select: { versaoId: true, numeroEixos: true, tipoCarga: true },
+      });
+
+      expect(invalidas).toEqual([]);
+    });
+
+    it('nenhuma versao deve terminar a vigencia antes de comecar', async () => {
+      const versoes = await prisma.versaoAntt.findMany({
+        select: { resolucao: true, vigenteDesde: true, vigenteAte: true },
+      });
+
+      const invertidas = versoes
+        .filter((v) => v.vigenteAte !== null && v.vigenteAte < v.vigenteDesde)
+        .map((v) => v.resolucao);
+
+      expect(invertidas).toEqual([]);
+    });
+
+    it('toda versao publicada deve ter coeficiente', async () => {
+      const versoes = await prisma.versaoAntt.findMany({ select: { id: true, resolucao: true } });
+      const vazias: string[] = [];
+
+      for (const versao of versoes) {
+        const quantas = await prisma.tabelaAntt.count({ where: { versaoId: versao.id } });
+        if (quantas === 0) vazias.push(versao.resolucao);
+      }
+
+      expect(vazias).toEqual([]);
+    });
+  });
+
   it('nao deve ter combinacao de eixos e tipo de carga repetida', async () => {
     const todas = await prisma.tabelaAntt.findMany({
-      select: { numeroEixos: true, tipoCarga: true, distanciaMin: true, distanciaMax: true },
+      select: {
+        numeroEixos: true,
+        tipoCarga: true,
+        distanciaMin: true,
+        distanciaMax: true,
+        altoDesempenho: true,
+        composicaoVeicular: true,
+      },
     });
 
     const chaves = todas.map(
-      (f) => `${f.numeroEixos}|${f.tipoCarga}|${f.distanciaMin}-${f.distanciaMax}`,
+      (f) =>
+        `${f.composicaoVeicular}|${f.altoDesempenho}|${f.numeroEixos}|${f.tipoCarga}|${f.distanciaMin}-${f.distanciaMax}`,
     );
 
     expect(chaves).toHaveLength(new Set(chaves).size);

@@ -1,5 +1,5 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { TipoCarga } from '@prisma/client';
+import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ComposicaoVeicular, TipoCarga } from '@prisma/client';
 import { FreteService } from './frete.service';
 
 describe('FreteService', () => {
@@ -9,6 +9,9 @@ describe('FreteService', () => {
     caminhao: {
       findUnique: jest.fn(),
     },
+    versaoAntt: {
+      findFirst: jest.fn(),
+    },
     tabelaAntt: {
       findFirst: jest.fn(),
     },
@@ -16,6 +19,7 @@ describe('FreteService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      count: jest.fn(),
     },
   };
 
@@ -36,13 +40,62 @@ describe('FreteService', () => {
     pedagiosManual: 50,
   };
 
+  const VERSAO_VIGENTE = { id: 7, vigenteDesde: new Date('2026-01-01'), vigenteAte: null };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.versaoAntt.findFirst.mockResolvedValue(VERSAO_VIGENTE);
     service = new FreteService(
       prisma as any,
       ors as any,
       abastecimentoService as any,
     );
+  });
+
+  describe('vigencia da tabela da ANTT', () => {
+    const prepararRota = () => {
+      prisma.caminhao.findUnique.mockResolvedValue({ id: 10, userId, numeroEixos: 6 });
+      ors.calcularRota.mockResolvedValue({
+        distanciaKm: 200,
+        duracaoMinutos: 180,
+        descricaoRota: 'Goiania -> Brasilia',
+      });
+      prisma.tabelaAntt.findFirst.mockResolvedValue({ valorPorKm: 5, cc: 100 });
+      prisma.simulacaoFrete.create.mockResolvedValue({ id: 99 });
+    };
+
+    it('deve recusar a simulacao quando nenhuma versao da tabela esta vigente', async () => {
+      prepararRota();
+      prisma.versaoAntt.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.simular(userId, { ...dto, consumoMedioKmLOverride: 2 } as any),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('deve buscar os coeficientes dentro da versao vigente, nao na tabela inteira', async () => {
+      prepararRota();
+
+      await service.simular(userId, { ...dto, consumoMedioKmLOverride: 2 } as any);
+
+      expect(prisma.tabelaAntt.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ versaoId: VERSAO_VIGENTE.id }),
+        }),
+      );
+    });
+
+    it('deve gravar na simulacao qual versao da tabela gerou o resultado', async () => {
+      prepararRota();
+
+      await service.simular(userId, { ...dto, consumoMedioKmLOverride: 2 } as any);
+
+      expect(prisma.simulacaoFrete.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ versaoAnttId: VERSAO_VIGENTE.id }),
+        }),
+      );
+    });
   });
 
   it('deve impedir calculo de frete quando o usuario nao possui caminhao', async () => {
@@ -155,21 +208,53 @@ describe('FreteService', () => {
     });
   });
 
-  it('deve listar historico apenas do proprio usuario', async () => {
-    prisma.simulacaoFrete.findMany.mockResolvedValue([]);
+  describe('historico', () => {
+    beforeEach(() => {
+      prisma.simulacaoFrete.findMany.mockResolvedValue([]);
+      prisma.simulacaoFrete.count.mockResolvedValue(0);
+    });
 
-    await service.historico(userId);
+    it('deve listar historico apenas do proprio usuario', async () => {
+      await service.historico(userId);
 
-    expect(prisma.simulacaoFrete.findMany).toHaveBeenCalledWith({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
+      expect(prisma.simulacaoFrete.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId } }),
+      );
+      expect(prisma.simulacaoFrete.count).toHaveBeenCalledWith({
+        where: { userId },
+      });
+    });
+
+    it('nao deve carregar o historico inteiro de uma vez', async () => {
+      await service.historico(userId);
+
+      const [consulta] = prisma.simulacaoFrete.findMany.mock.calls[0];
+
+      expect(consulta.take).toBeGreaterThan(0);
+    });
+
+    it('deve avancar o recorte conforme a pagina pedida', async () => {
+      await service.historico(userId, 3, 20);
+
+      expect(prisma.simulacaoFrete.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 40, take: 20 }),
+      );
+    });
+
+    it('deve informar quantas paginas existem para o usuario percorrer', async () => {
+      prisma.simulacaoFrete.count.mockResolvedValue(45);
+
+      const resultado = await service.historico(userId, 1, 20);
+
+      expect(resultado.total).toBe(45);
+      expect(resultado.totalPaginas).toBe(3);
     });
   });
 
   it('deve impedir acesso a simulacao de outro usuario', async () => {
     prisma.simulacaoFrete.findUnique.mockResolvedValue({ id: 1, userId: 2 });
 
-    await expect(service.findOne(userId, 1)).rejects.toThrow(NotFoundException);
+    await expect(service.findOne(userId, 1)).rejects.toThrow(ForbiddenException);
   });
 
   describe('piso minimo da ANTT', () => {
@@ -186,7 +271,18 @@ describe('FreteService', () => {
         duracaoMinutos: 90,
         descricaoRota: 'A -> B',
       });
-      prisma.tabelaAntt.findFirst.mockResolvedValue({ valorPorKm, custoCargaDescarga });
+      prisma.tabelaAntt.findFirst.mockImplementation(({ where }: any) => {
+        const porDesempenho = where.altoDesempenho ? valorPorKm * 0.87 : valorPorKm;
+        const porComposicao =
+          where.composicaoVeicular === 'SEM_CARRETA'
+            ? porDesempenho * 0.9
+            : porDesempenho;
+
+        return Promise.resolve({
+          valorPorKm: porComposicao,
+          cc: custoCargaDescarga,
+        });
+      });
       prisma.simulacaoFrete.create.mockResolvedValue({ id: 1 });
 
       return service.simular(userId, {
@@ -248,14 +344,27 @@ describe('FreteService', () => {
       const comum = await simularCom();
       const altoDesempenho = await simularCom({ altoDesempenho: true });
 
+      expect(prisma.tabelaAntt.findFirst.mock.calls[0][0].where.altoDesempenho).toBe(false);
+      expect(prisma.tabelaAntt.findFirst.mock.calls[1][0].where.altoDesempenho).toBe(true);
       expect(altoDesempenho.valorMinimoAntt).not.toBe(comum.valorMinimoAntt);
     });
 
     it('nao deve ignorar a composicao veicular no calculo do piso', async () => {
-      const simples = await simularCom({ composicaoVeicular: false });
-      const composicao = await simularCom({ composicaoVeicular: true });
+      const comCarreta = await simularCom({
+        composicaoVeicular: ComposicaoVeicular.COM_CARRETA,
+      });
+      const semCarreta = await simularCom({
+        composicaoVeicular: ComposicaoVeicular.SEM_CARRETA,
+      });
 
-      expect(composicao.valorMinimoAntt).not.toBe(simples.valorMinimoAntt);
+      expect(semCarreta.valorMinimoAntt).not.toBe(comCarreta.valorMinimoAntt);
+    });
+
+    it('nao deve ignorar o alto desempenho no calculo do piso', async () => {
+      const comum = await simularCom({ altoDesempenho: false });
+      const alto = await simularCom({ altoDesempenho: true });
+
+      expect(alto.valorMinimoAntt).not.toBe(comum.valorMinimoAntt);
     });
 
     it('deve recusar a simulacao quando nao ha faixa da ANTT para o caminhao', async () => {

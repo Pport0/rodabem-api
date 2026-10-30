@@ -23,11 +23,22 @@ describe('ScanService', () => {
 
   const worker = { recognize: jest.fn(), terminate: jest.fn() };
 
+  const CONTEUDO = {
+    jpeg: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]),
+    png: Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44,
+      0x52,
+    ]),
+    pdf: Buffer.from('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n', 'binary'),
+    gif: Buffer.from('GIF89a'),
+    texto: Buffer.from('apenas texto, nenhum formato reconhecivel'),
+  };
+
   const arquivo = (sobrescreve: Partial<Express.Multer.File> = {}) =>
     ({
       mimetype: 'image/jpeg',
       size: 1024,
-      buffer: Buffer.from('imagem'),
+      buffer: CONTEUDO.jpeg,
       originalname: 'crlv.jpg',
       ...sobrescreve,
     }) as Express.Multer.File;
@@ -73,33 +84,44 @@ describe('ScanService', () => {
   });
 
   describe('validacao do arquivo', () => {
-    it.each(['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'])(
-      'deve aceitar o formato %s',
-      async (mimetype) => {
-        if (mimetype === 'application/pdf') {
-          jest
-            .mocked(fromBuffer)
-            .mockReturnValue(jest.fn().mockResolvedValue({ path: '/tmp/x.jpg' }) as any);
-        }
+    it.each([
+      ['JPEG', CONTEUDO.jpeg],
+      ['PNG', CONTEUDO.png],
+      ['PDF', CONTEUDO.pdf],
+    ])('deve aceitar conteudo %s', async (_, buffer) => {
+      jest
+        .mocked(fromBuffer)
+        .mockReturnValue(jest.fn().mockResolvedValue({ path: '/tmp/x.jpg' }) as any);
 
-        await expect(
-          service.processarDocumento(arquivo({ mimetype })),
-        ).resolves.toBeDefined();
-      },
-    );
+      await expect(service.processarDocumento(arquivo({ buffer }))).resolves.toBeDefined();
+    });
 
-    it.each(['text/plain', 'image/gif', 'application/msword', 'video/mp4'])(
-      'deve recusar o formato %s',
-      async (mimetype) => {
-        await expect(
-          service.processarDocumento(arquivo({ mimetype })),
-        ).rejects.toThrow(BadRequestException);
-      },
-    );
+    it.each([
+      ['GIF', CONTEUDO.gif],
+      ['texto sem formato reconhecivel', CONTEUDO.texto],
+    ])('deve recusar conteudo %s', async (_, buffer) => {
+      await expect(service.processarDocumento(arquivo({ buffer }))).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('deve decidir pelo conteudo, nao pelo tipo declarado pelo cliente', async () => {
+      await expect(
+        service.processarDocumento(
+          arquivo({ mimetype: 'image/jpeg', buffer: CONTEUDO.gif }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.processarDocumento(
+          arquivo({ mimetype: 'application/octet-stream', buffer: CONTEUDO.png }),
+        ),
+      ).resolves.toBeDefined();
+    });
 
     it('deve informar os formatos aceitos ao recusar', async () => {
       await expect(
-        service.processarDocumento(arquivo({ mimetype: 'text/plain' })),
+        service.processarDocumento(arquivo({ buffer: CONTEUDO.texto })),
       ).rejects.toThrow('Formatos aceitos: PDF, JPG, JPEG, PNG.');
     });
 
@@ -117,7 +139,7 @@ describe('ScanService', () => {
 
     it('nao deve chamar o OCR quando o formato e invalido', async () => {
       await expect(
-        service.processarDocumento(arquivo({ mimetype: 'text/plain' })),
+        service.processarDocumento(arquivo({ buffer: CONTEUDO.texto })),
       ).rejects.toThrow(BadRequestException);
 
       expect(Tesseract.createWorker).not.toHaveBeenCalled();

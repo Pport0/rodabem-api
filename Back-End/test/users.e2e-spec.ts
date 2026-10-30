@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -9,6 +10,7 @@ import {
   clearDatabase,
   createTruck,
   registerAndLogin,
+  semLimiteDeRequisicoes,
 } from './e2e.utils';
 
 describe('Usuarios (e2e)', () => {
@@ -26,13 +28,16 @@ describe('Usuarios (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -61,6 +66,28 @@ describe('Usuarios (e2e)', () => {
         .expect(201);
 
       expect(resposta.body.id).toBeDefined();
+    });
+
+    it('deve recusar cadastro com telefone ja usado por outra conta', async () => {
+      const primeiro = buildUserPayload('300040');
+      await request(app.getHttpServer()).post('/users').send(primeiro).expect(201);
+
+      const segundo = { ...buildUserPayload('300041'), telefone: primeiro.telefone };
+
+      const resposta = await request(app.getHttpServer())
+        .post('/users')
+        .send(segundo)
+        .expect(409);
+
+      expect(resposta.body.message).toMatch(/telefone/i);
+    });
+
+    it('deve permitir cadastro sem telefone, mesmo com outra conta sem telefone', async () => {
+      const primeiro = { ...buildUserPayload('300042'), telefone: undefined };
+      const segundo = { ...buildUserPayload('300043'), telefone: undefined };
+
+      await request(app.getHttpServer()).post('/users').send(primeiro).expect(201);
+      await request(app.getHttpServer()).post('/users').send(segundo).expect(201);
     });
 
     it('nunca deve devolver senha nem cpf na resposta do cadastro', async () => {
@@ -185,24 +212,19 @@ describe('Usuarios (e2e)', () => {
   });
 
   describe('GET /users', () => {
-    it('deve devolver uma lista paginada de usuarios', async () => {
+    it('nao deve existir rota de listagem de usuarios', async () => {
       const { token } = await autenticar('300020');
-      await registerAndLogin(app, '300021');
+      const outro = await registerAndLogin(app, '300021');
 
       const resposta = await request(app.getHttpServer())
         .get('/users')
         .query({ page: 1, limit: 50 })
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .set('Authorization', `Bearer ${token}`);
 
-      expect(resposta.body).toHaveProperty('data');
-      expect(Array.isArray(resposta.body.data)).toBe(true);
-      expect(resposta.body.total).toBeGreaterThanOrEqual(2);
+      expect(resposta.status).toBe(404);
+      expect(JSON.stringify(resposta.body)).not.toContain(outro.user.email);
     });
 
-    it('deve exigir autenticacao', async () => {
-      await request(app.getHttpServer()).get('/users').expect(401);
-    });
   });
 
   describe('PUT /users/:id', () => {

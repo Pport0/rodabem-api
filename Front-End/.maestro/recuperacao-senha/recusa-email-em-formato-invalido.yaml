@@ -1,0 +1,20 @@
+appId: com.anonymous.rodabem
+name: recuperacao de senha - recusa e-mail em formato invalido
+---
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "ENTRAR"
+- extendedWaitUntil:
+    visible: "Esqueci minha senha"
+    timeout: 30000
+- tapOn: "Esqueci minha senha"
+- extendedWaitUntil:
+    visible: "Digite o e-mail cadastrado"
+    timeout: 20000
+- tapOn: "ENVIAR"
+- assertVisible: "Email é obrigatório"
+- tapOn: "Digite o e-mail cadastrado"
+- inputText: "sem-arroba"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "ENVIAR"
+- assertVisible: "Email inválido"
+- assertNotVisible: "JÁ TENHO O CÓDIGO"

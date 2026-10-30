@@ -24,12 +24,21 @@ describe('DocumentoService', () => {
     get: jest.fn().mockReturnValue(30),
   };
 
+  const cloudinaryService = {
+    uploadFile: jest.fn(),
+    deleteFile: jest.fn(),
+  };
+
   const userId = 1;
   const now = new Date();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new DocumentoService(prisma as any, configService as any);
+    service = new DocumentoService(
+      prisma as any,
+      configService as any,
+      cloudinaryService as any,
+    );
   });
 
   it('deve cadastrar documento com dados validos', async () => {
@@ -191,5 +200,57 @@ describe('DocumentoService', () => {
       where: { id: 5 },
     });
     expect(result).toEqual({ message: 'Documento removido com sucesso' });
+  });
+
+  describe('exclusao do arquivo junto com o registro', () => {
+    it('deve apagar o arquivo armazenado ao excluir o documento', async () => {
+      prisma.documento.findUnique.mockResolvedValue({
+        id: 5,
+        userId,
+        publicId: 'rodabem/crlv-abc123',
+      });
+      prisma.documento.delete.mockResolvedValue({ id: 5 });
+
+      await service.remove(userId, 5);
+
+      expect(cloudinaryService.deleteFile).toHaveBeenCalledWith('rodabem/crlv-abc123');
+    });
+
+    it('nao deve tentar apagar arquivo de documento que nao tem nenhum', async () => {
+      prisma.documento.findUnique.mockResolvedValue({ id: 6, userId, publicId: null });
+      prisma.documento.delete.mockResolvedValue({ id: 6 });
+
+      await service.remove(userId, 6);
+
+      expect(cloudinaryService.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('deve remover o registro mesmo quando o armazenamento falha', async () => {
+      prisma.documento.findUnique.mockResolvedValue({
+        id: 7,
+        userId,
+        publicId: 'rodabem/orfao',
+      });
+      cloudinaryService.deleteFile.mockRejectedValue(new Error('cdn fora do ar'));
+      prisma.documento.delete.mockResolvedValue({ id: 7 });
+
+      await expect(service.remove(userId, 7)).resolves.toEqual({
+        message: 'Documento removido com sucesso',
+      });
+      expect(prisma.documento.delete).toHaveBeenCalledWith({ where: { id: 7 } });
+    });
+
+    it('nao deve apagar o arquivo de documento de outro usuario', async () => {
+      prisma.documento.findUnique.mockResolvedValue({
+        id: 8,
+        userId: 99,
+        publicId: 'rodabem/de-outro',
+      });
+
+      await expect(service.remove(userId, 8)).rejects.toThrow();
+
+      expect(cloudinaryService.deleteFile).not.toHaveBeenCalled();
+      expect(prisma.documento.delete).not.toHaveBeenCalled();
+    });
   });
 });

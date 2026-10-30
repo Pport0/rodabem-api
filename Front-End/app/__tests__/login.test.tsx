@@ -10,6 +10,10 @@ jest.mock('@/contexts/authContext', () => ({
   useAuth: () => ({ login: mockLogin, loginIsPending: mockLoginPending.value, logout: jest.fn(), signUp: jest.fn() }),
 }));
 
+beforeEach(() => {
+  mockLoginPending.value = false;
+});
+
 const PLACEHOLDER_IDENTIFICADOR = 'Insira o seu cpf ou telefone';
 const PLACEHOLDER_SENHA = 'Insira a sua senha';
 
@@ -48,11 +52,25 @@ describe('Tela de login - envio', () => {
 
   it('deve desabilitar o botao e indicar processamento durante o login', async () => {
     mockLoginPending.value = true;
+
     await render(<Login />);
 
     expect(screen.getByRole('button').props.accessibilityState.disabled).toBe(true);
     expect(screen.getByText('Entrando...')).toBeTruthy();
-    mockLoginPending.value = false;
+  });
+
+  it('nao deve autenticar de novo enquanto a autenticacao em curso nao terminou', async () => {
+    mockLoginPending.value = true;
+
+    await render(<Login />);
+    await fireEvent.changeText(
+      screen.getByPlaceholderText(PLACEHOLDER_IDENTIFICADOR),
+      '62999999999',
+    );
+    await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER_SENHA), '123456');
+    await fireEvent.press(screen.getByRole('button'));
+
+    expect(mockLogin).not.toHaveBeenCalled();
   });
 
   it('deve autenticar apenas uma vez por toque no botao', async () => {

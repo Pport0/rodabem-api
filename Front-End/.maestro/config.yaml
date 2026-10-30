@@ -1,6 +1,7 @@
 flows:
   - "cadastro/*.yaml"
   - "login/*.yaml"
+  - "recuperacao-senha/*.yaml"
   - "home/*.yaml"
   - "perfil/*.yaml"
   - "caminhao/*.yaml"

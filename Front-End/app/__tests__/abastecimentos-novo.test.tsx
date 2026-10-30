@@ -150,8 +150,6 @@ describe('Novo abastecimento - validacao do formulario', () => {
     );
   });
 
-  // Zero e valor valido; campo vazio nao e. Number('') tambem da 0, entao a
-  // distincao tem de ser feita no texto digitado, nao no numero convertido.
   it('deve recusar quilometragem em branco, mesmo aceitando zero', async () => {
     await montarTela();
     await preencherObrigatorios('6.39', '320', '');
@@ -262,8 +260,6 @@ describe('Novo abastecimento - montagem do payload', () => {
 
 describe('Novo abastecimento - tipo de combustivel', () => {
   it('deve enviar o combustivel escolhido, e nao o padrao da tela', async () => {
-    // O padrao e Diesel S10. Quem abastece Arla toca no outro botao, e se a escolha nao chegar
-    // ao back o calculo de consumo passa a misturar dois liquidos diferentes.
     await montarTela();
     await preencherObrigatorios();
     await fireEvent.press(screen.getByText('Arla 32'));
@@ -310,8 +306,6 @@ describe('Novo abastecimento - modo edicao', () => {
   });
 
   it('nao deve escrever "null" nos opcionais que o registro nao tem', async () => {
-    // Posto, local e observacao sao opcionais e voltam `null` do back. Jogar o valor direto no
-    // campo escreveria a palavra "null" no formulario, e ela seria salva na primeira edicao.
     await montarEdicao({
       ...registroExistente,
       localDescricao: null as never,
@@ -370,9 +364,6 @@ describe('Novo abastecimento - falhas da api', () => {
   const falharCom = (data: unknown) =>
     jest.mocked(createAbastecimento).mockRejectedValue({ response: { data } });
 
-  // As tres formas abaixo sao as que o back produz de verdade: o `ValidationPipe` devolve LISTA
-  // de mensagens, as excecoes do service devolvem TEXTO, e queda de rede nao devolve corpo
-  // nenhum. "Cadastre um caminhao" e coisa que o motorista resolve; rede caida nao.
   it.each([
     [
       'texto',

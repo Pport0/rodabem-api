@@ -1,0 +1,52 @@
+appId: com.anonymous.rodabem
+name: recuperacao de senha - exige codigo e senha valida antes de chamar a API
+---
+- runScript: ../_comum/identidade.js
+- runFlow: ../_comum/abrir.yaml
+- tapOn: "ENTRAR"
+- extendedWaitUntil:
+    visible: "Esqueci minha senha"
+    timeout: 30000
+- tapOn: "Esqueci minha senha"
+- extendedWaitUntil:
+    visible: "Digite o e-mail cadastrado"
+    timeout: 20000
+- tapOn: "Digite o e-mail cadastrado"
+- inputText: ${output.email}
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "ENVIAR"
+- extendedWaitUntil:
+    visible: "JÁ TENHO O CÓDIGO"
+    timeout: 30000
+- tapOn: "JÁ TENHO O CÓDIGO"
+- extendedWaitUntil:
+    visible: "Cole aqui o código do e-mail"
+    timeout: 20000
+- tapOn:
+    text: "REDEFINIR SENHA"
+    below:
+      text: "CONFIRME A NOVA SENHA"
+- assertVisible: "Informe o código recebido por e-mail."
+- tapOn: "Cole aqui o código do e-mail"
+- inputText: "codigo-qualquer"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "Digite a nova senha"
+- inputText: "12345"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn:
+    text: "REDEFINIR SENHA"
+    below:
+      text: "CONFIRME A NOVA SENHA"
+- assertVisible: "A nova senha deve ter no mínimo 6 caracteres."
+- tapOn: "Digite a nova senha"
+- eraseText
+- inputText: "senhanova123"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn: "Confirme a nova senha"
+- inputText: "senhadiferente"
+- runFlow: ../_comum/fechar-teclado.yaml
+- tapOn:
+    text: "REDEFINIR SENHA"
+    below:
+      text: "CONFIRME A NOVA SENHA"
+- assertVisible: "As senhas não coincidem."

@@ -7,6 +7,16 @@ import React, { ReactNode } from 'react';
 import { AuthProvider, useAuth } from '../authContext';
 import { signOut } from '@/services/authService';
 
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    create: () => ({
+      interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+    }),
+    isAxiosError: (e: unknown) => Boolean(e && typeof e === 'object' && 'isAxiosError' in e),
+  },
+}));
+
 jest.mock('@/services/authService', () => ({ signIn: jest.fn(), signOut: jest.fn() }));
 jest.mock('@/services/userService', () => ({ createUser: jest.fn() }));
 jest.mock('@/shared/ui/molecules/Toast', () => ({

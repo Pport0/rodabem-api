@@ -7,10 +7,20 @@ import React, { ReactNode } from 'react';
 
 import { AuthProvider, useAuth } from '../authContext';
 import { signIn } from '@/services/authService';
-import { createUser } from '@/services/userService';
+import { createUser, getMeuPerfil } from '@/services/userService';
+
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    create: () => ({
+      interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+    }),
+    isAxiosError: (e: unknown) => Boolean(e && typeof e === 'object' && 'isAxiosError' in e),
+  },
+}));
 
 jest.mock('@/services/authService', () => ({ signIn: jest.fn(), signOut: jest.fn().mockResolvedValue(undefined) }));
-jest.mock('@/services/userService', () => ({ createUser: jest.fn() }));
+jest.mock('@/services/userService', () => ({ createUser: jest.fn(), getMeuPerfil: jest.fn() }));
 
 const mockMostrarToast = jest.fn();
 jest.mock('@/shared/ui/molecules/Toast', () => ({
@@ -87,11 +97,34 @@ describe('authContext - login', () => {
 
   it('deve navegar para a home apos login bem-sucedido', async () => {
     jest.mocked(signIn).mockResolvedValue(usuarioAutenticado as any);
+    jest.mocked(getMeuPerfil).mockResolvedValue({ termoPendente: false } as any);
     const { result } = await montarAuth();
 
     result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/(drawer)/home'));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(drawer)/home'));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('deve levar ao aceite do termo quando o usuario ainda nao aceitou', async () => {
+    jest.mocked(signIn).mockResolvedValue(usuarioAutenticado as any);
+    jest.mocked(getMeuPerfil).mockResolvedValue({ termoPendente: true } as any);
+    const { result } = await montarAuth();
+
+    result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/termo-pendente'));
+  });
+
+  it('nao deve deixar o usuario na area autenticada quando nao consegue verificar o termo', async () => {
+    jest.mocked(signIn).mockResolvedValue(usuarioAutenticado as any);
+    jest.mocked(getMeuPerfil).mockRejectedValue(new Error('Network Error'));
+    const { result } = await montarAuth();
+
+    result.current.login({ cpfOrPhone: '62999999999', password: '123456' });
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/login'));
+    expect(router.replace).not.toHaveBeenCalledWith('/(drawer)/home');
   });
 
   it('deve exibir mensagem de sucesso ao entrar', async () => {
@@ -187,7 +220,7 @@ describe('authContext - login', () => {
     await waitFor(() => expect(result.current.loginIsPending).toBe(false));
   });
 
-  describe('mensagem de falha legivel (#37)', () => {
+  describe('mensagem de falha legivel', () => {
     const erroDaApi = (message: unknown) =>
       Object.assign(new Error('Request failed with status code 401'), {
         response: { status: 401, data: { message } },
@@ -283,7 +316,8 @@ describe('authContext - cadastro', () => {
     result.current.signUp(novoUsuario);
 
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/login'));
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(CHAVE_TOKEN, expect.anything());
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(CHAVE_USUARIO, expect.anything());
   });
 
   it('deve exibir mensagem de erro quando o cadastro falha', async () => {
@@ -335,12 +369,13 @@ describe('authContext - logout', () => {
     await waitFor(() => expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(CHAVE_TOKEN));
   });
 
-  it('deve redirecionar para a tela inicial', async () => {
+  it('deve redirecionar para a tela inicial sem deixar volta para a area autenticada', async () => {
     const { result } = await montarAuth();
 
-    result.current.logout();
+    await result.current.logout();
 
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'));
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('o logout deve apagar tambem os dados do usuario', async () => {

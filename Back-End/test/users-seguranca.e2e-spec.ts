@@ -1,10 +1,13 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { buildUserPayload, clearDatabase, registerAndLogin } from './e2e.utils';
+import { buildUserPayload, clearDatabase, registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Usuarios - seguranca (e2e)', () => {
   let app: INestApplication;
@@ -22,13 +25,15 @@ describe('Usuarios - seguranca (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes).compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -217,14 +222,14 @@ describe('Usuarios - seguranca (e2e)', () => {
   });
 
   describe('entradas maliciosas', () => {
-    it('deve tratar tentativa de injecao no filtro de nome como texto literal', async () => {
+    it('nao deve executar consulta a partir do filtro de nome, nem deixar a base inconsistente', async () => {
       const { token } = await autenticar('400030');
 
       await request(app.getHttpServer())
         .get('/users')
         .query({ nome: "'; DROP TABLE \"User\"; --" })
         .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .expect(404);
 
       await request(app.getHttpServer())
         .get('/users/me')
@@ -242,13 +247,18 @@ describe('Usuarios - seguranca (e2e)', () => {
     it('nao deve permitir escalar privilegio enviando campos extras no cadastro', async () => {
       const payload = buildUserPayload('400031');
 
-      const resposta = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/users')
         .send({ ...payload, status: false, id: 99999, senhaHash: 'injetado' })
+        .expect(400);
+
+      const limpo = await request(app.getHttpServer())
+        .post('/users')
+        .send(payload)
         .expect(201);
 
-      expect(resposta.body.id).not.toBe(99999);
-      expect(JSON.stringify(resposta.body)).not.toContain('injetado');
+      expect(limpo.body.id).not.toBe(99999);
+      expect(JSON.stringify(limpo.body)).not.toContain('injetado');
     });
 
     it('deve recusar campos nao permitidos na edicao de perfil', async () => {

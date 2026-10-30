@@ -99,3 +99,70 @@ describe('Esqueci minha senha', () => {
     expect(screen.queryByText('JÁ TENHO O CÓDIGO')).toBeNull();
   });
 });
+
+describe('Esqueci minha senha - mensagem de falha vinda da API', () => {
+  const erroDaApi = (message: unknown) =>
+    Object.assign(new Error('Request failed with status code 400'), {
+      response: { data: { message } },
+    });
+
+  it('deve exibir a mensagem que a API devolve, em vez do texto generico', async () => {
+    jest.mocked(forgotPassword).mockRejectedValue(erroDaApi('Aguarde antes de pedir outro código.'));
+    await render(<ForgotPassword />);
+
+    await enviar('gabriel@example.com');
+
+    expect(await screen.findByText('Aguarde antes de pedir outro código.')).toBeTruthy();
+    expect(
+      screen.queryByText('Não foi possível enviar agora. Verifique sua conexão e tente novamente.'),
+    ).toBeNull();
+  });
+
+  it('deve usar a primeira mensagem quando a API devolve uma lista', async () => {
+    jest
+      .mocked(forgotPassword)
+      .mockRejectedValue(erroDaApi(['E-mail em formato invalido.', 'outro aviso']));
+    await render(<ForgotPassword />);
+
+    await enviar('gabriel@example.com');
+
+    expect(await screen.findByText('E-mail em formato invalido.')).toBeTruthy();
+    expect(screen.queryByText('outro aviso')).toBeNull();
+  });
+
+  it.each([
+    ['lista vazia', []],
+    ['mensagem vazia', ''],
+  ])('deve cair no texto generico quando a API manda %s', async (_caso, message) => {
+    jest.mocked(forgotPassword).mockRejectedValue(erroDaApi(message));
+    await render(<ForgotPassword />);
+
+    await enviar('gabriel@example.com');
+
+    expect(
+      await screen.findByText('Não foi possível enviar agora. Verifique sua conexão e tente novamente.'),
+    ).toBeTruthy();
+  });
+});
+
+describe('Esqueci minha senha - envio em curso', () => {
+  it('deve indicar que esta enviando e so oferecer novo envio depois da resposta', async () => {
+    let responder!: (valor: unknown) => void;
+    jest
+      .mocked(forgotPassword)
+      .mockReturnValue(new Promise((resolve) => { responder = resolve; }) as never);
+    await render(<ForgotPassword />);
+
+    await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER_EMAIL), 'gabriel@example.com');
+    fireEvent.press(screen.getByText('ENVIAR'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button').props.accessibilityState.disabled).toBe(true),
+    );
+
+    responder({ message: MENSAGEM_GENERICA });
+
+    await waitFor(() => expect(screen.getByText('ENVIAR NOVAMENTE')).toBeTruthy());
+    expect(screen.getByRole('button').props.accessibilityState.disabled).toBe(false);
+  });
+});

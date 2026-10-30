@@ -46,6 +46,8 @@ Duas alternativas não servem: tocar fora do campo só funciona em tela com `Scr
 
 **A comparação ignora maiúsculas.** `Abastecimentos` do menu lateral colide com o cartão `ABASTECIMENTOS` da tela inicial, que fica atrás do painel aberto: o Maestro acerta o cartão coberto e nada acontece. Por isso os fluxos navegam pelos cartões; o menu fica para `Meu Perfil` e `Sair`.
 
+**Título, cabeçalho e botão com o mesmo texto são três elementos.** Em `reset-password` o texto `REDEFINIR SENHA` aparece no cabeçalho do navegador, no título da tela e no botão de enviar. O Maestro toca no primeiro que encontra, que é o cabeçalho, o passo sai COMPLETED e nada acontece — quem falha é a asserção seguinte. Resolver com seletor relativo (`below:` o último campo do formulário), não com `index:`, que muda se alguém mexer no cabeçalho.
+
 ## Mapa de navegação que os fluxos assumem
 
 ```
@@ -64,3 +66,18 @@ O cartão MEU CAMINHÃO leva ao perfil, não a um formulário: o caminhão é um
 O Maestro só alcança elemento com texto visível, `testID` ou `accessibilityLabel`. O aplicativo não usa os dois últimos, então botão só com ícone fica fora: voltar do cabeçalho, editar e excluir das listagens.
 
 O botão de menu é a exceção — tem posição fixa e aceita toque por coordenada, encapsulado em `_comum/abrir-menu.yaml`. Se o cabeçalho mudar de altura, conferir com `adb shell uiautomator dump` e ajustar ali.
+
+## Recuperação de senha
+
+Os quatro fluxos de `recuperacao-senha/` rodam na suíte normal e não dependem de caixa de e-mail: usam um endereço não cadastrado, e o back responde a mensagem genérica sem chegar a enviar nada. Cobrem o envio confirmado, a oferta de colar o código, a recusa de e-mail inválido, as validações da tela de redefinir e a recusa de código inválido com o caminho de volta para pedir outro e-mail.
+
+Os dois de `recuperacao-senha/manual/` ficam **fora** do `config.yaml` de propósito, porque dependem de uma caixa de e-mail real e de alguém para ler o código:
+
+```bash
+maestro test -e EMAIL=<caixa-de-e-mail-que-voce-abre> .maestro/recuperacao-senha/manual/pede-o-codigo-por-email.yaml
+maestro test -e TOKEN=<codigo-do-email> -e CREDENCIAL=<cpf-ou-telefone-da-conta> .maestro/recuperacao-senha/manual/redefine-com-o-codigo-do-email.yaml
+```
+
+O segundo precisa rodar dentro dos 30 minutos de validade, e consome o código: para repetir, pedir outro. Ele termina com a conta usando `SENHA_NOVA`, então a senha anterior deixa de valer — é esse o ponto do fluxo. A conta usada tem que existir com esse e-mail, senão o primeiro fluxo passa igual — é o que a mensagem genérica garante — e nenhum e-mail chega.
+
+Ele entra pelo esquema `rodabem://reset-password?token=...`, que é o que a tela espera. **O e-mail que o back envia hoje não usa esse esquema**: o link sai como `${APP_URL}/reset-password?token=...`, HTTP, que o aparelho abre no navegador e não no aplicativo. Por isso o caminho testado é o do código colado, e o link do e-mail fica como defeito registrado, não como passo de fluxo.

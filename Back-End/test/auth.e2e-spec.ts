@@ -1,10 +1,13 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { buildUserPayload, clearDatabase, registerAndLogin } from './e2e.utils';
+import { buildUserPayload, clearDatabase, registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Fluxo de autenticacao (e2e)', () => {
   let app: INestApplication;
@@ -13,13 +16,15 @@ describe('Fluxo de autenticacao (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes).compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -44,11 +49,11 @@ describe('Fluxo de autenticacao (e2e)', () => {
     const { token } = await registerAndLogin(app, '100001');
 
     await request(app.getHttpServer())
-      .get('/users')
+      .get('/users/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    await request(app.getHttpServer()).get('/users').expect(401);
+    await request(app.getHttpServer()).get('/users/me').expect(401);
 
     await request(app.getHttpServer())
       .post('/auth/logout')
@@ -56,7 +61,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
       .expect(201);
 
     await request(app.getHttpServer())
-      .get('/users')
+      .get('/users/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
   });
@@ -143,7 +148,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
   describe('protecao de rotas', () => {
     it('deve recusar acesso com token malformado', async () => {
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', 'Bearer token-invalido')
         .expect(401);
     });
@@ -152,14 +157,14 @@ describe('Fluxo de autenticacao (e2e)', () => {
       const { token } = await registerAndLogin(app, '100006');
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', token)
         .expect(401);
     });
 
     it('deve recusar acesso com header authorization vazio', async () => {
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', '')
         .expect(401);
     });
@@ -194,7 +199,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
         .expect(201);
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', `Bearer ${segunda.token}`)
         .expect(200);
     });
@@ -219,7 +224,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
       );
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', `Bearer ${expirado}`)
         .expect(401);
     });
@@ -232,7 +237,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
       );
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', `Bearer ${forjado}`)
         .expect(401);
     });
@@ -241,7 +246,7 @@ describe('Fluxo de autenticacao (e2e)', () => {
       const { token } = await registerAndLogin(app, '100010');
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/users/me')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
     });

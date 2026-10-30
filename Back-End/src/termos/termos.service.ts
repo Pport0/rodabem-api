@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -28,7 +28,7 @@ export class TermosService {
     const vigente = await this.vigente();
 
     if (vigente.versao !== termoVersao) {
-      throw new NotFoundException(
+      throw new BadRequestException(
         `Versão "${termoVersao}" não é a vigente. Aceite a versão "${vigente.versao}".`,
       );
     }
@@ -37,7 +37,7 @@ export class TermosService {
     await this.prisma.aceiteTermo.upsert({
       where: { userId_termoId: { userId, termoId: vigente.id } },
       create: { userId, termoId: vigente.id, ip, userAgent },
-      update: { aceitoEm: new Date(), ip, userAgent },
+      update: { ip, userAgent },
     });
 
     return { aceito: true, versao: vigente.versao };

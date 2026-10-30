@@ -1,10 +1,13 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TipoCarga, TipoCombustivel } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { clearDatabase, createTruck, registerAndLogin } from './e2e.utils';
+import { clearDatabase, createTruck, registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Isolamento entre usuarios (e2e)', () => {
   let app: INestApplication;
@@ -13,13 +16,15 @@ describe('Isolamento entre usuarios (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes).compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),
@@ -71,6 +76,24 @@ describe('Isolamento entre usuarios (e2e)', () => {
       .expect(403);
   });
 
+  const versaoVigente = async () => {
+    const existente = await prisma.versaoAntt.findFirst({
+      where: { resolucao: 'Res. de teste' },
+    });
+
+    if (existente) return existente.id;
+
+    const criada = await prisma.versaoAntt.create({
+      data: {
+        resolucao: 'Res. de teste',
+        vigenteDesde: new Date(Date.now() - 1000),
+        vigenteAte: null,
+      },
+    });
+
+    return criada.id;
+  };
+
   const simulacaoDe = async (sufixo: string) => {
     const dono = await registerAndLogin(app, sufixo);
     await createTruck(app, dono.token, { numeroEixos: 6 }).expect(201);
@@ -93,6 +116,7 @@ describe('Isolamento entre usuarios (e2e)', () => {
         valorLiquidoEstimado: 5635.58,
         user: { connect: { id: usuario.id } },
         caminhao: { connect: { id: caminhao.id } },
+        versaoAntt: { connect: { id: await versaoVigente() } },
       },
     });
 
@@ -123,6 +147,91 @@ describe('Isolamento entre usuarios (e2e)', () => {
       .set('Authorization', `Bearer ${intruso.token}`)
       .expect(200);
 
-    expect(resposta.body).toEqual([]);
+    expect(resposta.body.data).toEqual([]);
+    expect(resposta.body.total).toBe(0);
+  });
+
+  it('nao deve permitir apagar o abastecimento de outro usuario', async () => {
+    const dono = await registerAndLogin(app, '100020');
+    const intruso = await registerAndLogin(app, '100021');
+    await createTruck(app, dono.token).expect(201);
+
+    const criado = await request(app.getHttpServer())
+      .post('/abastecimentos')
+      .set('Authorization', `Bearer ${dono.token}`)
+      .send({
+        precoPorLitro: 6,
+        totalLitros: 200,
+        quilometragem: 100000,
+        tipoCombustivel: TipoCombustivel.DIESEL_S10,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/abastecimentos/${criado.body.id}`)
+      .set('Authorization', `Bearer ${intruso.token}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`/abastecimentos/${criado.body.id}`)
+      .set('Authorization', `Bearer ${dono.token}`)
+      .expect(200);
+  });
+
+  it('nao deve permitir editar o documento de outro usuario', async () => {
+    const dono = await registerAndLogin(app, '100022');
+    const intruso = await registerAndLogin(app, '100023');
+
+    const criado = await request(app.getHttpServer())
+      .post('/documentos')
+      .set('Authorization', `Bearer ${dono.token}`)
+      .send({
+        nome: 'CRLV',
+        numero: '123456789',
+        dataEmissao: new Date(Date.now() - 365 * 86400000).toISOString(),
+        dataVencimento: new Date(Date.now() + 365 * 86400000).toISOString(),
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .put(`/documentos/${criado.body.documento.id}`)
+      .set('Authorization', `Bearer ${intruso.token}`)
+      .send({ nome: 'Alterado pelo intruso' })
+      .expect(403);
+
+    const doDono = await request(app.getHttpServer())
+      .get('/documentos')
+      .set('Authorization', `Bearer ${dono.token}`)
+      .expect(200);
+
+    expect(doDono.body[0].nome).toBe('CRLV');
+  });
+
+  it('nao deve permitir apagar o documento de outro usuario', async () => {
+    const dono = await registerAndLogin(app, '100024');
+    const intruso = await registerAndLogin(app, '100025');
+
+    const criado = await request(app.getHttpServer())
+      .post('/documentos')
+      .set('Authorization', `Bearer ${dono.token}`)
+      .send({
+        nome: 'CNH',
+        numero: '987654321',
+        dataEmissao: new Date(Date.now() - 365 * 86400000).toISOString(),
+        dataVencimento: new Date(Date.now() + 365 * 86400000).toISOString(),
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/documentos/${criado.body.documento.id}`)
+      .set('Authorization', `Bearer ${intruso.token}`)
+      .expect(403);
+
+    const doDono = await request(app.getHttpServer())
+      .get('/documentos')
+      .set('Authorization', `Bearer ${dono.token}`)
+      .expect(200);
+
+    expect(doDono.body).toHaveLength(1);
   });
 });

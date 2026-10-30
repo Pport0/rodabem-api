@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 
 describe('AuthController', () => {
@@ -79,7 +80,7 @@ describe('AuthController', () => {
     it('nao deve acionar o logout sem token no header', async () => {
       authService.logout.mockResolvedValue({ message: 'ok' });
 
-      await controller.logout(requisicaoCom());
+      expect(() => controller.logout(requisicaoCom())).toThrow(BadRequestException);
 
       expect(authService.logout).not.toHaveBeenCalled();
     });

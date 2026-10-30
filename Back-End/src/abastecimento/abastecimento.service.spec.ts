@@ -139,41 +139,126 @@ describe('AbastecimentoService', () => {
       prisma.abastecimento.create.mockResolvedValue({ id: 1 });
     });
 
+    type Registro = { id: number; km: number; data: string };
 
+    const comRegistros = (registros: Registro[]) => {
+      prisma.abastecimento.findFirst.mockImplementation(
+        ({ where, orderBy }: any) => {
+          const excluido = where.id?.not;
+          const janela = where.dataAbastecimento ?? {};
 
+          const candidatos = registros
+            .filter((r) => r.id !== excluido)
+            .filter((r) =>
+              janela.lt === undefined
+                ? true
+                : new Date(r.data) < new Date(janela.lt),
+            )
+            .filter((r) =>
+              janela.gt === undefined
+                ? true
+                : new Date(r.data) > new Date(janela.gt),
+            );
 
-    it('deve informar a quilometragem esperada na mensagem de recusa', async () => {
-      prisma.abastecimento.findFirst.mockResolvedValue({ quilometragem: 5000 });
+          if (candidatos.length === 0) return Promise.resolve(null);
 
-      await expect(
-        service.create(userId, { ...dto, quilometragem: 4000 } as any),
-      ).rejects.toThrow('(4000 km) não pode ser menor que a última registrada (5000 km)');
-    });
+          const ordenado = [...candidatos].sort((a, b) =>
+            orderBy.dataAbastecimento === 'desc'
+              ? +new Date(b.data) - +new Date(a.data)
+              : orderBy.dataAbastecimento === 'asc'
+                ? +new Date(a.data) - +new Date(b.data)
+                : b.km - a.km,
+          );
 
+          return Promise.resolve({ quilometragem: ordenado[0].km });
+        },
+      );
+    };
 
+    const VIZINHOS: Registro[] = [
+      { id: 1, km: 1000, data: '2026-01-01' },
+      { id: 7, km: 2000, data: '2026-02-01' },
+      { id: 9, km: 3000, data: '2026-03-01' },
+    ];
 
-    it('deve ignorar o proprio registro ao validar uma edicao', async () => {
+    const editando = (registros: Registro[], id: number) => {
+      comRegistros(registros);
+      const alvo = registros.find((r) => r.id === id)!;
       prisma.abastecimento.findUnique.mockResolvedValue({
-        id: 7,
+        id,
         userId,
         caminhaoId: 10,
-        quilometragem: 1000,
+        quilometragem: alvo.km,
+        dataAbastecimento: new Date(alvo.data),
         precoPorLitro: 6,
         totalLitros: 100,
       });
-      prisma.abastecimento.findFirst.mockResolvedValue(null);
-      prisma.abastecimento.update.mockResolvedValue({ id: 7 });
+      prisma.abastecimento.update.mockResolvedValue({ id });
+    };
 
-      await service.update(userId, 7, { quilometragem: 2000 } as any);
+    it('deve recusar quilometragem menor que a ultima registrada', async () => {
+      comRegistros([{ id: 1, km: 5000, data: '2026-01-01' }]);
 
-      expect(prisma.abastecimento.findFirst.mock.calls[0][0].where.id).toEqual({
-        not: 7,
-      });
+      await expect(
+        service.create(userId, { ...dto, quilometragem: 4000 } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('deve recusar quilometragem igual a ultima registrada', async () => {
+      comRegistros([{ id: 1, km: 5000, data: '2026-01-01' }]);
+
+      await expect(
+        service.create(userId, { ...dto, quilometragem: 5000 } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('deve aceitar quilometragem maior que a ultima registrada', async () => {
+      comRegistros([{ id: 1, km: 5000, data: '2026-01-01' }]);
+
+      await expect(
+        service.create(userId, { ...dto, quilometragem: 6000 } as any),
+      ).resolves.toEqual({ id: 1 });
+    });
+
+    it('deve recusar edicao que ultrapassa o registro posterior', async () => {
+      editando(VIZINHOS, 7);
+
+      await expect(
+        service.update(userId, 7, { quilometragem: 3500 } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('deve recusar edicao que recua abaixo do registro anterior', async () => {
+      editando(VIZINHOS, 7);
+
+      await expect(
+        service.update(userId, 7, { quilometragem: 500 } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('deve aceitar edicao que mantem o registro entre os vizinhos', async () => {
+      editando(VIZINHOS, 7);
+
+      await expect(
+        service.update(userId, 7, { quilometragem: 2500 } as any),
+      ).resolves.toEqual({ id: 7 });
+    });
+
+    it('deve comparar com os vizinhos na linha do tempo, nao com o maior hodometro', async () => {
+      editando(
+        [
+          { id: 1, km: 1000, data: '2026-01-01' },
+          { id: 7, km: 2000, data: '2026-02-01' },
+          { id: 9, km: 9000, data: '2026-03-01' },
+        ],
+        7,
+      );
+
+      await expect(
+        service.update(userId, 7, { quilometragem: 2500 } as any),
+      ).resolves.toEqual({ id: 7 });
     });
   });
-
-
-
 
   describe('media de consumo com registros inconsistentes', () => {
     it('nao deve calcular media quando a quilometragem nao avanca', async () => {

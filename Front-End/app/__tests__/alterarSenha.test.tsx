@@ -97,3 +97,58 @@ describe('Alterar senha - erro', () => {
     expect(screen.getByText('SALVAR NOVA SENHA')).toBeTruthy();
   });
 });
+
+describe('Alterar senha - validacao antes de enviar', () => {
+  const salvar = async () => fireEvent.press(screen.getByRole('button'));
+
+  it('deve exigir a senha atual', async () => {
+    await renderizar();
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Digite a nova senha'), 'senhaNova123');
+    await fireEvent.changeText(screen.getByPlaceholderText('Confirme a nova senha'), 'senhaNova123');
+    await salvar();
+
+    expect(screen.getByText('Informe sua senha atual.')).toBeTruthy();
+    expect(alterarSenha).not.toHaveBeenCalled();
+  });
+
+  it('deve recusar nova senha com menos de seis caracteres', async () => {
+    await renderizar();
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Digite sua senha atual'), 'senhaAntiga');
+    await fireEvent.changeText(screen.getByPlaceholderText('Digite a nova senha'), 'cinco');
+    await fireEvent.changeText(screen.getByPlaceholderText('Confirme a nova senha'), 'cinco');
+    await salvar();
+
+    expect(screen.getByText('A nova senha deve ter no mínimo 6 caracteres.')).toBeTruthy();
+    expect(alterarSenha).not.toHaveBeenCalled();
+  });
+
+  it('deve recusar quando a confirmacao nao coincide', async () => {
+    await renderizar();
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Digite sua senha atual'), 'senhaAntiga');
+    await fireEvent.changeText(screen.getByPlaceholderText('Digite a nova senha'), 'senhaNova123');
+    await fireEvent.changeText(screen.getByPlaceholderText('Confirme a nova senha'), 'senhaNova124');
+    await salvar();
+
+    expect(screen.getByText('As senhas não coincidem.')).toBeTruthy();
+    expect(alterarSenha).not.toHaveBeenCalled();
+  });
+
+  it('deve tirar o aviso de erro quando o usuario corrige e envia', async () => {
+    jest.mocked(alterarSenha).mockResolvedValue(undefined as never);
+    await renderizar();
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Digite a nova senha'), 'senhaNova123');
+    await fireEvent.changeText(screen.getByPlaceholderText('Confirme a nova senha'), 'senhaNova123');
+    await salvar();
+    expect(screen.getByText('Informe sua senha atual.')).toBeTruthy();
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Digite sua senha atual'), 'senhaAntiga');
+    await salvar();
+
+    await waitFor(() => expect(screen.queryByText('Informe sua senha atual.')).toBeNull());
+    expect(alterarSenha).toHaveBeenCalledWith('senhaAntiga', 'senhaNova123');
+  });
+});

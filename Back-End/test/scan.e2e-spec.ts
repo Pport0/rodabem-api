@@ -1,11 +1,14 @@
 import { BadRequestException, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getStorageToken } from '@nestjs/throttler';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ScanService } from '../src/caminhao/scan/scan.service';
 import { ScanDocumentoService } from '../src/documento/scan/scan-documento.service';
-import { clearDatabase, registerAndLogin } from './e2e.utils';
+import { clearDatabase, registerAndLogin,
+  semLimiteDeRequisicoes,
+} from './e2e.utils';
 
 describe('Scan de documentos (e2e)', () => {
   let app: INestApplication;
@@ -39,6 +42,8 @@ describe('Scan de documentos (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(getStorageToken())
+      .useValue(semLimiteDeRequisicoes)
       .overrideProvider(ScanService)
       .useValue(scanCaminhao)
       .overrideProvider(ScanDocumentoService)
@@ -49,7 +54,7 @@ describe('Scan de documentos (e2e)', () => {
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
         stopAtFirstError: true,
       }),

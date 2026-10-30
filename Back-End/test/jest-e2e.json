@@ -8,10 +8,27 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "allowJs": true
+        }
+      }
+    ]
   },
   "setupFiles": [
     "<rootDir>/jest-e2e-setup.ts"
   ],
-  "testTimeout": 30000
+  "testTimeout": 30000,
+  "transformIgnorePatterns": [
+    "node_modules/(?!(file-type|strtok3|token-types|uint8array-extras|@tokenizer/inflate|@borewit/text-codec)/)"
+  ],
+  "testEnvironmentOptions": {
+    "customExportConditions": [
+      "node",
+      "module-sync",
+      "default"
+    ]
+  }
 }

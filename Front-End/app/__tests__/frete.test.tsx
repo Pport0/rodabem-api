@@ -42,6 +42,10 @@ const simulacao = {
   valorLiquidoEstimado: 5635.58,
   abaixoMinimoAntt: false,
   aviso: null,
+  tabelaAnttReferencia: {
+    resolucao: 'Portaria SUROC nº 22/2026',
+    vigenteDesde: '2026-10-01T00:00:00.000Z',
+  },
 };
 
 const itemHistorico = {
@@ -306,17 +310,32 @@ describe('Tela de frete - resposta do servidor', () => {
   });
 });
 
-describe('Tela de frete - percentual de lucro desejado (RF-14)', () => {
+describe('Tela de frete - data de referencia da tabela (RNE-19)', () => {
+  it('deve informar de quando sao os valores usados no calculo', async () => {
+    jest.mocked(simularFrete).mockResolvedValue(simulacao as never);
 
-  it.todo('deve oferecer um campo para o percentual de lucro desejado');
+    await montarTela();
+    await preencherObrigatorios();
+    await simular();
 
-  it.todo('deve enviar o percentual informado na simulacao');
+    await waitFor(() =>
+      expect(
+        screen.getByText('Referência: Portaria SUROC nº 22/2026, vigente desde 01/10/2026.'),
+      ).toBeTruthy(),
+    );
+  });
 
-  it.todo('deve exibir o valor sugerido de cobranca junto com o piso e os custos');
+  it('nao deve inventar referencia quando a resposta nao traz a tabela usada', async () => {
+    const { tabelaAnttReferencia, ...semReferencia } = simulacao;
+    jest.mocked(simularFrete).mockResolvedValue(semReferencia as never);
 
-  it.todo('deve exibir o valor sugerido no padrao brasileiro');
+    await montarTela();
+    await preencherObrigatorios();
+    await simular();
 
-  it.todo('deve avisar quando o valor sugerido fica abaixo do piso da ANTT');
+    await waitFor(() => expect(screen.getByText(/6\.471,46/)).toBeTruthy());
+    expect(screen.queryByText(/Referência:/)).toBeNull();
+  });
 });
 
 describe('Tela de frete - historico', () => {

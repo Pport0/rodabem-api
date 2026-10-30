@@ -16,6 +16,8 @@ jest.mock('expo-router', () => ({
   useNavigation: () => ({ dispatch: mockDespachar }),
 }));
 
+const botoes = () => screen.root.queryAll((no) => no.props?.accessible === true);
+
 const contarImagens = () => {
   let total = 0;
   const andar = (no: unknown) => {
@@ -43,11 +45,25 @@ describe('Cabecalho das telas internas', () => {
     expect(contarImagens()).toBe(0);
   });
 
-  it.todo('deve voltar para a tela anterior pelo botao');
+  it('deve voltar para a tela anterior pelo botao', async () => {
+    await render(<Header title="MEUS DOCUMENTOS" />);
+
+    await fireEvent.press(botoes()[0]);
+
+    expect(router.back).toHaveBeenCalled();
+  });
 });
 
 describe('Cabecalho da tela inicial', () => {
-  it.todo('deve abrir o menu lateral pelo botao');
+  it('deve abrir o menu lateral pelo botao', async () => {
+    jest.mocked(useUser).mockReturnValue({ user: { nome: 'Gabriel' } } as never);
+
+    await render(<HomeHeader />);
+
+    await fireEvent.press(botoes()[0]);
+
+    expect(mockDespachar).toHaveBeenCalledWith({ type: 'OPEN_DRAWER' });
+  });
 
   it('deve exibir a marca do aplicativo', async () => {
     jest.mocked(useUser).mockReturnValue({ user: { nome: 'Gabriel' } } as never);

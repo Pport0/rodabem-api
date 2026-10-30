@@ -5,3 +5,6 @@ type AgenteComKeepAlive = http.Agent & { keepAlive: boolean };
 
 (http.globalAgent as AgenteComKeepAlive).keepAlive = false;
 (https.globalAgent as unknown as AgenteComKeepAlive).keepAlive = false;
+
+process.env.CRYPTO_SECRET =
+  process.env.CRYPTO_SECRET || 'chave-de-bancada-com-32-caracteres-ou-mais';

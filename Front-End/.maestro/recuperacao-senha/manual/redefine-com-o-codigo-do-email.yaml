@@ -1,0 +1,35 @@
+appId: com.anonymous.rodabem
+name: recuperacao de senha - redefine com o codigo recebido e entra com a senha nova
+env:
+  SENHA_NOVA: "senhanova123"
+---
+- runFlow: ../../_comum/abrir.yaml
+- openLink: rodabem://reset-password?token=${TOKEN}
+- extendedWaitUntil:
+    visible: "Cole aqui o código do e-mail"
+    timeout: 30000
+- assertVisible: ${TOKEN}
+- tapOn: "Digite a nova senha"
+- inputText: ${SENHA_NOVA}
+- runFlow: ../../_comum/fechar-teclado.yaml
+- tapOn: "Confirme a nova senha"
+- inputText: ${SENHA_NOVA}
+- runFlow: ../../_comum/fechar-teclado.yaml
+- tapOn:
+    text: "REDEFINIR SENHA"
+    below:
+      text: "CONFIRME A NOVA SENHA"
+- extendedWaitUntil:
+    visible: "Senha redefinida com sucesso. Faça login novamente."
+    timeout: 30000
+- extendedWaitUntil:
+    visible: "Insira o seu cpf ou telefone"
+    timeout: 30000
+- runFlow:
+    file: ../../_comum/entrar.yaml
+    env:
+      CREDENCIAL: ${CREDENCIAL}
+      SENHA: ${SENHA_NOVA}
+- extendedWaitUntil:
+    visible: "O que você precisa hoje?"
+    timeout: 30000

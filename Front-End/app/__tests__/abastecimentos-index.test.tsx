@@ -7,15 +7,15 @@ import { Alert } from 'react-native';
 import AbastecimentosScreen from '../abastecimentos/index';
 import {
   deleteAbastecimento,
-  getAbastecimentos,
   getMediaConsumo,
+  getRelatorioAbastecimentos,
 } from '@/services/abastecimentoService';
 import { Toast } from '@/shared/ui/molecules/Toast';
 import { queryClient } from '@/utils/queryClient';
 
 jest.mock('@/services/abastecimentoService', () => ({
-  getAbastecimentos: jest.fn(),
   getMediaConsumo: jest.fn(),
+  getRelatorioAbastecimentos: jest.fn(),
   deleteAbastecimento: jest.fn(),
 }));
 
@@ -48,6 +48,13 @@ const media = {
   totalTrechosCalculados: 4,
 };
 
+const relatorio = (abastecimentos: any[]) => ({
+  abastecimentos,
+  totalGasto: abastecimentos.reduce((soma, item) => soma + item.valorTotal, 0),
+  totalLitros: abastecimentos.reduce((soma, item) => soma + item.totalLitros, 0),
+  totalAbastecimentos: abastecimentos.length,
+});
+
 const pendencias: ((valor: unknown) => void)[] = [];
 const criarPendencia = () =>
   new Promise((resolve) => {
@@ -68,7 +75,7 @@ const montarTela = async () => {
 
 /** Monta a tela e espera o primeiro registro aparecer na lista. */
 const montarComRegistros = async (registros: any[] = [abastecimento], resumo: any = media) => {
-  jest.mocked(getAbastecimentos).mockResolvedValue(registros as any);
+  jest.mocked(getRelatorioAbastecimentos).mockResolvedValue(relatorio(registros) as any);
   jest.mocked(getMediaConsumo).mockResolvedValue(resumo as any);
 
   await montarTela();
@@ -88,7 +95,7 @@ const confirmarExclusao = async () => {
 
 beforeEach(() => {
   jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  jest.mocked(getAbastecimentos).mockResolvedValue([]);
+  jest.mocked(getRelatorioAbastecimentos).mockResolvedValue(relatorio([]) as any);
   jest.mocked(getMediaConsumo).mockResolvedValue({
     mediaConsumo: null,
     unidade: 'km/L',
@@ -104,7 +111,7 @@ afterEach(() => {
 
 describe('Listagem de abastecimentos - estados da lista', () => {
   it('deve avisar que esta carregando antes da resposta', async () => {
-    jest.mocked(getAbastecimentos).mockReturnValue(criarPendencia() as any);
+    jest.mocked(getRelatorioAbastecimentos).mockReturnValue(criarPendencia() as any);
 
     await montarTela();
 
@@ -115,19 +122,19 @@ describe('Listagem de abastecimentos - estados da lista', () => {
     await montarTela();
 
     await waitFor(() =>
-      expect(screen.getByText('Nenhum abastecimento cadastrado')).toBeTruthy(),
+      expect(screen.getByText(/Nenhum abastecimento em /)).toBeTruthy(),
     );
     expect(
-      screen.getByText('Registre seus abastecimentos para acompanhar consumo e custos.'),
+      screen.getByText('Registre seus abastecimentos para acompanhar os gastos do período.'),
     ).toBeTruthy();
   });
 
   it('deve informar falha na consulta e permitir recarregar a lista', async () => {
-    jest.mocked(getAbastecimentos).mockRejectedValueOnce(new Error('Sem conexão'));
-    jest.mocked(getAbastecimentos).mockResolvedValueOnce([abastecimento] as any);
+    jest.mocked(getRelatorioAbastecimentos).mockRejectedValueOnce(new Error('Sem conexão'));
+    jest.mocked(getRelatorioAbastecimentos).mockResolvedValueOnce(relatorio([abastecimento]) as any);
     await montarTela();
 
-    await waitFor(() => expect(screen.getByText('Não foi possível carregar os abastecimentos.')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Não foi possível carregar o relatório do mês.')).toBeTruthy());
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar carregar novamente' }));
     await waitFor(() => expect(screen.getByText('Diesel S10')).toBeTruthy());
   });
@@ -162,9 +169,22 @@ describe('Listagem de abastecimentos - dados do cartao', () => {
   });
 
   it('deve exibir o valor total em reais', async () => {
-    await montarComRegistros();
+    await montarComRegistros([
+      abastecimento,
+      { ...abastecimento, id: 8, valorTotal: 1000 },
+    ]);
 
     expect(screen.getByText(/2\.044,80/)).toBeTruthy();
+    expect(screen.getByText(/1\.000,00/)).toBeTruthy();
+  });
+
+  it('deve somar o gasto do mes a partir dos registros do periodo', async () => {
+    await montarComRegistros([
+      abastecimento,
+      { ...abastecimento, id: 8, valorTotal: 1000 },
+    ]);
+
+    expect(screen.getByText(/3\.044,80/)).toBeTruthy();
   });
 
 
@@ -335,8 +355,94 @@ describe('Listagem de abastecimentos - navegacao', () => {
     await montarTela();
 
     await waitFor(() =>
-      expect(screen.getByText('Nenhum abastecimento cadastrado')).toBeTruthy(),
+      expect(screen.getByText(/Nenhum abastecimento em /)).toBeTruthy(),
     );
     expect(screen.getByText('NOVO ABASTECIMENTO')).toBeTruthy();
+  });
+});
+
+describe('Listagem de abastecimentos - navegacao por mes', () => {
+  const tituloDe = (data: Date) =>
+    new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
+      .format(data)
+      .toLocaleUpperCase('pt-BR');
+
+  const mesVizinho = (passos: number) => {
+    const agora = new Date();
+    return new Date(agora.getFullYear(), agora.getMonth() + passos, 1);
+  };
+
+  const periodoConsultado = () => {
+    const chamadas = jest.mocked(getRelatorioAbastecimentos).mock.calls;
+    return chamadas[chamadas.length - 1][0];
+  };
+
+  it('deve abrir no mes corrente', async () => {
+    await montarComRegistros();
+
+    expect(screen.getAllByText(tituloDe(new Date())).length).toBeGreaterThan(0);
+  });
+
+  it('deve consultar o periodo fechado do mes exibido', async () => {
+    await montarComRegistros();
+
+    const { dataInicio, dataFim } = periodoConsultado();
+    const agora = new Date();
+    const ultimoDia = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
+
+    expect(dataInicio.slice(-2)).toBe('01');
+    expect(dataFim.slice(-2)).toBe(String(ultimoDia).padStart(2, '0'));
+  });
+
+  it('deve recuar para o mes anterior', async () => {
+    await montarComRegistros();
+
+    await fireEvent.press(screen.getByLabelText('Mês anterior'));
+
+    await waitFor(() =>
+      expect(screen.getAllByText(tituloDe(mesVizinho(-1))).length).toBeGreaterThan(0),
+    );
+  });
+
+  it('deve avancar para o mes seguinte', async () => {
+    await montarComRegistros();
+
+    await fireEvent.press(screen.getByLabelText('Próximo mês'));
+
+    await waitFor(() =>
+      expect(screen.getAllByText(tituloDe(mesVizinho(1))).length).toBeGreaterThan(0),
+    );
+  });
+
+  it('deve recarregar o relatorio ao trocar de mes', async () => {
+    await montarComRegistros();
+    const antes = periodoConsultado().dataInicio;
+
+    await fireEvent.press(screen.getByLabelText('Mês anterior'));
+
+    await waitFor(() => expect(periodoConsultado().dataInicio).not.toBe(antes));
+  });
+
+  it('deve informar quantos registros o mes exibido tem', async () => {
+    await montarComRegistros([abastecimento, { ...abastecimento, id: 8 }]);
+
+    expect(screen.getByText('2 registros encontrados')).toBeTruthy();
+  });
+});
+
+describe('Listagem de abastecimentos - gasto do mes', () => {
+  it('nao deve apresentar valor de gasto quando o relatorio falha', async () => {
+    jest.mocked(getRelatorioAbastecimentos).mockRejectedValue(new Error('Sem conexão'));
+
+    await montarTela();
+
+    await waitFor(() => expect(screen.getByText('GASTO DO MÊS')).toBeTruthy());
+    expect(screen.queryByText(/^R\$/)).toBeNull();
+  });
+
+  it('deve exibir gasto zerado como valor, e nao como ausencia de dado', async () => {
+    await montarTela();
+
+    await waitFor(() => expect(screen.getByText('R$ 0,00')).toBeTruthy());
   });
 });
