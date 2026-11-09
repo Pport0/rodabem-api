@@ -329,7 +329,7 @@ O schema completo está em [`prisma/schema.prisma`](./prisma/schema.prisma).
 ```bash
 npm test               # unitários (*.spec.ts em src/)
 npm run test:e2e       # end-to-end (pasta test/, precisa do banco rodando)
-npm run test:cov       # cobertura dos unitários
+npm run test:cov       # cobertura completa, unitários e e2e (precisa do banco rodando)
 npm run test:report    # executa todas as suítes e gera um relatório resumido
 ```
 
