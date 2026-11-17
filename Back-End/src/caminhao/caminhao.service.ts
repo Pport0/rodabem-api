@@ -76,7 +76,6 @@ export class CaminhaoService {
       throw new BadRequestException('Caminhão não encontrado');
     }
 
-   
     const documentos = await this.prisma.documento.count({
       where: { caminhaoId: caminhao.id },
     });
@@ -104,6 +103,16 @@ export class CaminhaoService {
     if (simulacoes > 0) {
       throw new BadRequestException(
         'Não é possível excluir o caminhão pois ele possui simulações de frete vinculadas. Remova as simulações primeiro.',
+      );
+    }
+
+    const lancamentos = await this.prisma.lancamento.count({
+      where: { caminhaoId: caminhao.id },
+    });
+
+    if (lancamentos > 0) {
+      throw new BadRequestException(
+        'Não é possível excluir o caminhão pois ele possui lançamentos financeiros vinculados. Remova os lançamentos primeiro.',
       );
     }
 

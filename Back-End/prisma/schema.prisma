@@ -43,6 +43,8 @@ model User {
   simulacoes SimulacaoFrete[]
   passwordResetTokens PasswordResetToken[]
   aceitesTermo AceiteTermo[]
+  lancamentos Lancamento[]
+
 
   @@map("usuarios")
 }
@@ -77,6 +79,7 @@ model Caminhao {
   documento Documento[]
   abastecimentos Abastecimento[]
   simulacoes     SimulacaoFrete[]
+  lancamentos Lancamento[]
 }
 
 model Documento {
@@ -281,4 +284,35 @@ model AceiteTermo {
   @@unique([userId, termoId])   
   @@index([userId])
   @@map("aceites_termo")
+}
+
+enum TipoLancamento {
+  RECEITA
+  DESPESA
+}
+
+enum CategoriaLancamento {
+  FRETE
+  PEDAGIO
+  MANUTENCAO
+  ALIMENTACAO
+  PERNOITE
+  OUTROS
+}
+
+model Lancamento {
+  id         Int                 @id @default(autoincrement())
+  tipo       TipoLancamento
+  categoria  CategoriaLancamento
+  valor      Decimal             @db.Decimal(10, 2)
+  descricao  String?
+  data       DateTime            @default(now())
+  userId     Int
+  caminhaoId Int
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  usuario    User                @relation(fields: [userId], references: [id])
+  caminhao   Caminhao            @relation(fields: [caminhaoId], references: [id])
+
+  @@map("lancamentos")
 }

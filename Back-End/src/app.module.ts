@@ -11,6 +11,8 @@ import { TermosModule } from './termos/termos.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { TermoAceiteMiddleware } from './common/middleware/termo-aceite.middleware';
+import { LancamentosModule } from './lancamentos/lancamentos.module';
+
 
 @Module({
   imports: [
@@ -29,6 +31,7 @@ import { TermoAceiteMiddleware } from './common/middleware/termo-aceite.middlewa
     AbastecimentoModule,
     FreteModule,
     TermosModule,
+    LancamentosModule,
   ],
   providers: [
     {
