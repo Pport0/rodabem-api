@@ -93,6 +93,7 @@ export class UsersService {
         status: true,
         createdAt: true,
         cpfEncrypted: true,
+        diasAlertaVencimento: true,
       },
     });
 
@@ -108,7 +109,13 @@ export class UsersService {
 
   async update(
     id: number,
-    dto: Partial<{ nome: string; email: string; telefone: string; avatarUrl: string }>,
+    dto: Partial<{
+      nome: string;
+      email: string;
+      telefone: string;
+      avatarUrl: string;
+      diasAlertaVencimento: number;
+    }>,
   ) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
@@ -143,6 +150,7 @@ export class UsersService {
         telefone: true,
         avatarUrl: true,
         status: true,
+        diasAlertaVencimento: true,
       },
     });
 

@@ -33,6 +33,7 @@ model User {
   caminhao Caminhao?
 
   tokenVersion  Int  @default(0)
+  diasAlertaVencimento Int @default(30)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

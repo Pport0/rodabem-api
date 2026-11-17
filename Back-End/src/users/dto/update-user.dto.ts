@@ -1,7 +1,8 @@
-import { IsOptional, IsString, IsEmail } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsIn, IsInt } from 'class-validator';
+
+const DIAS_PERMITIDOS = [7, 15, 30, 60] as const;
 
 export class UpdateUserDto {
-
   @IsOptional()
   @IsString()
   nome?: string;
@@ -17,4 +18,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  @IsIn(DIAS_PERMITIDOS, {
+    message: `diasAlertaVencimento deve ser um dos valores: ${DIAS_PERMITIDOS.join(', ')}.`,
+  })
+  diasAlertaVencimento?: number;
 }
