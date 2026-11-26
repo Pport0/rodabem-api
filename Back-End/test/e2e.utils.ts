@@ -28,6 +28,7 @@ export async function clearDatabase(
   opcoes: { comTermoVigente?: boolean } = {},
 ) {
   await prisma.simulacaoFrete.deleteMany();
+  await prisma.lancamento.deleteMany();
   await prisma.abastecimento.deleteMany();
   await prisma.documento.deleteMany();
   await prisma.caminhao.deleteMany();

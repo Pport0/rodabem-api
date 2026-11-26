@@ -20,6 +20,9 @@ describe('CaminhaoService', () => {
     simulacaoFrete: {
       count: jest.fn(),
     },
+    lancamento: {
+      count: jest.fn(),
+    },
   };
 
   const userId = 1;
@@ -107,6 +110,7 @@ describe('CaminhaoService', () => {
     prisma.documento.count.mockResolvedValue(0);
     prisma.abastecimento.count.mockResolvedValue(0);
     prisma.simulacaoFrete.count.mockResolvedValue(0);
+    prisma.lancamento.count.mockResolvedValue(0);
     prisma.caminhao.delete.mockResolvedValue({ id: 10 });
 
     const result = await service.delete(userId);
