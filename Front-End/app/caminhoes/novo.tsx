@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { CreateCaminhaoDto } from "@/@types/caminhao";
 import Input from "@/components/input";
 import { QueryErrorState } from "@/components/queryErrorState";
@@ -223,17 +224,17 @@ export default function NovoCaminhao() {
 
         <View style={styles.heroCard}>
           <View style={styles.heroText}>
-            <Text style={styles.heroEyebrow}>
+            <ScaledText style={styles.heroEyebrow}>
               {isEditing ? "EDITAR CAMINHAO" : "SCAN DO CAMINHAO"}
-            </Text>
-            <Text style={styles.heroTitle}>
+            </ScaledText>
+            <ScaledText style={styles.heroTitle}>
               {isEditing
                 ? "Revise os dados extraidos e salve as alteracoes."
                 : "Envie a foto ou PDF e preencha o cadastro automaticamente."}
-            </Text>
-            <Text style={styles.heroSubtitle}>
+            </ScaledText>
+            <ScaledText style={styles.heroSubtitle}>
               O OCR tenta extrair placa, RENAVAM, marca, ano e chassi para acelerar o cadastro.
-            </Text>
+            </ScaledText>
           </View>
           <View style={[styles.heroIcon, { backgroundColor: primaryColor }]}>
             <Ionicons name="scan-outline" size={26} color="#fff" />
@@ -247,7 +248,7 @@ export default function NovoCaminhao() {
             activeOpacity={0.85}
           >
             <Ionicons name="camera-outline" size={18} color="#fff" />
-            <Text style={styles.scanButtonText}>Escanear camera</Text>
+            <ScaledText style={styles.scanButtonText}>Escanear camera</ScaledText>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -256,30 +257,30 @@ export default function NovoCaminhao() {
             activeOpacity={0.85}
           >
             <Ionicons name="document-attach-outline" size={18} color={primaryColor} />
-            <Text style={[styles.secondaryButtonText, { color: primaryColor }]}>
+            <ScaledText style={[styles.secondaryButtonText, { color: primaryColor }]}>
               PDF ou imagem
-            </Text>
+            </ScaledText>
           </TouchableOpacity>
         </View>
 
         {!!scanStatusText && (
           <View style={styles.scanCard}>
-            <Text style={styles.scanCardLabel}>Resultado do scan</Text>
-            <Text style={styles.scanCardText}>{scanStatusText}</Text>
+            <ScaledText style={styles.scanCardLabel}>Resultado do scan</ScaledText>
+            <ScaledText style={styles.scanCardText}>{scanStatusText}</ScaledText>
             {!!scanArquivoUrl && (
-              <Text style={styles.scanCardMeta} numberOfLines={2}>
+              <ScaledText style={styles.scanCardMeta} numberOfLines={2}>
                 Arquivo enviado: {scanArquivoUrl}
-              </Text>
+              </ScaledText>
             )}
           </View>
         )}
 
         <View style={styles.divider} />
 
-        <Text style={[styles.groupLabel, { color: primaryColor }]}>DADOS OBRIGATORIOS</Text>
+        <ScaledText style={[styles.groupLabel, { color: primaryColor }]}>DADOS OBRIGATORIOS</ScaledText>
 
         <View style={styles.fieldContainer}>
-            <Text style={styles.label}>PLACA *</Text>
+            <ScaledText style={styles.label}>PLACA *</ScaledText>
           <Input
             placeholder="ABC1234 ou ABC1D23"
             value={placa}
@@ -288,48 +289,48 @@ export default function NovoCaminhao() {
             }
             autoCapitalize="characters"
           />
-            {errors.placa && <Text style={styles.errorText}>{errors.placa}</Text>}
+            {errors.placa && <ScaledText style={styles.errorText}>{errors.placa}</ScaledText>}
           </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>MODELO *</Text>
+          <ScaledText style={styles.label}>MODELO *</ScaledText>
           <Input
             placeholder="Ex: Scania R450"
             value={modelo}
             onChangeText={setModelo}
             autoCapitalize="words"
           />
-          {errors.modelo && <Text style={styles.errorText}>{errors.modelo}</Text>}
+          {errors.modelo && <ScaledText style={styles.errorText}>{errors.modelo}</ScaledText>}
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>RENAVAM *</Text>
+          <ScaledText style={styles.label}>RENAVAM *</ScaledText>
           <Input
             placeholder="00000000000"
             value={renavam}
             onChangeText={(text) => setRenavam(cleanNumber(text).slice(0, 11))}
             keyboardType="numeric"
           />
-          {errors.renavam && <Text style={styles.errorText}>{errors.renavam}</Text>}
+          {errors.renavam && <ScaledText style={styles.errorText}>{errors.renavam}</ScaledText>}
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>NUMERO DE EIXOS *</Text>
+          <ScaledText style={styles.label}>NUMERO DE EIXOS *</ScaledText>
           <Input
             placeholder="Ex: 6"
             value={numeroEixos}
             onChangeText={(text) => setNumeroEixos(cleanNumber(text).slice(0, 1))}
             keyboardType="numeric"
           />
-          {errors.numeroEixos && <Text style={styles.errorText}>{errors.numeroEixos}</Text>}
+          {errors.numeroEixos && <ScaledText style={styles.errorText}>{errors.numeroEixos}</ScaledText>}
         </View>
 
         <View style={styles.divider} />
 
-        <Text style={[styles.groupLabel, { color: primaryColor }]}>DADOS OPCIONAIS</Text>
+        <ScaledText style={[styles.groupLabel, { color: primaryColor }]}>DADOS OPCIONAIS</ScaledText>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>MARCA</Text>
+          <ScaledText style={styles.label}>MARCA</ScaledText>
           <Input
             placeholder="Ex: Scania, Volvo, Mercedes"
             value={marca}
@@ -339,7 +340,7 @@ export default function NovoCaminhao() {
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>COR</Text>
+          <ScaledText style={styles.label}>COR</ScaledText>
           <Input
             placeholder="Ex: Branco, Vermelho"
             value={cor}
@@ -349,7 +350,7 @@ export default function NovoCaminhao() {
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>ANO DE FABRICACAO</Text>
+          <ScaledText style={styles.label}>ANO DE FABRICACAO</ScaledText>
           <Input
             placeholder="Ex: 2022"
             value={anoFabricacao}
@@ -360,14 +361,14 @@ export default function NovoCaminhao() {
 
         <View style={styles.row}>
           <View style={styles.flexField}>
-            <Text style={styles.label}>CRV</Text>
+            <ScaledText style={styles.label}>CRV</ScaledText>
             <Input placeholder="Opcional" value={crv} onChangeText={setCrv} />
           </View>
         </View>
 
         <View style={styles.row}>
           <View style={styles.flexField}>
-            <Text style={styles.label}>ESPECIE/TIPO</Text>
+            <ScaledText style={styles.label}>ESPECIE/TIPO</ScaledText>
             <Input
               placeholder="Ex: Carga"
               value={especieTipo}
@@ -378,7 +379,7 @@ export default function NovoCaminhao() {
 
         <View style={styles.row}>
           <View style={styles.flexField}>
-            <Text style={styles.label}>CHASSI</Text>
+            <ScaledText style={styles.label}>CHASSI</ScaledText>
             <Input
               placeholder="Numero do chassi"
               value={chassi}
@@ -402,9 +403,9 @@ export default function NovoCaminhao() {
           {createCaminhaoMutation.isPending || updateCaminhaoMutation.isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>
+            <ScaledText style={styles.submitButtonText}>
               {isEditing ? "SALVAR ALTERACOES" : "CADASTRAR CAMINHAO"}
-            </Text>
+            </ScaledText>
           )}
         </TouchableOpacity>
       </ScrollView>

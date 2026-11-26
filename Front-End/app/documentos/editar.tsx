@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { UpdateDocumentoDto } from '@/@types/documento';
 import { DateField } from '@/components/dateField';
 import Input from '@/components/input';
@@ -6,6 +7,7 @@ import { updateDocumento } from '@/services/documentoService';
 import { useToast } from '@/shared/ui/molecules/Toast';
 import { DocumentoFormErrors, validateDocumento } from '@/utils/documentoValidation';
 import { queryClient } from '@/utils/queryClient';
+import { syncExpiryNotifications } from '@/services/vencimentoNotifications';
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -87,8 +89,9 @@ export default function EditarDocumento() {
 
       return updateDocumento(documentoId, data);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['documentos'] });
+      await syncExpiryNotifications();
       show('Documento atualizado com sucesso!', {
         type: 'success',
         backgroundColor: '#10B981',
@@ -135,36 +138,36 @@ export default function EditarDocumento() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>EDITAR DOCUMENTO</Text>
-          <Text style={styles.subtitle}>
+          <ScaledText style={styles.title}>EDITAR DOCUMENTO</ScaledText>
+          <ScaledText style={styles.subtitle}>
             Atualize os dados e o vencimento do documento
-          </Text>
+          </ScaledText>
         </View>
 
         <View style={styles.divider} />
 
-        {!!errors.id && <Text style={styles.errorText}>{errors.id}</Text>}
+        {!!errors.id && <ScaledText style={styles.errorText}>{errors.id}</ScaledText>}
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>NOME DO DOCUMENTO *</Text>
+          <ScaledText style={styles.label}>NOME DO DOCUMENTO *</ScaledText>
           <Input
             placeholder="Ex: CRLV, ANTT, Seguro"
             value={nome}
             onChangeText={setNome}
             autoCapitalize="words"
           />
-          {errors.nome && <Text style={styles.errorText}>{errors.nome}</Text>}
+          {errors.nome && <ScaledText style={styles.errorText}>{errors.nome}</ScaledText>}
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>NUMERO *</Text>
+          <ScaledText style={styles.label}>NUMERO *</ScaledText>
           <Input
             placeholder="Numero do documento"
             value={numero}
             onChangeText={setNumero}
           />
           {errors.numero && (
-            <Text style={styles.errorText}>{errors.numero}</Text>
+            <ScaledText style={styles.errorText}>{errors.numero}</ScaledText>
           )}
         </View>
 
@@ -188,7 +191,7 @@ export default function EditarDocumento() {
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>OBSERVACAO</Text>
+          <ScaledText style={styles.label}>OBSERVACAO</ScaledText>
           <Input
             placeholder="Observacoes adicionais (opcional)"
             value={observacao}
@@ -211,7 +214,7 @@ export default function EditarDocumento() {
           {isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>SALVAR ALTERAÇÕES</Text>
+            <ScaledText style={styles.submitButtonText}>SALVAR ALTERAÇÕES</ScaledText>
           )}
         </TouchableOpacity>
       </ScrollView>

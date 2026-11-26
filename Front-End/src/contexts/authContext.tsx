@@ -2,6 +2,7 @@ import { signIn, signOut } from '@/services/authService';
 import { encerrarSessaoLocal, voltarAoInicio } from '@/services/sessao';
 import { createUser, getMeuPerfil } from '@/services/userService';
 import { guardarAceiteLocal } from '@/services/termosService';
+import { cancelExpiryNotifications } from '@/services/vencimentoNotifications';
 import { useToast } from '@/shared/ui/molecules/Toast';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -117,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    try { await cancelExpiryNotifications(); } catch {}
     // Invalida o token no servidor enquanto ele ainda esta gravado; se falhar (sem rede, token ja expirado), encerra a sessao local mesmo assim.
     try {
       await signOut();

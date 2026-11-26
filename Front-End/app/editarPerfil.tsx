@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { User } from "@/@types/user";
 import Button from "@/shared/ui/base/button";
 import Input from "@/components/input";
@@ -96,8 +97,8 @@ export default function EditarPerfil() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>EDITAR PERFIL</Text>
-      <Text style={styles.subtitle}>Atualize seu nome, e-mail e telefone.</Text>
+      <ScaledText style={styles.title}>EDITAR PERFIL</ScaledText>
+      <ScaledText style={styles.subtitle}>Atualize seu nome, e-mail e telefone.</ScaledText>
       {perfilQuery.isError && (
         <QueryErrorState
           compact
@@ -106,19 +107,19 @@ export default function EditarPerfil() {
         />
       )}
       <View style={styles.field}>
-        <Text style={styles.label}>NOME COMPLETO*</Text>
+        <ScaledText style={styles.label}>NOME COMPLETO*</ScaledText>
         <Input placeholder="Digite seu nome completo" value={nome} onChangeText={alterar(setNome)} />
-        {!!errors.nome && <Text style={styles.error}>{errors.nome}</Text>}
+        {!!errors.nome && <ScaledText style={styles.error}>{errors.nome}</ScaledText>}
       </View>
       <View style={styles.field}>
-        <Text style={styles.label}>EMAIL*</Text>
+        <ScaledText style={styles.label}>EMAIL*</ScaledText>
         <Input placeholder="Digite seu email" value={email} onChangeText={alterar(setEmail)}keyboardType="email-address" autoCapitalize="none" />
-        {!!errors.email && <Text style={styles.error}>{errors.email}</Text>}
+        {!!errors.email && <ScaledText style={styles.error}>{errors.email}</ScaledText>}
       </View>
       <View style={styles.field}>
-        <Text style={styles.label}>TELEFONE</Text>
+        <ScaledText style={styles.label}>TELEFONE</ScaledText>
         <Input placeholder="(00) 00000-0000" value={telefone} onChangeText={alterar((t) => setTelefone(maskPhone(t)))} keyboardType="numeric" />
-        {!!errors.telefone && <Text style={styles.error}>{errors.telefone}</Text>}
+        {!!errors.telefone && <ScaledText style={styles.error}>{errors.telefone}</ScaledText>}
       </View>
       <Button
         height={56}
@@ -128,7 +129,7 @@ export default function EditarPerfil() {
         isLoading={mutation.isPending}
         disabled={mutation.isPending}
       >
-        <Text style={styles.buttonText}>SALVAR ALTERAÇÕES</Text>
+        <ScaledText style={styles.buttonText}>SALVAR ALTERAÇÕES</ScaledText>
       </Button>
     </ScrollView>
   );

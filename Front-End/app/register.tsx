@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import colors from "@/constants/colors";
 import Input from "@/components/input";
 import { useAuth } from "@/contexts/authContext";
@@ -92,56 +93,56 @@ export default function Register() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.titleContainer}>
-        <Text style={styles.title}>CRIAR CONTA</Text>
-        <Text style={styles.subtitle}>Informe os seus dados pessoais</Text>
+        <ScaledText style={styles.title}>CRIAR CONTA</ScaledText>
+        <ScaledText style={styles.subtitle}>Informe os seus dados pessoais</ScaledText>
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>NOME COMPLETO*</Text>
+        <ScaledText style={styles.label}>NOME COMPLETO*</ScaledText>
         <Input
           placeholder="Digite aqui o seu nome completo"
           value={nome}
           onChangeText={setNome}
           autoCapitalize="words"
         />
-        {errors.nome && <Text style={styles.errorText}>{errors.nome}</Text>}
+        {errors.nome && <ScaledText style={styles.errorText}>{errors.nome}</ScaledText>}
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>CPF*</Text>
+        <ScaledText style={styles.label}>CPF*</ScaledText>
         <Input
           placeholder="000.000.000-00"
           value={cpf}
           onChangeText={(t) => setCpf(maskCpf(t))}
           keyboardType="numeric"
         />
-        {errors.cpf && <Text style={styles.errorText}>{errors.cpf}</Text>}
+        {errors.cpf && <ScaledText style={styles.errorText}>{errors.cpf}</ScaledText>}
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>TELEFONE</Text>
+        <ScaledText style={styles.label}>TELEFONE</ScaledText>
         <Input
           placeholder="(00) 00000-0000"
           value={telefone}
           onChangeText={(t) => setTelefone(maskPhone(t))}
           keyboardType="numeric"
         />
-        {errors.telefone && <Text style={styles.errorText}>{errors.telefone}</Text>}
+        {errors.telefone && <ScaledText style={styles.errorText}>{errors.telefone}</ScaledText>}
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>EMAIL*</Text>
+        <ScaledText style={styles.label}>EMAIL*</ScaledText>
         <Input
           placeholder="Digite aqui o seu email"
           value={email}
           onChangeText={(t) => setEmail(t)}
           keyboardType="email-address"
         />
-        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+        {errors.email && <ScaledText style={styles.errorText}>{errors.email}</ScaledText>}
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>SENHA DE ACESSO*</Text>
+        <ScaledText style={styles.label}>SENHA DE ACESSO*</ScaledText>
         <Input
           placeholder="Digite uma senha"
           value={senha}
@@ -155,9 +156,9 @@ export default function Register() {
               size={18}
               color={hasChars ? '#10B981' : '#aaa'}
             />
-            <Text style={[styles.hintText, hasChars && styles.hintTextValid]}>
+            <ScaledText style={[styles.hintText, hasChars && styles.hintTextValid]}>
               Pode conter letras, números e símbolos
-            </Text>
+            </ScaledText>
           </View>
           <View style={styles.passwordHint}>
             <Ionicons
@@ -165,16 +166,16 @@ export default function Register() {
               size={18}
               color={isMinLength ? '#10B981' : '#aaa'}
             />
-            <Text style={[styles.hintText, isMinLength && styles.hintTextValid]}>
+            <ScaledText style={[styles.hintText, isMinLength && styles.hintTextValid]}>
               Mínimo de 6 caracteres
-            </Text>
+            </ScaledText>
           </View>
         </View>
-        {errors.senha && <Text style={styles.errorText}>{errors.senha}</Text>}
+        {errors.senha && <ScaledText style={styles.errorText}>{errors.senha}</ScaledText>}
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>CONFIRME SUA SENHA*</Text>
+        <ScaledText style={styles.label}>CONFIRME SUA SENHA*</ScaledText>
         <Input
           placeholder="Confirme a sua senha"
           value={confirmarSenha}
@@ -182,7 +183,7 @@ export default function Register() {
           type="password"
         />
         {errors.confirmarSenha && (
-          <Text style={styles.errorText}>{errors.confirmarSenha}</Text>
+          <ScaledText style={styles.errorText}>{errors.confirmarSenha}</ScaledText>
         )}
       </View>
 
@@ -191,9 +192,9 @@ export default function Register() {
           <ActivityIndicator color={primaryColor} />
         ) : termoQuery.isError ? (
           <View style={styles.termLoadError}>
-            <Text style={styles.errorText}>Não foi possível carregar o termo antes de criar sua conta.</Text>
+            <ScaledText style={styles.errorText}>Não foi possível carregar o termo antes de criar sua conta.</ScaledText>
             <TouchableOpacity onPress={() => { void termoQuery.refetch(); }}>
-              <Text style={[styles.termLink, { color: primaryColor }]}>Tentar carregar novamente</Text>
+              <ScaledText style={[styles.termLink, { color: primaryColor }]}>Tentar carregar novamente</ScaledText>
             </TouchableOpacity>
           </View>
         ) : (
@@ -211,15 +212,15 @@ export default function Register() {
               >
                 {aceitouTermo && <Ionicons name="checkmark" size={18} color="#fff" />}
               </TouchableOpacity>
-              <Text style={styles.termText}>Li e aceito o </Text>
+              <ScaledText style={styles.termText}>Li e aceito o </ScaledText>
               <Pressable onPress={() => router.push("/termos")}>
-                <Text style={[styles.termLink, { color: primaryColor }]}>Termo de Uso e Isenção de Responsabilidade</Text>
+                <ScaledText style={[styles.termLink, { color: primaryColor }]}>Termo de Uso e Isenção de Responsabilidade</ScaledText>
               </Pressable>
             </View>
             {!aceitouTermo && (
-              <Text style={styles.termHint}>Marque a caixa para liberar o botão CONTINUAR.</Text>
+              <ScaledText style={styles.termHint}>Marque a caixa para liberar o botão CONTINUAR.</ScaledText>
             )}
-            {errors.termo && <Text style={styles.errorText}>{errors.termo}</Text>}
+            {errors.termo && <ScaledText style={styles.errorText}>{errors.termo}</ScaledText>}
           </>
         )}
       </View>
@@ -234,7 +235,7 @@ export default function Register() {
         showLoadingIndicator
         disabled={signUpIsPending || !aceitouTermo || !termoQuery.data || termoQuery.isLoading}
       >
-        <Text style={styles.buttonText}>CONTINUAR</Text>
+        <ScaledText style={styles.buttonText}>CONTINUAR</ScaledText>
       </Button>
     </ScrollView>
   );

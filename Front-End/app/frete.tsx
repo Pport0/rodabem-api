@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { ComposicaoVeicular, HistoricoFreteItem, SimularFreteDto, TipoCarga } from "@/@types/frete";
 import Input from "@/components/input";
 import { QueryErrorState } from "@/components/queryErrorState";
@@ -101,17 +102,17 @@ function HistoryCard({ item, primaryColor }: { item: HistoricoFreteItem; primary
     <View style={styles.historyCard}>
       <View style={styles.historyTop}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.historyRoute}>{item.origem}</Text>
-          <Text style={styles.historyArrow}>ate {item.destino}</Text>
+          <ScaledText style={styles.historyRoute}>{item.origem}</ScaledText>
+          <ScaledText style={styles.historyArrow}>ate {item.destino}</ScaledText>
         </View>
-        <Text style={[styles.historyValue, { color: primaryColor }]}>
+        <ScaledText style={[styles.historyValue, { color: primaryColor }]}>
           {formatCurrency(item.valorLiquidoEstimado)}
-        </Text>
+        </ScaledText>
       </View>
       <View style={styles.historyMetaRow}>
-        <Text style={styles.historyMeta}>{formatNumber(item.distanciaKm, 1)} km</Text>
-        <Text style={styles.historyMeta}>{formatCurrency(item.valorMinimoAntt)} ANTT</Text>
-        <Text style={styles.historyMeta}>{formatDate(item.createdAt)}</Text>
+        <ScaledText style={styles.historyMeta}>{formatNumber(item.distanciaKm, 1)} km</ScaledText>
+        <ScaledText style={styles.historyMeta}>{formatCurrency(item.valorMinimoAntt)} ANTT</ScaledText>
+        <ScaledText style={styles.historyMeta}>{formatDate(item.createdAt)}</ScaledText>
       </View>
     </View>
   );
@@ -217,8 +218,8 @@ export default function FreteScreen() {
     >
       <View style={[styles.heroCard, { backgroundColor: primaryColor }]}>
         <View style={styles.heroText}>
-          <Text style={styles.heroEyebrow}>CALCULADORA DE FRETE</Text>
-          <Text style={styles.heroTitle}>Simule custos, ANTT e retorno estimado.</Text>
+          <ScaledText style={styles.heroEyebrow}>CALCULADORA DE FRETE</ScaledText>
+          <ScaledText style={styles.heroTitle}>Simule custos, ANTT e retorno estimado.</ScaledText>
         </View>
         <View style={styles.heroBadge}>
           <Ionicons name="trail-sign-outline" size={28} color="#fff" />
@@ -226,20 +227,20 @@ export default function FreteScreen() {
       </View>
 
       <View style={styles.formCard}>
-        <Text style={styles.sectionTitle}>DADOS DA VIAGEM</Text>
+        <ScaledText style={styles.sectionTitle}>DADOS DA VIAGEM</ScaledText>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>ORIGEM *</Text>
+          <ScaledText style={styles.label}>ORIGEM *</ScaledText>
           <Input placeholder="Cidade, estado ou endereco" value={origem} onChangeText={setOrigem} />
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>DESTINO *</Text>
+          <ScaledText style={styles.label}>DESTINO *</ScaledText>
           <Input placeholder="Cidade, estado ou endereco" value={destino} onChangeText={setDestino} />
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>PARADAS INTERMEDIARIAS</Text>
+          <ScaledText style={styles.label}>PARADAS INTERMEDIARIAS</ScaledText>
           <Input
             placeholder="Uma parada por linha"
             value={paradas}
@@ -249,7 +250,7 @@ export default function FreteScreen() {
           />
         </View>
 
-        <Text style={[styles.groupLabel, { color: primaryColor }]}>TIPO DE CARGA</Text>
+        <ScaledText style={[styles.groupLabel, { color: primaryColor }]}>TIPO DE CARGA</ScaledText>
         <View style={styles.chipsRow}>
           {loadOptions.map((option) => {
             const active = option.value === tipoCarga;
@@ -263,7 +264,7 @@ export default function FreteScreen() {
                 onPress={() => setTipoCarga(option.value)}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
+                <ScaledText style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</ScaledText>
               </TouchableOpacity>
             );
           })}
@@ -271,7 +272,7 @@ export default function FreteScreen() {
 
         <View style={styles.row}>
           <View style={[styles.fieldContainer, styles.flex]}>
-            <Text style={styles.label}>PRECO COMBUSTIVEL *</Text>
+            <ScaledText style={styles.label}>PRECO COMBUSTIVEL *</ScaledText>
             <Input
               placeholder="Ex: 6.29"
               value={precoCombustivel}
@@ -280,7 +281,7 @@ export default function FreteScreen() {
             />
           </View>
           <View style={[styles.fieldContainer, styles.flex]}>
-            <Text style={styles.label}>PEDAGIOS</Text>
+            <ScaledText style={styles.label}>PEDAGIOS</ScaledText>
             <Input
               placeholder="Opcional"
               value={pedagiosManual}
@@ -291,7 +292,7 @@ export default function FreteScreen() {
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>CONSUMO MEDIO MANUAL (KM/L)</Text>
+          <ScaledText style={styles.label}>CONSUMO MEDIO MANUAL (KM/L)</ScaledText>
           <Input
             placeholder="Opcional, use para sobrescrever a media do app"
             value={consumoManual}
@@ -300,7 +301,7 @@ export default function FreteScreen() {
           />
         </View>
 
-        <Text style={[styles.groupLabel, { color: primaryColor }]}>COMPOSIÇÃO</Text>
+        <ScaledText style={[styles.groupLabel, { color: primaryColor }]}>COMPOSIÇÃO</ScaledText>
         <View style={styles.chipsRow}>
           {composicaoOptions.map((option) => {
             const active = option.value === composicao;
@@ -314,28 +315,28 @@ export default function FreteScreen() {
                 onPress={() => setComposicao(option.value)}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
+                <ScaledText style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</ScaledText>
               </TouchableOpacity>
             );
           })}
         </View>
-        {composicao === "SEM_CARRETA" && <Text style={styles.switchSubtitle}>{AVISO_SEM_CARRETA}</Text>}
+        {composicao === "SEM_CARRETA" && <ScaledText style={styles.switchSubtitle}>{AVISO_SEM_CARRETA}</ScaledText>}
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>LUCRO DESEJADO (%)</Text>
+          <ScaledText style={styles.label}>LUCRO DESEJADO (%)</ScaledText>
           <Input
             placeholder="Ex: 20"
             value={lucro}
             onChangeText={(text) => setLucro(text.replace(/[^0-9.,]/g, ""))}
             keyboardType="decimal-pad"
           />
-          <Text style={styles.switchSubtitle}>Opcional. Calcula um valor sugerido de cobrança sobre os custos.</Text>
+          <ScaledText style={styles.switchSubtitle}>Opcional. Calcula um valor sugerido de cobrança sobre os custos.</ScaledText>
         </View>
 
         <View style={styles.switchRow}>
           <View style={styles.switchTextGroup}>
-            <Text style={styles.switchTitle}>Retorno vazio</Text>
-            <Text style={styles.switchSubtitle}>Dobra distancia e pedagios para volta sem carga.</Text>
+            <ScaledText style={styles.switchTitle}>Retorno vazio</ScaledText>
+            <ScaledText style={styles.switchSubtitle}>Dobra distancia e pedagios para volta sem carga.</ScaledText>
           </View>
           <Switch
             value={retornoVazio}
@@ -347,8 +348,8 @@ export default function FreteScreen() {
 
         <View style={styles.switchRow}>
           <View style={styles.switchTextGroup}>
-            <Text style={styles.switchTitle}>Alto desempenho</Text>
-            <Text style={styles.switchSubtitle}>Guarda a simulacao com essa classificacao.</Text>
+            <ScaledText style={styles.switchTitle}>Alto desempenho</ScaledText>
+            <ScaledText style={styles.switchSubtitle}>Guarda a simulacao com essa classificacao.</ScaledText>
           </View>
           <Switch
             value={altoDesempenho}
@@ -368,35 +369,35 @@ export default function FreteScreen() {
           disabled={simulationMutation.isPending}
           activeOpacity={0.85}
         >
-          <Text style={styles.primaryButtonText}>
+          <ScaledText style={styles.primaryButtonText}>
             {simulationMutation.isPending ? "CALCULANDO..." : "SIMULAR FRETE"}
-          </Text>
+          </ScaledText>
         </TouchableOpacity>
       </View>
 
       {latestResult && (
         <View style={styles.resultCard}>
           <View style={styles.resultHeader}>
-            <Text style={styles.sectionTitle}>ULTIMA SIMULACAO</Text>
-            <Text
+            <ScaledText style={styles.sectionTitle}>ULTIMA SIMULACAO</ScaledText>
+            <ScaledText
               style={[
                 styles.resultProfit,
                 { color: latestResult.abaixoMinimoAntt ? "#E53E3E" : "#10B981" },
               ]}
             >
               {formatCurrency(latestResult.valorLiquidoEstimado)}
-            </Text>
+            </ScaledText>
           </View>
 
-          <Text style={styles.resultRoute}>
+          <ScaledText style={styles.resultRoute}>
             {latestResult.origem} ate {latestResult.destino}
-          </Text>
+          </ScaledText>
 
           <View style={styles.summaryGrid}>
             {summary?.map((item) => (
               <View key={item.label} style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>{item.label}</Text>
-                <Text style={styles.summaryValue}>{item.value}</Text>
+                <ScaledText style={styles.summaryLabel}>{item.label}</ScaledText>
+                <ScaledText style={styles.summaryValue}>{item.value}</ScaledText>
               </View>
             ))}
           </View>
@@ -404,44 +405,44 @@ export default function FreteScreen() {
           <View style={styles.valuesBox}>
             <View style={styles.detailLine}>
               {/* Rotulo conferido pelo fluxo Maestro frete/simula-e-mostra-o-resultado. */}
-              <Text style={styles.detailLabel}>Valor minimo ANTT</Text>
-              <Text style={styles.detailValue}>{formatCurrency(latestResult.valorMinimoAntt)}</Text>
+              <ScaledText style={styles.detailLabel}>Valor minimo ANTT</ScaledText>
+              <ScaledText style={styles.detailValue}>{formatCurrency(latestResult.valorMinimoAntt)}</ScaledText>
             </View>
             {latestResult.tabelaAnttReferencia && (
-              <Text style={styles.referenceText}>
+              <ScaledText style={styles.referenceText}>
                 Referência: {latestResult.tabelaAnttReferencia.resolucao}, vigente desde {formatReferenceDate(latestResult.tabelaAnttReferencia.vigenteDesde)}.
-              </Text>
+              </ScaledText>
             )}
             {typeof latestResult.custoTotal === "number" && (
               <View style={styles.detailLine}>
-                <Text style={styles.detailLabel}>Custos estimados (combustível + pedágios)</Text>
-                <Text style={styles.detailValue}>{formatCurrency(latestResult.custoTotal)}</Text>
+                <ScaledText style={styles.detailLabel}>Custos estimados (combustível + pedágios)</ScaledText>
+                <ScaledText style={styles.detailValue}>{formatCurrency(latestResult.custoTotal)}</ScaledText>
               </View>
             )}
             {latestResult.valorSugerido !== null && latestResult.valorSugerido !== undefined && (
               <View style={styles.detailLine}>
-                <Text style={[styles.detailLabel, styles.suggestedLabel]}>
+                <ScaledText style={[styles.detailLabel, styles.suggestedLabel]}>
                   Valor sugerido ({formatPercent(latestResult.percentualLucroDesejado ?? 0)} de lucro)
-                </Text>
-                <Text style={[styles.suggestedValue, { color: primaryColor }]}>
+                </ScaledText>
+                <ScaledText style={[styles.suggestedValue, { color: primaryColor }]}>
                   {formatCurrency(latestResult.valorSugerido)}
-                </Text>
+                </ScaledText>
               </View>
             )}
           </View>
           <View style={styles.detailLine}>
-            <Text style={styles.detailLabel}>Litros necessarios</Text>
-            <Text style={styles.detailValue}>{formatNumber(latestResult.litrosNecessarios, 2)} L</Text>
+            <ScaledText style={styles.detailLabel}>Litros necessarios</ScaledText>
+            <ScaledText style={styles.detailValue}>{formatNumber(latestResult.litrosNecessarios, 2)} L</ScaledText>
           </View>
           <View style={styles.detailLine}>
-            <Text style={styles.detailLabel}>Consumo usado</Text>
-            <Text style={styles.detailValue}>{formatNumber(latestResult.consumoMedioKmL, 2)} km/L</Text>
+            <ScaledText style={styles.detailLabel}>Consumo usado</ScaledText>
+            <ScaledText style={styles.detailValue}>{formatNumber(latestResult.consumoMedioKmL, 2)} km/L</ScaledText>
           </View>
 
           {!!latestResult.aviso && (
             <View style={styles.warningBox}>
               <Ionicons name="warning-outline" size={18} color="#B91C1C" />
-              <Text style={styles.warningText}>{latestResult.aviso}</Text>
+              <ScaledText style={styles.warningText}>{latestResult.aviso}</ScaledText>
             </View>
           )}
         </View>
@@ -450,12 +451,12 @@ export default function FreteScreen() {
       {!latestResult && !!erroTabelaAntt && (
         <View style={styles.warningBox}>
           <Ionicons name="alert-circle-outline" size={18} color="#B91C1C" />
-          <Text style={styles.warningText}>{erroTabelaAntt}</Text>
+          <ScaledText style={styles.warningText}>{erroTabelaAntt}</ScaledText>
         </View>
       )}
 
       <View style={styles.historySection}>
-        <Text style={styles.sectionTitle}>HISTORICO DE SIMULACOES</Text>
+        <ScaledText style={styles.sectionTitle}>HISTORICO DE SIMULACOES</ScaledText>
         {historicoQuery.isLoading ? (
           <ActivityIndicator style={{ paddingVertical: 20 }} color={primaryColor} />
         ) : historicoQuery.isError ? (
@@ -470,8 +471,8 @@ export default function FreteScreen() {
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="receipt-outline" size={48} color="#d8d8d8" />
-            <Text style={styles.emptyTitle}>Nenhuma simulacao registrada</Text>
-            <Text style={styles.emptySubtitle}>A primeira simulacao aparecera aqui.</Text>
+            <ScaledText style={styles.emptyTitle}>Nenhuma simulacao registrada</ScaledText>
+            <ScaledText style={styles.emptySubtitle}>A primeira simulacao aparecera aqui.</ScaledText>
           </View>
         )}
       </View>

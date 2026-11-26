@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import React, { useState, useEffect, memo } from "react";
 import {
   View,
@@ -211,7 +212,7 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
                   { backgroundColor: getBackgroundColor() },
                 ]}
               >
-                <Text
+                <ScaledText
                   style={[
                     styles.fallbackText,
                     {
@@ -223,7 +224,7 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
                   numberOfLines={1}
                 >
                   {getInitials(image.name, "?")}
-                </Text>
+                </ScaledText>
                 <ShimmerEffect />
               </View>
             </Animated.View>
@@ -285,7 +286,7 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
                 },
               ]}
             >
-              <Text
+              <ScaledText
                 style={[
                   styles.fallbackText,
                   {
@@ -296,7 +297,7 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
                 numberOfLines={1}
               >
                 {getInitials(image.name, "?")}
-              </Text>
+              </ScaledText>
             </View>
             {showOnlineIndicator && (
               <View
@@ -324,7 +325,7 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
         if (!showText || !image.name) return null;
 
         return (
-          <Text
+          <ScaledText
             style={[
               styles.nameText,
               textPosition === "right" && styles.nameTextRight,
@@ -335,7 +336,7 @@ export const Avatar: React.FC<IAvatar> & React.FunctionComponent<IAvatar> =
             numberOfLines={1}
           >
             {image.name}
-          </Text>
+          </ScaledText>
         );
       };
 

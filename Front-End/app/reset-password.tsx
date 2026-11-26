@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import Button from "@/shared/ui/base/button";
 import Input from "@/components/input";
 import colors from "@/constants/colors";
@@ -73,32 +74,32 @@ export default function ResetPassword() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>REDEFINIR SENHA</Text>
-      <Text style={styles.subtitle}>Cole o código que enviamos por e-mail e escolha uma nova senha.</Text>
+      <ScaledText style={styles.title}>REDEFINIR SENHA</ScaledText>
+      <ScaledText style={styles.subtitle}>Cole o código que enviamos por e-mail e escolha uma nova senha.</ScaledText>
       <View style={styles.field}>
-        <Text style={styles.label}>CÓDIGO</Text>
+        <ScaledText style={styles.label}>CÓDIGO</ScaledText>
         <Input placeholder="Cole aqui o código do e-mail" value={token} onChangeText={setToken} autoCapitalize="none" autoCorrect={false} />
       </View>
       <View style={styles.field}>
-        <Text style={styles.label}>NOVA SENHA</Text>
+        <ScaledText style={styles.label}>NOVA SENHA</ScaledText>
         <Input placeholder="Digite a nova senha" value={novaSenha} onChangeText={setNovaSenha} type="password" />
       </View>
       <View style={styles.field}>
-        <Text style={styles.label}>CONFIRME A NOVA SENHA</Text>
+        <ScaledText style={styles.label}>CONFIRME A NOVA SENHA</ScaledText>
         <Input placeholder="Confirme a nova senha" value={confirmarSenha} onChangeText={setConfirmarSenha} type="password" />
       </View>
-      {!!error && <Text style={styles.error}>{error}</Text>}
+      {!!error && <ScaledText style={styles.error}>{error}</ScaledText>}
       {tokenInvalido && (
         <View style={styles.invalidBox}>
-          <Text style={styles.invalidText}>
+          <ScaledText style={styles.invalidText}>
             Este código é inválido ou já expirou. Cada código vale por 30 minutos e só pode ser usado uma vez.
-          </Text>
+          </ScaledText>
           <TouchableOpacity
             style={[styles.outlineButton, { borderColor: primaryColor }]}
             onPress={() => router.replace("/forgotPassword")}
             activeOpacity={0.85}
           >
-            <Text style={[styles.outlineButtonText, { color: primaryColor }]}>PEDIR NOVO E-MAIL</Text>
+            <ScaledText style={[styles.outlineButtonText, { color: primaryColor }]}>PEDIR NOVO E-MAIL</ScaledText>
           </TouchableOpacity>
         </View>
       )}
@@ -110,7 +111,7 @@ export default function ResetPassword() {
         isLoading={mutation.isPending}
         disabled={mutation.isPending}
       >
-        <Text style={styles.buttonText}>REDEFINIR SENHA</Text>
+        <ScaledText style={styles.buttonText}>REDEFINIR SENHA</ScaledText>
       </Button>
     </ScrollView>
   );

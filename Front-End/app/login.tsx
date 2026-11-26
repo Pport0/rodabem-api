@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import colors from "@/constants/colors";
 import Input from "@/components/input";
 import { useAuth } from "@/contexts/authContext";
@@ -38,23 +39,23 @@ export default function Login() {
 
   return <View style={styles.container}>
     <View style={styles.titleContainer}>
-      <Text style={styles.title}>Entrar</Text>
-      <Text style={styles.subtitle}>Insira suas credenciais para acessar</Text>
+      <ScaledText style={styles.title}>Entrar</ScaledText>
+      <ScaledText style={styles.subtitle}>Insira suas credenciais para acessar</ScaledText>
     </View>
-    {mensagemMotivo && <Text style={styles.motivoText}>{mensagemMotivo}</Text>}
+    {mensagemMotivo && <ScaledText style={styles.motivoText}>{mensagemMotivo}</ScaledText>}
     <View style={styles.inputContainer}>
-      <Text style={styles.label}>
+      <ScaledText style={styles.label}>
         CPF ou Telefone
-      </Text>
+      </ScaledText>
       <Input placeholder="Insira o seu cpf ou telefone" value={cpfOrPhone} onChangeText={setCpfOrPhone} type="text" />
-      {errors.cpfOrPhone && <Text style={styles.errorText}>{errors.cpfOrPhone}</Text>}
+      {errors.cpfOrPhone && <ScaledText style={styles.errorText}>{errors.cpfOrPhone}</ScaledText>}
     </View>
     <View style={styles.inputContainer}>
-      <Text style={styles.label}>
+      <ScaledText style={styles.label}>
         Senha
-      </Text>
+      </ScaledText>
       <Input placeholder="Insira a sua senha" value={password} onChangeText={setPassword} type="password" />
-      {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+      {errors.password && <ScaledText style={styles.errorText}>{errors.password}</ScaledText>}
     </View>
     <Button
       borderRadius={10}
@@ -67,10 +68,10 @@ export default function Login() {
       showLoadingIndicator
       disabled={loginIsPending}
     >
-      <Text style={styles.buttonText}>Acessar</Text>
+      <ScaledText style={styles.buttonText}>Acessar</ScaledText>
     </Button>
     <Pressable onPress={() =>  router.navigate('/forgotPassword')}>
-      <Text style={styles.forgotPasswordText}>Esqueci minha senha</Text>
+      <ScaledText style={styles.forgotPasswordText}>Esqueci minha senha</ScaledText>
     </Pressable>
   </View>
 }

@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface QueryErrorStateProps {
@@ -13,7 +14,7 @@ export function QueryErrorState({
 }: QueryErrorStateProps) {
   return (
     <View style={[styles.container, compact && styles.compact]}>
-      <Text style={styles.message}>{message}</Text>
+      <ScaledText style={styles.message}>{message}</ScaledText>
       <TouchableOpacity
         onPress={onRetry}
         accessibilityRole="button"
@@ -21,7 +22,7 @@ export function QueryErrorState({
         style={styles.retryButton}
         activeOpacity={0.75}
       >
-        <Text style={styles.retryText}>Tentar novamente</Text>
+        <ScaledText style={styles.retryText}>Tentar novamente</ScaledText>
       </TouchableOpacity>
     </View>
   );

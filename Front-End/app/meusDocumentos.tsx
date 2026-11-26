@@ -1,13 +1,18 @@
+import ScaledText from '@/components/scaledText';
 import colors from "@/constants/colors";
 import { Documento } from "@/@types/documento";
 import { DocumentoCard } from "@/components/documentoCard";
 import { QueryErrorState } from "@/components/queryErrorState";
-import { getDocumentos } from "@/services/documentoService";
+import { deleteDocumento, getDocumentos } from "@/services/documentoService";
+import { syncExpiryNotifications } from "@/services/vencimentoNotifications";
+import { queryClient } from "@/utils/queryClient";
+import { Toast } from "@/shared/ui/molecules/Toast";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -26,6 +31,22 @@ export default function MeusDocumentos() {
     queryFn: () => getDocumentos(),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteDocumento,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["documentos"] });
+      await syncExpiryNotifications();
+      Toast.show("Documento excluído.", { type: "success", backgroundColor: "#10B981" });
+    },
+    onError: () => Toast.show("Não foi possível excluir o documento.", { type: "error", backgroundColor: "#E53E3E" }),
+  });
+
+  const confirmDelete = (item: Documento) => Alert.alert(
+    "Excluir documento",
+    `Deseja excluir ${item.nome}? Os avisos de vencimento também serão removidos.`,
+    [{ text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: () => item.id && deleteMutation.mutate(item.id) }],
+  );
+
   return (
     <View style={styles.container}>
       {isLoading ? (
@@ -43,13 +64,13 @@ export default function MeusDocumentos() {
         <FlatList
           data={documentos}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <DocumentoCard documento={item} />}
+          renderItem={({ item }) => <DocumentoCard documento={item} onEdit={() => router.push({ pathname: "/documentos/editar", params: { id: String(item.id), nome: item.nome, numero: item.numero, dataEmissao: item.dataEmissao, dataVencimento: item.dataVencimento, observacao: item.observacao ?? "" } } as any)} onDelete={() => confirmDelete(item)} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           onRefresh={refetch}
           refreshing={isLoading}
           ListHeaderComponent={
-            <Text style={styles.sectionTitle}>DOCUMENTOS DO MOTORISTA</Text>
+            <ScaledText style={styles.sectionTitle}>DOCUMENTOS DO MOTORISTA</ScaledText>
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -58,10 +79,10 @@ export default function MeusDocumentos() {
                 size={52}
                 color="#e0e0e0"
               />
-              <Text style={styles.emptyTitle}>Nenhum documento cadastrado</Text>
-              <Text style={styles.emptySubtitle}>
+              <ScaledText style={styles.emptyTitle}>Nenhum documento cadastrado</ScaledText>
+              <ScaledText style={styles.emptySubtitle}>
                 Adicione seus documentos de motorista
-              </Text>
+              </ScaledText>
             </View>
           }
         />
@@ -73,7 +94,7 @@ export default function MeusDocumentos() {
           onPress={() => router.push("/documentos/novo" as any)}
           activeOpacity={0.85}
         >
-          <Text style={styles.addBtnText}>ADICIONAR DOCUMENTO</Text>
+          <ScaledText style={styles.addBtnText}>ADICIONAR DOCUMENTO</ScaledText>
         </TouchableOpacity>
       </View>
     </View>

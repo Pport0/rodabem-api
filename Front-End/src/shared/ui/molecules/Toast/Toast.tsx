@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import React, { useEffect, useRef } from "react";
 import {
   LayoutAnimation,
@@ -313,10 +314,10 @@ export const Toast: React.FC<ToastProps> = ({ toast, index }) => {
         android_ripple={{ color: "rgba(255, 255, 255, 0.1)" }}
       >
         <View style={styles.mainContent}>
-          {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+          {icon ? <ScaledText style={styles.icon}>{icon}</ScaledText> : null}
           <View style={styles.contentContainer}>
             {typeof toast.content === "string" ? (
-              <Text style={styles.text}>{toast.content}</Text>
+              <ScaledText style={styles.text}>{toast.content}</ScaledText>
             ) : (
               toast.content
             )}
@@ -329,9 +330,9 @@ export const Toast: React.FC<ToastProps> = ({ toast, index }) => {
                 animatedDismiss();
               }}
             >
-              <Text style={styles.actionText}>
+              <ScaledText style={styles.actionText}>
                 {toast.options.action.label}
-              </Text>
+              </ScaledText>
             </TouchableOpacity>
           )}
         </View>

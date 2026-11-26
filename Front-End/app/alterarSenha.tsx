@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import Button from "@/shared/ui/base/button";
 import Input from "@/components/input";
 import colors from "@/constants/colors";
@@ -37,21 +38,21 @@ export default function AlterarSenha() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>ALTERAR SENHA</Text>
-      <Text style={styles.subtitle}>Confirme sua senha atual e escolha uma nova senha.</Text>
+      <ScaledText style={styles.title}>ALTERAR SENHA</ScaledText>
+      <ScaledText style={styles.subtitle}>Confirme sua senha atual e escolha uma nova senha.</ScaledText>
       <View style={styles.field}>
-        <Text style={styles.label}>SENHA ATUAL</Text>
+        <ScaledText style={styles.label}>SENHA ATUAL</ScaledText>
         <Input placeholder="Digite sua senha atual" value={senhaAtual} onChangeText={setSenhaAtual} type="password" />
       </View>
       <View style={styles.field}>
-        <Text style={styles.label}>NOVA SENHA</Text>
+        <ScaledText style={styles.label}>NOVA SENHA</ScaledText>
         <Input placeholder="Digite a nova senha" value={novaSenha} onChangeText={setNovaSenha} type="password" />
       </View>
       <View style={styles.field}>
-        <Text style={styles.label}>CONFIRME A NOVA SENHA</Text>
+        <ScaledText style={styles.label}>CONFIRME A NOVA SENHA</ScaledText>
         <Input placeholder="Confirme a nova senha" value={confirmarSenha} onChangeText={setConfirmarSenha} type="password" />
       </View>
-      {!!error && <Text style={styles.error}>{error}</Text>}
+      {!!error && <ScaledText style={styles.error}>{error}</ScaledText>}
       <Button
         height={56}
         width={Dimensions.get("window").width - 40}
@@ -60,7 +61,7 @@ export default function AlterarSenha() {
         isLoading={mutation.isPending}
         disabled={mutation.isPending}
       >
-        <Text style={styles.buttonText}>SALVAR NOVA SENHA</Text>
+        <ScaledText style={styles.buttonText}>SALVAR NOVA SENHA</ScaledText>
       </Button>
     </ScrollView>
   );

@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import Button from "@/shared/ui/base/button";
 import Input from "@/components/input";
 import colors from "@/constants/colors";
@@ -45,12 +46,12 @@ export default function ForgotPassword() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Esqueci minha senha</Text>
-      <Text style={styles.subtitle}>
+      <ScaledText style={styles.title}>Esqueci minha senha</ScaledText>
+      <ScaledText style={styles.subtitle}>
         Informe o e-mail da sua conta. Enviaremos um link e um código para você criar uma nova senha.
-      </Text>
+      </ScaledText>
       <View style={styles.field}>
-        <Text style={styles.label}>E-MAIL</Text>
+        <ScaledText style={styles.label}>E-MAIL</ScaledText>
         <Input
           placeholder="Digite o e-mail cadastrado"
           value={email}
@@ -59,7 +60,7 @@ export default function ForgotPassword() {
           autoCapitalize="none"
         />
       </View>
-      {!!error && <Text style={styles.error}>{error}</Text>}
+      {!!error && <ScaledText style={styles.error}>{error}</ScaledText>}
       <Button
         height={56}
         width={Dimensions.get("window").width - 40}
@@ -68,18 +69,18 @@ export default function ForgotPassword() {
         isLoading={enviando}
         disabled={enviando}
       >
-        <Text style={styles.buttonText}>{mensagemEnviada ? "ENVIAR NOVAMENTE" : "ENVIAR"}</Text>
+        <ScaledText style={styles.buttonText}>{mensagemEnviada ? "ENVIAR NOVAMENTE" : "ENVIAR"}</ScaledText>
       </Button>
       {!!mensagemEnviada && (
         <View style={styles.sentBox}>
-          <Text style={styles.sentText}>{mensagemEnviada}</Text>
-          <Text style={styles.hint}>O link e o código valem por 30 minutos. Confira também a caixa de spam.</Text>
+          <ScaledText style={styles.sentText}>{mensagemEnviada}</ScaledText>
+          <ScaledText style={styles.hint}>O link e o código valem por 30 minutos. Confira também a caixa de spam.</ScaledText>
           <TouchableOpacity
             style={[styles.outlineButton, { borderColor: primaryColor }]}
             onPress={() => router.push("/reset-password" as any)}
             activeOpacity={0.85}
           >
-            <Text style={[styles.outlineButtonText, { color: primaryColor }]}>JÁ TENHO O CÓDIGO</Text>
+            <ScaledText style={[styles.outlineButtonText, { color: primaryColor }]}>JÁ TENHO O CÓDIGO</ScaledText>
           </TouchableOpacity>
         </View>
       )}

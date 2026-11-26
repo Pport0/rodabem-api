@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import colors from '@/constants/colors';
 import { useUser } from '@/hooks/useUser';
 import Avatar from '@/shared/ui/base/avatar';
@@ -24,7 +25,7 @@ export default function HomeHeader() {
         <Ionicons name="menu" size={24} color="#fff" />
       </TouchableOpacity>
 
-      <Text style={styles.text}>RB</Text>
+      <ScaledText style={styles.text}>RB</ScaledText>
 
       <Avatar
         backgroundColor={primaryColor}

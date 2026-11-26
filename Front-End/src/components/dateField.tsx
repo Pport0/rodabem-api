@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { useState } from "react";
 import { TouchableOpacity, View, Text, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -21,18 +22,18 @@ export function DateField({ label, value, onChange, error }: DateFieldProps) {
   
     return (
       <View style={styles.fieldContainer}>
-        <Text style={styles.label}>{label}</Text>
+        <ScaledText style={styles.label}>{label}</ScaledText>
         <TouchableOpacity
           style={[styles.dateInput, error ? styles.dateInputError : null]}
           onPress={() => setShow(true)}
           activeOpacity={0.7}
         >
-          <Text style={[styles.dateInputText, !value && styles.dateInputPlaceholder]}>
+          <ScaledText style={[styles.dateInputText, !value && styles.dateInputPlaceholder]}>
             {value ? formatDateBR(value) : "DD/MM/AAAA"}
-          </Text>
+          </ScaledText>
           <Ionicons name="calendar-outline" size={18} color="#888" />
         </TouchableOpacity>
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {error && <ScaledText style={styles.errorText}>{error}</ScaledText>}
         {show && (
           <DateTimePicker
             value={value ?? new Date()}

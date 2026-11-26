@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import colors from "@/constants/colors";
 import { router } from "expo-router";
 import {
@@ -30,7 +31,7 @@ export default function Index() {
             onPress={() => router.push("/login")}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryButtonText}>ENTRAR</Text>
+            <ScaledText style={styles.primaryButtonText}>ENTRAR</ScaledText>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -38,11 +39,11 @@ export default function Index() {
             onPress={() => router.push("/register")}
             activeOpacity={0.85}
           >
-            <Text style={[styles.outlineButtonText, { color: primaryColor }]}>CRIAR CONTA</Text>
+            <ScaledText style={[styles.outlineButtonText, { color: primaryColor }]}>CRIAR CONTA</ScaledText>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.footer}>© 2025 - 2026 RodaBem</Text>
+        <ScaledText style={styles.footer}>© 2025 - 2026 RodaBem</ScaledText>
       </View>
     </SafeAreaView>
   );

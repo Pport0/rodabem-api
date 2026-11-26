@@ -1,5 +1,7 @@
+import ScaledText from '@/components/scaledText';
 import colors from '@/constants/colors';
 import { useAuth } from '@/contexts/authContext';
+import { useFontSize } from '@/contexts/fontSizeContext';
 import { useUser } from '@/hooks/useUser';
 import { getInitials } from '@/shared/ui/base/avatar/initials';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
@@ -14,6 +16,7 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
 
   const { user } = useUser();
   const { logout } = useAuth();
+  const { fontLevel, canDecrease, canIncrease, decreaseFontLevel, increaseFontLevel } = useFontSize();
 
   const navigate = (path: string) => {
     props.navigation.closeDrawer();
@@ -26,17 +29,17 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
     <View style={styles.container}>
       <View style={[styles.header, { backgroundColor: primaryColor }]}>
         <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitials}>{initials}</Text>
+          <ScaledText style={styles.avatarInitials}>{initials}</ScaledText>
         </View>
-        <Text style={styles.userName} numberOfLines={1}>
+        <ScaledText style={styles.userName} numberOfLines={1}>
           {user?.nome ?? 'Usuário'}
-        </Text>
+        </ScaledText>
       </View>
 
       <DrawerContentScrollView
         {...props}
         contentContainerStyle={styles.scrollContent}
-        scrollEnabled={false}
+        scrollEnabled
       >
         <TouchableOpacity
           style={styles.navItem}
@@ -46,9 +49,40 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
           <View style={styles.navIcon}>
             <Ionicons name="water-outline" size={20} color={primaryColor} />
           </View>
-          <Text style={styles.navLabel}>Abastecimentos</Text>
+          <ScaledText style={styles.navLabel}>Abastecimentos</ScaledText>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
+
+        <View style={styles.fontControls}>
+          <ScaledText style={styles.fontControlsTitle}>TAMANHO DO TEXTO</ScaledText>
+          <View style={styles.fontControlsRow}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Diminuir tamanho do texto"
+              accessibilityState={{ disabled: !canDecrease }}
+              disabled={!canDecrease}
+              onPress={decreaseFontLevel}
+              style={[styles.fontButton, !canDecrease && styles.fontButtonDisabled]}
+              activeOpacity={0.8}
+            >
+              <ScaledText style={styles.fontButtonText}>A-</ScaledText>
+            </TouchableOpacity>
+            <ScaledText accessibilityLabel="Nível do tamanho do texto" style={styles.fontLevel}>
+              {fontLevel === 1 ? "92%" : fontLevel === 2 ? "100%" : "112%"}
+            </ScaledText>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Aumentar tamanho do texto"
+              accessibilityState={{ disabled: !canIncrease }}
+              disabled={!canIncrease}
+              onPress={increaseFontLevel}
+              style={[styles.fontButton, !canIncrease && styles.fontButtonDisabled]}
+              activeOpacity={0.8}
+            >
+              <ScaledText style={styles.fontButtonText}>A+</ScaledText>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         <TouchableOpacity
           style={styles.navItem}
@@ -58,7 +92,19 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
           <View style={styles.navIcon}>
             <Ionicons name="trail-sign-outline" size={20} color={primaryColor} />
           </View>
-          <Text style={styles.navLabel}>Calculadora de Frete</Text>
+          <ScaledText style={styles.navLabel}>Calculadora de Frete</ScaledText>
+          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => navigate('/financeiro')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.navIcon}>
+            <Ionicons name="wallet-outline" size={20} color={primaryColor} />
+          </View>
+          <ScaledText style={styles.navLabel}>Financeiro</ScaledText>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
 
@@ -70,7 +116,7 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
           <View style={styles.navIcon}>
             <Ionicons name="person-outline" size={20} color={primaryColor} />
           </View>
-          <Text style={styles.navLabel}>Meu Perfil</Text>
+          <ScaledText style={styles.navLabel}>Meu Perfil</ScaledText>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
       </DrawerContentScrollView>
@@ -81,9 +127,9 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
           <View style={[styles.navIcon, styles.navIconDanger]}>
             <Ionicons name="log-out-outline" size={20} color="#E53E3E" />
           </View>
-          <Text style={[styles.navLabel, styles.navLabelDanger]}>Sair</Text>
+          <ScaledText style={[styles.navLabel, styles.navLabelDanger]}>Sair</ScaledText>
         </TouchableOpacity>
-        <Text style={styles.version}>RodaBem App v.0.1.0</Text>
+        <ScaledText style={styles.version}>RodaBem App v.0.1.0</ScaledText>
       </View>
     </View>
   );
@@ -124,7 +170,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 12,
     paddingHorizontal: 12,
+    paddingBottom: 20,
+    gap: 8,
   },
+  fontControls: { marginHorizontal: 12, marginTop: 8, marginBottom: 8, padding: 12, gap: 8, borderRadius: 12, backgroundColor: '#f7f7f7' },
+  fontControlsTitle: { color: '#555', fontSize: 11, fontWeight: '700', letterSpacing: 0.7 },
+  fontControlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  fontButton: { minWidth: 68, height: 44, borderRadius: 10, backgroundColor: '#2f2f2f', alignItems: 'center', justifyContent: 'center' },
+  fontButtonDisabled: { opacity: 0.38 },
+  fontButtonText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  fontLevel: { color: '#3f4a57', fontSize: 15, fontWeight: '700' },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',

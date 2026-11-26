@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { AlertaVencimento as Alerta } from "@/@types/documento";
 import { getAlertasVencimento } from "@/services/documentoService";
 import { QueryErrorState } from "@/components/queryErrorState";
@@ -47,16 +48,16 @@ export function AlertaVencimento() {
         <Ionicons name="warning" size={24} color="#fff" />
       </View>
       <View style={styles.textos}>
-        <Text style={styles.titulo}>ALERTA</Text>
-        <Text style={styles.mensagem}>
+        <ScaledText style={styles.titulo}>ALERTA</ScaledText>
+        <ScaledText style={styles.mensagem}>
           {maisProximo.nome} {descreverPrazo(maisProximo.diasRestantes)}
-        </Text>
+        </ScaledText>
         {demais.length > 0 && (
-          <Text style={styles.complemento}>
+          <ScaledText style={styles.complemento}>
             {demais.length === 1
               ? "e mais 1 documento perto do vencimento"
               : `e mais ${demais.length} documentos perto do vencimento`}
-          </Text>
+          </ScaledText>
         )}
       </View>
       <Ionicons name="chevron-forward" size={22} color="#fff" />

@@ -1,9 +1,10 @@
+import ScaledText from '@/components/scaledText';
 import { StyleSheet, Text, View } from "react-native";
 
 export function PlacaBadge({ placa }: { placa: string }) {
     return (
       <View style={styles.placaBadge}>
-        <Text style={styles.placaText}>{placa}</Text>
+        <ScaledText style={styles.placaText}>{placa}</ScaledText>
       </View>
     );
   }

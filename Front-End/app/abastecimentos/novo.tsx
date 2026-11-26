@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { TipoCombustivel } from "@/@types/abastecimento";
 import Input from "@/components/input";
 import { QueryErrorState } from "@/components/queryErrorState";
@@ -213,12 +214,12 @@ export default function NovoAbastecimento() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>
+          <ScaledText style={styles.title}>
             {isEditing ? "EDITAR ABASTECIMENTO" : "NOVO ABASTECIMENTO"}
-          </Text>
-          <Text style={styles.subtitle}>
+          </ScaledText>
+          <ScaledText style={styles.subtitle}>
             Registre custo, litros e quilometragem do abastecimento.
-          </Text>
+          </ScaledText>
         </View>
 
         {abastecimentoQuery.isLoading ? (
@@ -232,7 +233,7 @@ export default function NovoAbastecimento() {
           <>
             <View style={styles.divider} />
 
-            <Text style={[styles.groupLabel, { color: primaryColor }]}>TIPO DE COMBUSTIVEL</Text>
+            <ScaledText style={[styles.groupLabel, { color: primaryColor }]}>TIPO DE COMBUSTIVEL</ScaledText>
             <View style={styles.chipsRow}>
               {fuelOptions.map((option) => {
                 const active = option.value === tipoCombustivel;
@@ -246,38 +247,38 @@ export default function NovoAbastecimento() {
                     onPress={() => setTipoCombustivel(option.value)}
                     activeOpacity={0.85}
                   >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    <ScaledText style={[styles.chipText, active && styles.chipTextActive]}>
                       {option.label}
-                    </Text>
+                    </ScaledText>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>PRECO POR LITRO *</Text>
+              <ScaledText style={styles.label}>PRECO POR LITRO *</ScaledText>
               <Input
                 placeholder="Ex: 6,39"
                 value={precoPorLitro}
                 onChangeText={(text) => setPrecoPorLitro(text.replace(/[^0-9.,]/g, ""))}
                 keyboardType="decimal-pad"
               />
-              {errors.precoPorLitro && <Text style={styles.errorText}>{errors.precoPorLitro}</Text>}
+              {errors.precoPorLitro && <ScaledText style={styles.errorText}>{errors.precoPorLitro}</ScaledText>}
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>TOTAL DE LITROS *</Text>
+              <ScaledText style={styles.label}>TOTAL DE LITROS *</ScaledText>
               <Input
                 placeholder="Ex: 320"
                 value={totalLitros}
                 onChangeText={(text) => setTotalLitros(text.replace(/[^0-9.,]/g, ""))}
                 keyboardType="decimal-pad"
               />
-              {errors.totalLitros && <Text style={styles.errorText}>{errors.totalLitros}</Text>}
+              {errors.totalLitros && <ScaledText style={styles.errorText}>{errors.totalLitros}</ScaledText>}
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>QUILOMETRAGEM *</Text>
+              <ScaledText style={styles.label}>QUILOMETRAGEM *</ScaledText>
               <View style={styles.kmRow}>
                 <View style={styles.flex1}>
                   <Input
@@ -300,45 +301,45 @@ export default function NovoAbastecimento() {
                     ) : (
                       <>
                         <Ionicons name="camera-outline" size={18} color="#fff" />
-                        <Text style={styles.scanButtonText}>Ler hodômetro</Text>
+                        <ScaledText style={styles.scanButtonText}>Ler hodômetro</ScaledText>
                       </>
                     )}
                   </TouchableOpacity>
                 )}
               </View>
-              {!!scanMessage && <Text style={styles.scanText}>{scanMessage}</Text>}
-              {errors.quilometragem && <Text style={styles.errorText}>{errors.quilometragem}</Text>}
+              {!!scanMessage && <ScaledText style={styles.scanText}>{scanMessage}</ScaledText>}
+              {errors.quilometragem && <ScaledText style={styles.errorText}>{errors.quilometragem}</ScaledText>}
             </View>
 
             <View style={styles.previewCard}>
-              <Text style={styles.previewLabel}>VALOR TOTAL ESTIMADO</Text>
-              <Text style={[styles.previewValue, { color: primaryColor }]}>
+              <ScaledText style={styles.previewLabel}>VALOR TOTAL ESTIMADO</ScaledText>
+              <ScaledText style={[styles.previewValue, { color: primaryColor }]}>
                 {totalPreview
                   ? totalPreview.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
                   : "Preencha preco e litros"}
-              </Text>
+              </ScaledText>
             </View>
 
             <View style={styles.divider} />
 
-            <Text style={[styles.groupLabel, { color: primaryColor }]}>DETALHES OPCIONAIS</Text>
+            <ScaledText style={[styles.groupLabel, { color: primaryColor }]}>DETALHES OPCIONAIS</ScaledText>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>POSTO</Text>
+              <ScaledText style={styles.label}>POSTO</ScaledText>
               <Input
                 placeholder="Ex: Posto Rota Norte"
                 value={postoIdentificado}
                 onChangeText={setPostoIdentificado}
               />
               {textoLocalizacao[localizacao.status] && (
-                <Text style={styles.locationText}>{textoLocalizacao[localizacao.status]}</Text>
+                <ScaledText style={styles.locationText}>{textoLocalizacao[localizacao.status]}</ScaledText>
               )}
               {postosQuery.isFetching && (
-                <Text style={styles.locationText}>Buscando postos próximos...</Text>
+                <ScaledText style={styles.locationText}>Buscando postos próximos...</ScaledText>
               )}
               {postosSugeridos.length > 0 && (
                 <View style={styles.postosContainer}>
-                  <Text style={styles.locationText}>Postos perto de você (toque para preencher):</Text>
+                  <ScaledText style={styles.locationText}>Postos perto de você (toque para preencher):</ScaledText>
                   <View style={styles.chipsRow}>
                     {postosSugeridos.map((posto) => {
                       const ativo = posto.nome === postoIdentificado;
@@ -353,9 +354,9 @@ export default function NovoAbastecimento() {
                           activeOpacity={0.85}
                           accessibilityLabel={`Usar ${posto.nome}`}
                         >
-                          <Text style={[styles.chipText, ativo && styles.chipTextActive]}>
+                          <ScaledText style={[styles.chipText, ativo && styles.chipTextActive]}>
                             {posto.nome} · {posto.distanciaMetros.toLocaleString("pt-BR")} m
-                          </Text>
+                          </ScaledText>
                         </TouchableOpacity>
                       );
                     })}
@@ -370,13 +371,13 @@ export default function NovoAbastecimento() {
                     onRetry={() => { void postosQuery.refetch(); }}
                   />
                 ) : (
-                  <Text style={styles.locationText}>{mensagemPostos}</Text>
+                  <ScaledText style={styles.locationText}>{mensagemPostos}</ScaledText>
                 )
               )}
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>LOCAL</Text>
+              <ScaledText style={styles.label}>LOCAL</ScaledText>
               <Input
                 placeholder="Ex: BR-116, km 245"
                 value={localDescricao}
@@ -385,7 +386,7 @@ export default function NovoAbastecimento() {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>OBSERVACAO</Text>
+              <ScaledText style={styles.label}>OBSERVACAO</ScaledText>
               <Input
                 placeholder="Informacoes adicionais"
                 value={observacao}
@@ -408,9 +409,9 @@ export default function NovoAbastecimento() {
               {mutation.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitButtonText}>
+                <ScaledText style={styles.submitButtonText}>
                   {isEditing ? "SALVAR ALTERACOES" : "CADASTRAR ABASTECIMENTO"}
-                </Text>
+                </ScaledText>
               )}
             </TouchableOpacity>
 

@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { QueryErrorState } from "@/components/queryErrorState";
 import { getMeuPerfil } from "@/services/userService";
 import { getAceiteLocal, getTermoVigente } from "@/services/termosService";
@@ -28,16 +29,16 @@ export default function Termos() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.title}>Termo de Uso e Isenção de Responsabilidade</Text>
+        <ScaledText style={styles.title}>Termo de Uso e Isenção de Responsabilidade</ScaledText>
         {termoQuery.isLoading ? (
           <ActivityIndicator style={styles.loading} />
         ) : termoQuery.isError ? (
           <QueryErrorState message="Não foi possível carregar o termo vigente." onRetry={() => { void termoQuery.refetch(); }} />
         ) : termoQuery.data ? (
           <>
-            <Text style={styles.meta}>Versão {termoQuery.data.versao}</Text>
-            <Text style={styles.meta}>Publicado em {formatDate(termoQuery.data.publicadoEm)}</Text>
-            <Text style={styles.acceptance}>
+            <ScaledText style={styles.meta}>Versão {termoQuery.data.versao}</ScaledText>
+            <ScaledText style={styles.meta}>Publicado em {formatDate(termoQuery.data.publicadoEm)}</ScaledText>
+            <ScaledText style={styles.acceptance}>
               {perfilQuery.isLoading
                 ? "Verificando o registro do aceite..."
                 : perfilQuery.data?.termoPendente === true
@@ -45,12 +46,12 @@ export default function Termos() {
                   : aceiteLocal?.versao === termoQuery.data.versao
                     ? `Aceite registrado neste dispositivo em ${formatDate(aceiteLocal.aceitoEm)}.`
                     : "A data do aceite não está disponível neste dispositivo."}
-            </Text>
+            </ScaledText>
             {perfilQuery.isError && (
-              <Text style={styles.meta}>Não foi possível consultar o status do aceite agora.</Text>
+              <ScaledText style={styles.meta}>Não foi possível consultar o status do aceite agora.</ScaledText>
             )}
             <View style={styles.divider} />
-            <Text style={styles.body}>{termoQuery.data.conteudo}</Text>
+            <ScaledText style={styles.body}>{termoQuery.data.conteudo}</ScaledText>
           </>
         ) : null}
       </View>

@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import colors from '@/constants/colors';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from "expo-router";
@@ -16,7 +17,7 @@ export default function Header({ title }: { title?: string }) {
     <TouchableOpacity style={styles.backButton} onPress={goBackToStartScreen}>
       <Ionicons name="arrow-back" size={20} color="#fff" />
     </TouchableOpacity>
-    {title ? <Text style={styles.text}>{title}</Text> : <Image source={require('../../assets/images/icon.png')} style={styles.logo} resizeMode="contain" />}
+    {title ? <ScaledText style={styles.text}>{title}</ScaledText> : <Image source={require('../../assets/images/icon.png')} style={styles.logo} resizeMode="contain" />}
   </SafeAreaView>
 }
 

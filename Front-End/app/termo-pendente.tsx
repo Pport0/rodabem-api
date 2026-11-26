@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { QueryErrorState } from "@/components/queryErrorState";
 import { useAuth } from "@/contexts/authContext";
 import { aceitarTermo, getTermoVigente } from "@/services/termosService";
@@ -34,21 +35,21 @@ export default function TermoPendente() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.heading}>Aceite necessário</Text>
-      <Text style={styles.intro}>Para continuar usando o RodaBem, leia e aceite a versão vigente do termo.</Text>
+      <ScaledText style={styles.heading}>Aceite necessário</ScaledText>
+      <ScaledText style={styles.intro}>Para continuar usando o RodaBem, leia e aceite a versão vigente do termo.</ScaledText>
       {termoQuery.isLoading ? (
         <ActivityIndicator style={styles.loading} />
       ) : termoQuery.isError ? (
         <QueryErrorState message="Não foi possível carregar o termo vigente." onRetry={() => { void termoQuery.refetch(); }} />
       ) : termoQuery.data ? (
         <>
-          <Text style={styles.meta}>Termo de Uso e Isenção de Responsabilidade · versão {termoQuery.data.versao}</Text>
-          <Text style={styles.meta}>Publicado em {formatDate(termoQuery.data.publicadoEm)}</Text>
+          <ScaledText style={styles.meta}>Termo de Uso e Isenção de Responsabilidade · versão {termoQuery.data.versao}</ScaledText>
+          <ScaledText style={styles.meta}>Publicado em {formatDate(termoQuery.data.publicadoEm)}</ScaledText>
           <ScrollView style={styles.termScroll} contentContainerStyle={styles.termContent}>
-            <Text style={styles.termText}>{termoQuery.data.conteudo}</Text>
+            <ScaledText style={styles.termText}>{termoQuery.data.conteudo}</ScaledText>
           </ScrollView>
           {!!aceiteMutation.error && (
-            <Text style={styles.errorText}>Não foi possível registrar o aceite. Verifique sua conexão e tente novamente.</Text>
+            <ScaledText style={styles.errorText}>Não foi possível registrar o aceite. Verifique sua conexão e tente novamente.</ScaledText>
           )}
           <TouchableOpacity
             accessibilityRole="button"
@@ -56,12 +57,12 @@ export default function TermoPendente() {
             disabled={aceiteMutation.isPending}
             onPress={() => aceiteMutation.mutate(termoQuery.data.versao)}
           >
-            {aceiteMutation.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.acceptText}>ACEITAR E CONTINUAR</Text>}
+            {aceiteMutation.isPending ? <ActivityIndicator color="#fff" /> : <ScaledText style={styles.acceptText}>ACEITAR E CONTINUAR</ScaledText>}
           </TouchableOpacity>
         </>
       ) : null}
       <TouchableOpacity accessibilityRole="button" style={styles.logoutButton} onPress={() => { void logout(); }}>
-        <Text style={styles.logoutText}>Sair da conta</Text>
+        <ScaledText style={styles.logoutText}>Sair da conta</ScaledText>
       </TouchableOpacity>
     </View>
   );

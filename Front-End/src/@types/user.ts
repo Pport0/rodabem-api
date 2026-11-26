@@ -7,6 +7,7 @@ export interface User {
   cpf?: string;
   telefone?: string;
   termoPendente?: boolean;
+  diasAlertaVencimento?: 7 | 15 | 30 | 60;
 }
 
 export interface createUserDto {

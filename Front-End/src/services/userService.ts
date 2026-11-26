@@ -26,6 +26,13 @@ export async function updateUser(
   return response.data;
 }
 
+export async function updateDiasAlertaVencimento(
+  diasAlertaVencimento: 7 | 15 | 30 | 60,
+): Promise<User> {
+  const response = await api.patch<User>("/users/me", { diasAlertaVencimento });
+  return response.data;
+}
+
 export async function alterarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
   await api.patch("/users/me/senha", { senhaAtual, novaSenha });
 }

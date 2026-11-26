@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import colors from "@/constants/colors";
 import { Documento } from "@/@types/documento";
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from "react-native";
@@ -40,7 +41,7 @@ function getStatusConfig(primaryColor: string): Record<
   };
 }
 
-export function DocumentoCard({ documento }: { documento: Documento }) {
+export function DocumentoCard({ documento, onEdit, onDelete }: { documento: Documento; onEdit?: () => void; onDelete?: () => void }) {
   const colorScheme = useColorScheme();
   const primaryColor = colors[colorScheme ?? 'light'].primary;
 
@@ -58,13 +59,13 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
     <View style={[styles.docCard, { borderLeftColor: borderColor }]}>
       <View style={styles.docCardInner}>
         <View style={styles.docInfo}>
-          <Text style={[styles.docStatus, { color }]}>{label}</Text>
-          <Text style={styles.docNome}>{documento.nome}</Text>
-          <Text style={styles.docDate}>
+          <ScaledText style={[styles.docStatus, { color }]}>{label}</ScaledText>
+          <ScaledText style={styles.docNome}>{documento.nome}</ScaledText>
+          <ScaledText style={styles.docDate}>
             {isExpired ? "Expirou em: " : "Vencimento: "}
             {formattedDate}
-          </Text>
-          <Text style={styles.docLink}>{vinculoLabel}</Text>
+          </ScaledText>
+          <ScaledText style={styles.docLink}>{vinculoLabel}</ScaledText>
         </View>
         <View style={styles.docActions}>
           <View style={styles.eyeBtn}>
@@ -74,6 +75,10 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
               color={isExpired ? "#E53E3E" : primaryColor}
             />
           </View>
+          {(onEdit || onDelete) && <View style={styles.actionRow}>
+            {onEdit && <TouchableOpacity accessibilityLabel="Editar documento" onPress={onEdit} style={styles.smallAction}><Ionicons name="create-outline" size={18} color={primaryColor} /></TouchableOpacity>}
+            {onDelete && <TouchableOpacity accessibilityLabel="Excluir documento" onPress={onDelete} style={styles.smallAction}><Ionicons name="trash-outline" size={18} color="#E53E3E" /></TouchableOpacity>}
+          </View>}
         </View>
       </View>
 
@@ -82,9 +87,9 @@ export function DocumentoCard({ documento }: { documento: Documento }) {
           style={[styles.renewBtn, isExpiring && { borderColor: primaryColor }]}
           activeOpacity={0.7}
         >
-          <Text style={[styles.renewBtnText, isExpiring && { color: primaryColor }]}>
+          <ScaledText style={[styles.renewBtnText, isExpiring && { color: primaryColor }]}>
             REGISTRAR RENOVAÇÃO
-          </Text>
+          </ScaledText>
         </TouchableOpacity>
       )}
     </View>
@@ -146,6 +151,8 @@ const styles = StyleSheet.create({
       justifyContent: "center",
       alignItems: "center",
     },
+    actionRow: { flexDirection: "row", gap: 6, marginTop: 8 },
+    smallAction: { width: 34, height: 34, borderRadius: 9, backgroundColor: "#f7f7f7", alignItems: "center", justifyContent: "center" },
     renewBtn: {
       marginHorizontal: 16,
       marginBottom: 14,

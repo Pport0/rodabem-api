@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { Caminhao, UpdateCaminhaoDto } from '@/@types/caminhao';
 import Input from '@/components/input';
 import { QueryErrorState } from '@/components/queryErrorState';
@@ -158,9 +159,9 @@ export default function EditarCaminhao() {
   if (!caminhao) {
     return (
       <View style={loadingStyles.container}>
-        <Text style={loadingStyles.emptyText}>
+        <ScaledText style={loadingStyles.emptyText}>
           Nenhum caminhao cadastrado para edicao.
-        </Text>
+        </ScaledText>
       </View>
     );
   }
@@ -178,18 +179,18 @@ export default function EditarCaminhao() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>EDITAR CAMINHAO</Text>
-          <Text style={styles.subtitle}>Atualize os dados do veiculo</Text>
+          <ScaledText style={styles.title}>EDITAR CAMINHAO</ScaledText>
+          <ScaledText style={styles.subtitle}>Atualize os dados do veiculo</ScaledText>
         </View>
 
         <View style={styles.divider} />
 
-        <Text style={[styles.groupLabel, { color: primaryColor }]}>
+        <ScaledText style={[styles.groupLabel, { color: primaryColor }]}>
           DADOS OBRIGATORIOS
-        </Text>
+        </ScaledText>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>PLACA *</Text>
+          <ScaledText style={styles.label}>PLACA *</ScaledText>
           <Input
             placeholder="ABC1234 ou ABC1D23"
             value={placa}
@@ -198,11 +199,11 @@ export default function EditarCaminhao() {
             }
             autoCapitalize="characters"
           />
-          {errors.placa && <Text style={styles.errorText}>{errors.placa}</Text>}
+          {errors.placa && <ScaledText style={styles.errorText}>{errors.placa}</ScaledText>}
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>MODELO *</Text>
+          <ScaledText style={styles.label}>MODELO *</ScaledText>
           <Input
             placeholder="Ex: Scania R450"
             value={modelo}
@@ -210,12 +211,12 @@ export default function EditarCaminhao() {
             autoCapitalize="words"
           />
           {errors.modelo && (
-            <Text style={styles.errorText}>{errors.modelo}</Text>
+            <ScaledText style={styles.errorText}>{errors.modelo}</ScaledText>
           )}
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>RENAVAM *</Text>
+          <ScaledText style={styles.label}>RENAVAM *</ScaledText>
           <Input
             placeholder="00000000000"
             value={renavam}
@@ -225,12 +226,12 @@ export default function EditarCaminhao() {
             keyboardType="numeric"
           />
           {errors.renavam && (
-            <Text style={styles.errorText}>{errors.renavam}</Text>
+            <ScaledText style={styles.errorText}>{errors.renavam}</ScaledText>
           )}
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>NUMERO DE EIXOS *</Text>
+          <ScaledText style={styles.label}>NUMERO DE EIXOS *</ScaledText>
           <Input
             placeholder="Ex: 6"
             value={numeroEixos}
@@ -240,18 +241,18 @@ export default function EditarCaminhao() {
             keyboardType="numeric"
           />
           {errors.numeroEixos && (
-            <Text style={styles.errorText}>{errors.numeroEixos}</Text>
+            <ScaledText style={styles.errorText}>{errors.numeroEixos}</ScaledText>
           )}
         </View>
 
         <View style={styles.divider} />
 
-        <Text style={[styles.groupLabel, { color: primaryColor }]}>
+        <ScaledText style={[styles.groupLabel, { color: primaryColor }]}>
           DADOS OPCIONAIS
-        </Text>
+        </ScaledText>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>MARCA</Text>
+          <ScaledText style={styles.label}>MARCA</ScaledText>
           <Input
             placeholder="Ex: Scania, Volvo, Mercedes"
             value={marca}
@@ -261,7 +262,7 @@ export default function EditarCaminhao() {
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>COR</Text>
+          <ScaledText style={styles.label}>COR</ScaledText>
           <Input
             placeholder="Ex: Branco, Vermelho"
             value={cor}
@@ -271,7 +272,7 @@ export default function EditarCaminhao() {
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>ANO DE FABRICACAO</Text>
+          <ScaledText style={styles.label}>ANO DE FABRICACAO</ScaledText>
           <Input
             placeholder="Ex: 2022"
             value={anoFabricacao}
@@ -296,14 +297,14 @@ export default function EditarCaminhao() {
           {updateCaminhaoMutation.isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>SALVAR ALTERAÇÕES</Text>
+            <ScaledText style={styles.submitButtonText}>SALVAR ALTERAÇÕES</ScaledText>
           )}
         </TouchableOpacity>
 
         {/* ── Excluir ─────────────────────────────────── */}
         <View style={styles.deleteSection}>
           <View style={styles.deleteDivider} />
-          <Text style={styles.deleteSectionLabel}>ZONA DE PERIGO</Text>
+          <ScaledText style={styles.deleteSectionLabel}>ZONA DE PERIGO</ScaledText>
           <TouchableOpacity
             style={[styles.deleteButton, isBusy && styles.buttonDisabled]}
             onPress={handleDeleteConfirm}
@@ -313,13 +314,13 @@ export default function EditarCaminhao() {
             {deleteCaminhaoMutation.isPending ? (
               <ActivityIndicator color="#E53E3E" />
             ) : (
-              <Text style={styles.deleteButtonText}>EXCLUIR CAMINHÃO</Text>
+              <ScaledText style={styles.deleteButtonText}>EXCLUIR CAMINHÃO</ScaledText>
             )}
           </TouchableOpacity>
-          <Text style={styles.deleteHint}>
+          <ScaledText style={styles.deleteHint}>
             O caminhão só pode ser excluído se não houver abastecimentos,
             documentos ou simulações de frete vinculados.
-          </Text>
+          </ScaledText>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

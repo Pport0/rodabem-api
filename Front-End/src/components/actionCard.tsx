@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -17,8 +18,8 @@ export function ActionCard({ title, subtitle, iconName, backgroundColor, onPress
         activeOpacity={0.85}
       >
         <View style={styles.cardContent}>
-          <Text style={styles.cardTitle}>{title}</Text>
-          <Text style={styles.cardSubtitle}>{subtitle}</Text>
+          <ScaledText style={styles.cardTitle}>{title}</ScaledText>
+          <ScaledText style={styles.cardSubtitle}>{subtitle}</ScaledText>
         </View>
         <View style={styles.cardIconBox}>
           <Ionicons name={iconName} size={32} color="rgba(255,255,255,0.85)" />

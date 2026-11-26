@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { CreateDocumentoDto } from "@/@types/documento";
 import { DateField } from "@/components/dateField";
 import Input from "@/components/input";
@@ -8,6 +9,7 @@ import { createDocumento, scanDocumento } from "@/services/documentoService";
 import { Toast } from "@/shared/ui/molecules/Toast";
 import { DocumentoFormErrors, validateDocumento } from "@/utils/documentoValidation";
 import { queryClient } from "@/utils/queryClient";
+import { syncExpiryNotifications } from "@/services/vencimentoNotifications";
 import { pickScanFile, ScanSource } from "@/utils/scanFile";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -74,8 +76,9 @@ export default function NovoDocumento() {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: CreateDocumentoDto) => createDocumento({ ...data }),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["documentos"] });
+      await syncExpiryNotifications();
       Toast.show("Documento cadastrado com sucesso!", {
         type: "success",
         backgroundColor: "#10B981",
@@ -180,13 +183,13 @@ export default function NovoDocumento() {
         )}
         <View style={styles.heroCard}>
           <View style={styles.heroText}>
-            <Text style={styles.heroEyebrow}>SCAN DO DOCUMENTO</Text>
-            <Text style={styles.heroTitle}>
+            <ScaledText style={styles.heroEyebrow}>SCAN DO DOCUMENTO</ScaledText>
+            <ScaledText style={styles.heroTitle}>
               Envie a foto ou PDF e preencha o documento automaticamente.
-            </Text>
-            <Text style={styles.heroSubtitle}>
+            </ScaledText>
+            <ScaledText style={styles.heroSubtitle}>
               O OCR tenta extrair nome, numero e datas para acelerar o cadastro.
-            </Text>
+            </ScaledText>
           </View>
           <View style={[styles.heroIcon, { backgroundColor: primaryColor }]}>
             <Ionicons name="scan-outline" size={26} color="#fff" />
@@ -200,7 +203,7 @@ export default function NovoDocumento() {
             activeOpacity={0.85}
           >
             <Ionicons name="camera-outline" size={18} color="#fff" />
-            <Text style={styles.scanButtonText}>Escanear camera</Text>
+            <ScaledText style={styles.scanButtonText}>Escanear camera</ScaledText>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -209,20 +212,20 @@ export default function NovoDocumento() {
             activeOpacity={0.85}
           >
             <Ionicons name="document-attach-outline" size={18} color={primaryColor} />
-            <Text style={[styles.secondaryButtonText, { color: primaryColor }]}>
+            <ScaledText style={[styles.secondaryButtonText, { color: primaryColor }]}>
               PDF ou imagem
-            </Text>
+            </ScaledText>
           </TouchableOpacity>
         </View>
 
         {!!scanStatusText && (
           <View style={styles.scanCard}>
-            <Text style={styles.scanCardLabel}>Resultado do scan</Text>
-            <Text style={styles.scanCardText}>{scanStatusText}</Text>
+            <ScaledText style={styles.scanCardLabel}>Resultado do scan</ScaledText>
+            <ScaledText style={styles.scanCardText}>{scanStatusText}</ScaledText>
             {!!arquivoUrl && (
-              <Text style={styles.scanCardMeta} numberOfLines={2}>
+              <ScaledText style={styles.scanCardMeta} numberOfLines={2}>
                 Arquivo enviado: {arquivoUrl}
-              </Text>
+              </ScaledText>
             )}
           </View>
         )}
@@ -230,12 +233,12 @@ export default function NovoDocumento() {
         {!!meuCaminhao?.id && (
           <View style={styles.linkCard}>
             <View style={styles.linkCardText}>
-              <Text style={styles.linkCardTitle}>Vincular ao meu caminhão</Text>
-              <Text style={styles.linkCardSubtitle}>
+              <ScaledText style={styles.linkCardTitle}>Vincular ao meu caminhão</ScaledText>
+              <ScaledText style={styles.linkCardSubtitle}>
                 {caminhaoId
                   ? "Este documento sera vinculado ao caminhão selecionado."
                   : "Se ligado, o documento entra no contexto do caminhão atual."}
-              </Text>
+              </ScaledText>
             </View>
             <Switch
               value={vincularAoCaminhao}
@@ -249,35 +252,35 @@ export default function NovoDocumento() {
         <View style={styles.divider} />
 
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>NOVO DOCUMENTO</Text>
-          <Text style={styles.subtitle}>
+          <ScaledText style={styles.title}>NOVO DOCUMENTO</ScaledText>
+          <ScaledText style={styles.subtitle}>
             {vincularAoCaminhao
               ? "Preencha os dados do documento do caminhão"
               : "Preencha os dados do documento do motorista"}
-          </Text>
+          </ScaledText>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>NOME DO DOCUMENTO *</Text>
+          <ScaledText style={styles.label}>NOME DO DOCUMENTO *</ScaledText>
           <Input
             placeholder="Ex: CRLV, CNH, Seguro"
             value={nome}
             onChangeText={setNome}
             autoCapitalize="words"
           />
-          {errors.nome && <Text style={styles.errorText}>{errors.nome}</Text>}
+          {errors.nome && <ScaledText style={styles.errorText}>{errors.nome}</ScaledText>}
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>NUMERO *</Text>
+          <ScaledText style={styles.label}>NUMERO *</ScaledText>
           <Input
             placeholder="Numero do documento"
             value={numero}
             onChangeText={setNumero}
           />
-          {errors.numero && <Text style={styles.errorText}>{errors.numero}</Text>}
+          {errors.numero && <ScaledText style={styles.errorText}>{errors.numero}</ScaledText>}
         </View>
 
         <View style={styles.row}>
@@ -300,7 +303,7 @@ export default function NovoDocumento() {
         </View>
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>OBSERVACAO</Text>
+          <ScaledText style={styles.label}>OBSERVACAO</ScaledText>
           <Input
             placeholder="Observacoes adicionais (opcional)"
             value={observacao}
@@ -323,7 +326,7 @@ export default function NovoDocumento() {
           {isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>CADASTRAR DOCUMENTO</Text>
+            <ScaledText style={styles.submitButtonText}>CADASTRAR DOCUMENTO</ScaledText>
           )}
         </TouchableOpacity>
       </ScrollView>

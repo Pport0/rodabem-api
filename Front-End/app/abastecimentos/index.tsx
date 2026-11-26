@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import { Abastecimento } from "@/@types/abastecimento";
 import colors from "@/constants/colors";
 import { QueryErrorState } from "@/components/queryErrorState";
@@ -139,15 +140,15 @@ export default function AbastecimentosScreen() {
           <View style={styles.headerContent}>
             <View style={[styles.heroCard, { backgroundColor: primaryColor }]}>
               <View style={styles.heroText}>
-                <Text style={styles.heroEyebrow}>MÉDIA DE CONSUMO GERAL</Text>
-                <Text style={styles.heroValue}>
+                <ScaledText style={styles.heroEyebrow}>MÉDIA DE CONSUMO GERAL</ScaledText>
+                <ScaledText style={styles.heroValue}>
                   {mediaQuery.data?.mediaConsumo != null
                     ? `${mediaQuery.data.mediaConsumo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${mediaQuery.data.unidade}`
                     : "--"}
-                </Text>
-                <Text style={styles.heroDescription}>
+                </ScaledText>
+                <ScaledText style={styles.heroDescription}>
                   Considera todos os abastecimentos registrados.
-                </Text>
+                </ScaledText>
               </View>
               <View style={styles.heroIcon}>
                 <Ionicons name="speedometer-outline" size={30} color="#fff" />
@@ -170,7 +171,7 @@ export default function AbastecimentosScreen() {
               >
                 <Ionicons name="chevron-back" size={22} color={primaryColor} />
               </TouchableOpacity>
-              <Text style={styles.monthTitle}>{tituloMes}</Text>
+              <ScaledText style={styles.monthTitle}>{tituloMes}</ScaledText>
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel="Próximo mês"
@@ -182,28 +183,28 @@ export default function AbastecimentosScreen() {
             </View>
 
             <View style={styles.monthExpenseCard}>
-              <Text style={styles.expenseLabel}>GASTO DO MÊS</Text>
+              <ScaledText style={styles.expenseLabel}>GASTO DO MÊS</ScaledText>
               {relatorioQuery.isLoading ? (
                 <ActivityIndicator color={primaryColor} />
               ) : relatorioQuery.isError ? (
-                <Text style={styles.expenseValue}>--</Text>
+                <ScaledText style={styles.expenseValue}>--</ScaledText>
               ) : (
-                <Text style={styles.expenseValue}>{formatCurrency(relatorioQuery.data?.totalGasto ?? 0)}</Text>
+                <ScaledText style={styles.expenseValue}>{formatCurrency(relatorioQuery.data?.totalGasto ?? 0)}</ScaledText>
               )}
             </View>
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{tituloMes}</Text>
-              <Text style={styles.sectionSubtitle}>
+              <ScaledText style={styles.sectionTitle}>{tituloMes}</ScaledText>
+              <ScaledText style={styles.sectionSubtitle}>
                 {relatorioQuery.data?.totalAbastecimentos ?? 0} registros encontrados
-              </Text>
+              </ScaledText>
             </View>
           </View>
         }
         ListEmptyComponent={
           relatorioQuery.isLoading ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>Carregando abastecimentos...</Text>
+              <ScaledText style={styles.emptyTitle}>Carregando abastecimentos...</ScaledText>
             </View>
           ) : relatorioQuery.isError ? (
             <QueryErrorState
@@ -213,10 +214,10 @@ export default function AbastecimentosScreen() {
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="water-outline" size={50} color="#d8d8d8" />
-              <Text style={styles.emptyTitle}>Nenhum abastecimento em {tituloMes.toLocaleLowerCase("pt-BR")}</Text>
-              <Text style={styles.emptySubtitle}>
+              <ScaledText style={styles.emptyTitle}>Nenhum abastecimento em {tituloMes.toLocaleLowerCase("pt-BR")}</ScaledText>
+              <ScaledText style={styles.emptySubtitle}>
                 Registre seus abastecimentos para acompanhar os gastos do período.
-              </Text>
+              </ScaledText>
             </View>
           )
         }
@@ -224,34 +225,34 @@ export default function AbastecimentosScreen() {
           <View style={styles.card}>
             <View style={styles.cardTop}>
               <View>
-                <Text style={styles.cardTitle}>{fuelLabel(item.tipoCombustivel)}</Text>
-                <Text style={styles.cardDate}>{formatDate(item.dataAbastecimento)}</Text>
+                <ScaledText style={styles.cardTitle}>{fuelLabel(item.tipoCombustivel)}</ScaledText>
+                <ScaledText style={styles.cardDate}>{formatDate(item.dataAbastecimento)}</ScaledText>
               </View>
-              <Text style={[styles.cardValue, { color: primaryColor }]}>
+              <ScaledText style={[styles.cardValue, { color: primaryColor }]}>
                 {formatCurrency(item.valorTotal)}
-              </Text>
+              </ScaledText>
             </View>
 
             <View style={styles.infoGrid}>
               <View style={styles.infoPill}>
-                <Text style={styles.infoLabel}>Km</Text>
-                <Text style={styles.infoText}>{item.quilometragem.toLocaleString("pt-BR")}</Text>
+                <ScaledText style={styles.infoLabel}>Km</ScaledText>
+                <ScaledText style={styles.infoText}>{item.quilometragem.toLocaleString("pt-BR")}</ScaledText>
               </View>
               <View style={styles.infoPill}>
-                <Text style={styles.infoLabel}>Litros</Text>
-                <Text style={styles.infoText}>{item.totalLitros.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L</Text>
+                <ScaledText style={styles.infoLabel}>Litros</ScaledText>
+                <ScaledText style={styles.infoText}>{item.totalLitros.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L</ScaledText>
               </View>
               <View style={styles.infoPill}>
-                <Text style={styles.infoLabel}>Preco/L</Text>
-                <Text style={styles.infoText}>{formatCurrency(item.precoPorLitro)}</Text>
+                <ScaledText style={styles.infoLabel}>Preco/L</ScaledText>
+                <ScaledText style={styles.infoText}>{formatCurrency(item.precoPorLitro)}</ScaledText>
               </View>
             </View>
 
             {!!item.postoIdentificado && (
-              <Text style={styles.metaText}>Posto: {item.postoIdentificado}</Text>
+              <ScaledText style={styles.metaText}>Posto: {item.postoIdentificado}</ScaledText>
             )}
-            {!!item.localDescricao && <Text style={styles.metaText}>Local: {item.localDescricao}</Text>}
-            {!!item.observacao && <Text style={styles.metaText}>Obs: {item.observacao}</Text>}
+            {!!item.localDescricao && <ScaledText style={styles.metaText}>Local: {item.localDescricao}</ScaledText>}
+            {!!item.observacao && <ScaledText style={styles.metaText}>Obs: {item.observacao}</ScaledText>}
 
             <View style={styles.actions}>
               <TouchableOpacity
@@ -265,7 +266,7 @@ export default function AbastecimentosScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="create-outline" size={16} color={primaryColor} />
-                <Text style={[styles.actionText, { color: primaryColor }]}>Editar</Text>
+                <ScaledText style={[styles.actionText, { color: primaryColor }]}>Editar</ScaledText>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -274,7 +275,7 @@ export default function AbastecimentosScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="trash-outline" size={16} color="#E53E3E" />
-                <Text style={[styles.actionText, { color: "#E53E3E" }]}>Excluir</Text>
+                <ScaledText style={[styles.actionText, { color: "#E53E3E" }]}>Excluir</ScaledText>
               </TouchableOpacity>
             </View>
           </View>
@@ -287,7 +288,7 @@ export default function AbastecimentosScreen() {
           onPress={() => router.push("/abastecimentos/novo" as any)}
           activeOpacity={0.85}
         >
-          <Text style={styles.primaryButtonText}>NOVO ABASTECIMENTO</Text>
+          <ScaledText style={styles.primaryButtonText}>NOVO ABASTECIMENTO</ScaledText>
         </TouchableOpacity>
       </View>
     </View>

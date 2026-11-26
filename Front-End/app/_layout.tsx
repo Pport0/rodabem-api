@@ -8,13 +8,16 @@ import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import Header from '@/components/header';
-import { useColorScheme } from 'react-native';
+import { AppState, useColorScheme } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { AuthProvider } from '@/contexts/authContext';
 import { ToastProviderWithViewport } from '@/shared/ui/molecules/Toast';
 import { queryClient } from '@/utils/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { getMeuPerfil } from '@/services/userService';
+import { syncExpiryNotifications } from '@/services/vencimentoNotifications';
+import { FontSizeProvider } from '@/contexts/fontSizeContext';
 
 export {
   ErrorBoundary,
@@ -53,6 +56,22 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
+    void syncExpiryNotifications();
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void syncExpiryNotifications();
+    });
+    const openDocuments = (response: Notifications.NotificationResponse) => {
+      const path = response.notification.request.content.data?.path;
+      if (path === '/meusDocumentos') router.push('/meusDocumentos' as any);
+    };
+    const responseSub = Notifications.addNotificationResponseReceivedListener(openDocuments);
+    return () => {
+      appState.remove();
+      responseSub.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     let ativo = true;
     const verificarSessao = async () => {
       const token = await SecureStore.getItemAsync(process.env.EXPO_PUBLIC_TOKEN_KEY || 'rodabem_token');
@@ -64,7 +83,18 @@ function RootLayoutNav() {
       }
       try {
         const perfil = await getMeuPerfil();
-        if (ativo) router.replace(perfil?.termoPendente ? '/termo-pendente' : '/(drawer)/home');
+        if (ativo) {
+          router.replace(perfil?.termoPendente ? '/termo-pendente' : '/(drawer)/home');
+          try {
+            const response = await Notifications.getLastNotificationResponseAsync();
+            if (ativo && response?.notification.request.content.data?.path === '/meusDocumentos') {
+              router.push('/meusDocumentos' as any);
+              await Notifications.clearLastNotificationResponseAsync();
+            }
+          } catch {
+            // O erro ao consultar o toque não deve interromper a navegação normal.
+          }
+        }
       } catch {
         if (ativo) router.replace('/login');
       }
@@ -77,9 +107,10 @@ function RootLayoutNav() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <ToastProviderWithViewport>
-          <AuthProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <Stack>
+          <FontSizeProvider>
+            <AuthProvider>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <Stack>
                 <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name="login" options={{ headerShown: true, header: () => <Header /> }} />
@@ -94,12 +125,15 @@ function RootLayoutNav() {
                 <Stack.Screen name="documentos/novo" options={{ headerShown: true, header: () => <Header title="Novo Documento" /> }} />
                 <Stack.Screen name="abastecimentos/index" options={{ headerShown: true, header: () => <Header title="Abastecimentos" /> }} />
                 <Stack.Screen name="abastecimentos/novo" options={{ headerShown: true, header: () => <Header title="Novo Abastecimento" /> }} />
+                <Stack.Screen name="financeiro" options={{ headerShown: true, header: () => <Header title="Financeiro" /> }} />
+                <Stack.Screen name="lancamentos/novo" options={{ headerShown: true, header: () => <Header title="Lançamento" /> }} />
                 <Stack.Screen name="frete" options={{ headerShown: true, header: () => <Header title="Calculadora de Frete" /> }} />
                 <Stack.Screen name="perfil" options={{ headerShown: false }} />
                 <Stack.Screen name="meusDocumentos" options={{ headerShown: true, header: () => <Header title="Meus Documentos" /> }} />
-              </Stack>
-            </ThemeProvider>
-          </AuthProvider>
+                </Stack>
+              </ThemeProvider>
+            </AuthProvider>
+          </FontSizeProvider>
         </ToastProviderWithViewport>
       </QueryClientProvider>
     </GestureHandlerRootView>

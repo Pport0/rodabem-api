@@ -1,3 +1,4 @@
+import ScaledText from '@/components/scaledText';
 import colors from "@/constants/colors";
 import { User } from "@/@types/user";
 import { Caminhao } from "@/@types/caminhao";
@@ -5,6 +6,8 @@ import { useAuth } from "@/contexts/authContext";
 import { useUser } from "@/hooks/useUser";
 import { getMeuCaminhao } from "@/services/caminhaoService";
 import { getMeuPerfil, deleteUser } from "@/services/userService";
+import { updateDiasAlertaVencimento } from "@/services/userService";
+import { getNotificationPermission, getNotificationPreference, requestNotificationPermission, setNotificationPreference, syncExpiryNotifications } from "@/services/vencimentoNotifications";
 import { getInitials } from "@/shared/ui/base/avatar/initials";
 import { Toast } from "@/shared/ui/molecules/Toast";
 import { queryClient } from "@/utils/queryClient";
@@ -14,13 +17,16 @@ import { router } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
+import { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { InfoRow } from "@/components/infoRow";
 import { PlacaBadge } from "@/components/placaBadge";
@@ -44,6 +50,18 @@ export default function Perfil() {
 
   const { user } = useUser();
   const { logout } = useAuth();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([getNotificationPreference(), getNotificationPermission()]).then(([enabled, permission]) => {
+      if (!active || !permission) return;
+      setNotificationsEnabled(enabled && permission.granted);
+      setPermissionDenied(!permission.granted && permission.status !== "undetermined");
+    });
+    return () => { active = false; };
+  }, []);
 
   const perfilQuery = useQuery<User | null>({
     queryKey: ["perfil"],
@@ -56,6 +74,43 @@ export default function Perfil() {
   });
   const perfil = perfilQuery.data;
   const caminhao = caminhaoQuery.data;
+
+  const daysMutation = useMutation({
+    mutationFn: (days: 7 | 15 | 30 | 60) => {
+      if (!(perfil?.id ?? user?.id)) throw new Error("ID do usuário não encontrado.");
+      return updateDiasAlertaVencimento(days);
+    },
+    onSuccess: async (updatedUser) => {
+      queryClient.setQueryData(["perfil"], updatedUser);
+      await queryClient.invalidateQueries({ queryKey: ["documentos"] });
+      await queryClient.invalidateQueries({ queryKey: ["documentos", "alertas"] });
+      await syncExpiryNotifications();
+      Toast.show("Antecedência dos alertas atualizada.", { type: "success", backgroundColor: "#10B981" });
+    },
+    onError: (error) => Toast.show(getErrorMessage(error), { type: "error", backgroundColor: "#E53E3E" }),
+  });
+
+  const toggleNotifications = async (enabled: boolean) => {
+    try {
+      if (!enabled) {
+        await setNotificationPreference(false);
+        setNotificationsEnabled(false);
+        return;
+      }
+      const granted = await requestNotificationPermission();
+      setPermissionDenied(!granted);
+      if (!granted) {
+        setNotificationsEnabled(false);
+        Toast.show("Permita notificações nas configurações do aparelho para ativar os avisos.", { type: "warning", backgroundColor: "#D97706" });
+        return;
+      }
+      await setNotificationPreference(true);
+      setNotificationsEnabled(true);
+      await syncExpiryNotifications();
+    } catch {
+      Toast.show("Não foi possível atualizar as notificações.", { type: "error", backgroundColor: "#E53E3E" });
+    }
+  };
 
   // ── Mutation: excluir conta ──────────────────────────
   const deleteUserMutation = useMutation({
@@ -107,7 +162,7 @@ export default function Perfil() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>PERFIL</Text>
+          <ScaledText style={styles.headerTitle}>PERFIL</ScaledText>
           <View style={{ width: 30 }} />
         </View>
       </SafeAreaView>
@@ -120,17 +175,17 @@ export default function Perfil() {
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={[styles.avatarCircle, { backgroundColor: primaryColor }]}>
-            <Text style={styles.avatarInitials}>{initials}</Text>
+            <ScaledText style={styles.avatarInitials}>{initials}</ScaledText>
           </View>
-          <Text style={styles.userName}>{perfilExibido?.nome ?? "Usuário"}</Text>
-          <Text style={[styles.userRole, { color: primaryColor }]}>
+          <ScaledText style={styles.userName}>{perfilExibido?.nome ?? "Usuário"}</ScaledText>
+          <ScaledText style={[styles.userRole, { color: primaryColor }]}>
             MOTORISTA
-          </Text>
+          </ScaledText>
         </View>
 
         {/* Dados pessoais */}
         <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>MEUS DADOS</Text>
+          <ScaledText style={styles.cardSectionTitle}>MEUS DADOS</ScaledText>
           {perfilQuery.isError && (
             <QueryErrorState
               compact
@@ -152,15 +207,49 @@ export default function Perfil() {
             activeOpacity={0.7}
           >
             <Ionicons name="create-outline" size={16} color={primaryColor} />
-            <Text style={[styles.editTruckLinkText, { color: primaryColor }]}>
+            <ScaledText style={[styles.editTruckLinkText, { color: primaryColor }]}>
               Editar dados
-            </Text>
+            </ScaledText>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.card}>
+          <ScaledText style={styles.cardSectionTitle}>ALERTAS DE VENCIMENTO</ScaledText>
+          <ScaledText style={styles.preferenceLabel}>Avisar sobre vencimentos com</ScaledText>
+          <View style={styles.daysOptions}>
+            {([7, 15, 30, 60] as const).map((days) => {
+              const selected = (perfil?.diasAlertaVencimento ?? 30) === days;
+              return (
+                <TouchableOpacity
+                  key={days}
+                  disabled={daysMutation.isPending}
+                  onPress={() => { if (!selected) daysMutation.mutate(days); }}
+                  style={[styles.dayOption, selected && { backgroundColor: primaryColor, borderColor: primaryColor }]}
+                >
+                  <ScaledText style={[styles.dayOptionText, selected && styles.dayOptionTextSelected]}>{days} dias</ScaledText>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {daysMutation.isPending && <ActivityIndicator color={primaryColor} style={{ marginTop: 10 }} />}
+          <View style={styles.separator} />
+          <View style={styles.notificationRow}>
+            <View style={styles.notificationCopy}>
+              <ScaledText style={styles.preferenceLabel}>Notificações no aparelho</ScaledText>
+              <ScaledText style={styles.notificationHint}>Receba avisos mesmo com o aplicativo fechado.</ScaledText>
+            </View>
+            <Switch value={notificationsEnabled} onValueChange={toggleNotifications} trackColor={{ true: primaryColor }} />
+          </View>
+          {permissionDenied && (
+            <TouchableOpacity onPress={() => Linking.openSettings()} style={styles.settingsLink}>
+              <ScaledText style={[styles.editTruckLinkText, { color: primaryColor }]}>Como ativar: abrir configurações do aparelho</ScaledText>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Caminhão */}
         <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>MEU CAMINHÃO</Text>
+          <ScaledText style={styles.cardSectionTitle}>MEU CAMINHÃO</ScaledText>
           {caminhaoQuery.isLoading ? (
             <ActivityIndicator
               color={primaryColor}
@@ -175,7 +264,7 @@ export default function Perfil() {
           ) : caminhao ? (
             <>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Placa</Text>
+                <ScaledText style={styles.infoLabel}>Placa</ScaledText>
                 <PlacaBadge placa={caminhao.placa} />
               </View>
               <View style={styles.separator} />
@@ -205,23 +294,23 @@ export default function Perfil() {
                 activeOpacity={0.7}
               >
                 <Ionicons name="create-outline" size={16} color={primaryColor} />
-                <Text style={[styles.editTruckLinkText, { color: primaryColor }]}>
+                <ScaledText style={[styles.editTruckLinkText, { color: primaryColor }]}>
                   Editar caminhão
-                </Text>
+                </ScaledText>
               </TouchableOpacity>
             </>
           ) : (
             <View style={styles.emptyTruck}>
               <Ionicons name="bus-outline" size={40} color="#e0e0e0" />
-              <Text style={styles.emptyTruckText}>
+              <ScaledText style={styles.emptyTruckText}>
                 Nenhum caminhão cadastrado
-              </Text>
+              </ScaledText>
               <TouchableOpacity
                 style={[styles.addTruckBtn, { backgroundColor: primaryColor }]}
                 onPress={() => router.push("/caminhoes/novo" as any)}
                 activeOpacity={0.85}
               >
-                <Text style={styles.addTruckBtnText}>Cadastrar Caminhão</Text>
+                <ScaledText style={styles.addTruckBtnText}>Cadastrar Caminhão</ScaledText>
               </TouchableOpacity>
             </View>
           )}
@@ -233,9 +322,9 @@ export default function Perfil() {
           onPress={() => router.push("/alterarSenha" as any)}
           activeOpacity={0.85}
         >
-          <Text style={[styles.outlineButtonText, { color: primaryColor }]}>
+          <ScaledText style={[styles.outlineButtonText, { color: primaryColor }]}>
             ALTERAR SENHA
-          </Text>
+          </ScaledText>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -243,14 +332,14 @@ export default function Perfil() {
           onPress={() => router.push("/termos")}
           activeOpacity={0.85}
         >
-          <Text style={[styles.outlineButtonText, { color: primaryColor }]}>TERMOS DE USO</Text>
+          <ScaledText style={[styles.outlineButtonText, { color: primaryColor }]}>TERMOS DE USO</ScaledText>
         </TouchableOpacity>
 
         {/* ── Zona de perigo ── */}
         <View style={styles.dangerSection}>
           <View style={styles.dangerHeader}>
             <Ionicons name="warning-outline" size={15} color="#E53E3E" />
-            <Text style={styles.dangerSectionLabel}>ZONA DE PERIGO</Text>
+            <ScaledText style={styles.dangerSectionLabel}>ZONA DE PERIGO</ScaledText>
           </View>
           <TouchableOpacity
             style={[
@@ -264,13 +353,13 @@ export default function Perfil() {
             {deleteUserMutation.isPending ? (
               <ActivityIndicator color="#E53E3E" />
             ) : (
-              <Text style={styles.dangerButtonText}>EXCLUIR MINHA CONTA</Text>
+              <ScaledText style={styles.dangerButtonText}>EXCLUIR MINHA CONTA</ScaledText>
             )}
           </TouchableOpacity>
-          <Text style={styles.dangerHint}>
+          <ScaledText style={styles.dangerHint}>
             A conta só pode ser excluída se não houver caminhão, documentos,
             abastecimentos ou simulações de frete cadastrados.
-          </Text>
+          </ScaledText>
         </View>
       </ScrollView>
     </View>
@@ -354,6 +443,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: 14,
   },
+  preferenceLabel: { fontSize: 14, color: "#333", fontWeight: "600" },
+  daysOptions: { flexDirection: "row", gap: 8, marginTop: 12, marginBottom: 16 },
+  dayOption: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: "#ddd", paddingVertical: 10, alignItems: "center" },
+  dayOptionText: { fontSize: 12, fontWeight: "600", color: "#555" },
+  dayOptionTextSelected: { color: "#fff" },
+  notificationRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14 },
+  notificationCopy: { flex: 1, paddingRight: 12 },
+  notificationHint: { fontSize: 12, lineHeight: 17, color: "#888", marginTop: 4 },
+  settingsLink: { alignSelf: "flex-start", marginTop: 12 },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
